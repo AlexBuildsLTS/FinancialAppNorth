@@ -321,7 +321,8 @@ The project has successfully moved from initial setup to a stable, well-structur
 3. **Screen Development:** Begin building out the other primary screens (Transactions, Analytics, etc.).
 
 ## License
+
 NorthStar
 ---
 
-*FinanceFlow - Empowering financial literacy through intelligent technology*
+## FinanceFlow - Empowering financial literacy through intelligent technology
