@@ -5,334 +5,411 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
+  TextInput,
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
-  TrendingUp,
-  TrendingDown,
+  Search,
   Plus,
-  Eye,
-  EyeOff,
+  User,
+  Building,
+  Phone,
+  Mail,
+  Calendar,
+  DollarSign,
+  FileText,
 } from 'lucide-react-native';
-import { VictoryLine, VictoryChart } from 'victory-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useTheme } from '@/context/ThemeProvider';
 
-interface Investment {
+interface Client {
   id: string;
-  symbol: string;
   name: string;
-  shares: number;
-  currentPrice: number;
-  totalValue: number;
-  dayChange: number;
-  dayChangePercent: number;
-  chartData: { x: number; y: number }[];
+  company: string;
+  email: string;
+  phone: string;
+  totalRevenue: number;
+  lastActivity: string;
+  status: 'active' | 'inactive' | 'pending';
+  avatar: string;
 }
 
-export default function InvestmentsScreen() {
-  const { colors, isDark } = useTheme();
-  const [balanceVisible, setBalanceVisible] = useState(true);
+export default function ClientsScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const styles = createStyles(colors, isDark);
+  const styles = createStyles(isDark);
 
-  const portfolioValue = 45750.25;
-  const portfolioChange = 1250.75;
-  const portfolioChangePercent = 2.81;
-
-  const investments: Investment[] = [
+  const clients: Client[] = [
     {
       id: '1',
-      symbol: 'AAPL',
-      name: 'Apple Inc.',
-      shares: 25,
-      currentPrice: 185.5,
-      totalValue: 4637.5,
-      dayChange: 125.25,
-      dayChangePercent: 2.77,
-      chartData: [
-        { x: 1, y: 180 },
-        { x: 2, y: 182 },
-        { x: 3, y: 179 },
-        { x: 4, y: 185 },
-        { x: 5, y: 188 },
-        { x: 6, y: 185.5 },
-      ],
+      name: 'Sarah Johnson',
+      company: 'Tech Innovations LLC',
+      email: 'sarah@techinnovations.com',
+      phone: '+1 (555) 123-4567',
+      totalRevenue: 15750.0,
+      lastActivity: '2 hours ago',
+      status: 'active',
+      avatar: 'SJ',
     },
     {
       id: '2',
-      symbol: 'MSFT',
-      name: 'Microsoft Corp.',
-      shares: 15,
-      currentPrice: 420.75,
-      totalValue: 6311.25,
-      dayChange: -45.5,
-      dayChangePercent: -0.72,
-      chartData: [
-        { x: 1, y: 425 },
-        { x: 2, y: 428 },
-        { x: 3, y: 422 },
-        { x: 4, y: 418 },
-        { x: 5, y: 421 },
-        { x: 6, y: 420.75 },
-      ],
+      name: 'Michael Chen',
+      company: 'Chen Consulting',
+      email: 'michael@chenconsulting.com',
+      phone: '+1 (555) 987-6543',
+      totalRevenue: 22400.0,
+      lastActivity: '1 day ago',
+      status: 'active',
+      avatar: 'MC',
     },
     {
       id: '3',
-      symbol: 'GOOGL',
-      name: 'Alphabet Inc.',
-      shares: 10,
-      currentPrice: 142.8,
-      totalValue: 1428.0,
-      dayChange: 8.2,
-      dayChangePercent: 0.58,
-      chartData: [
-        { x: 1, y: 140 },
-        { x: 2, y: 141 },
-        { x: 3, y: 139 },
-        { x: 4, y: 143 },
-        { x: 5, y: 144 },
-        { x: 6, y: 142.8 },
-      ],
+      name: 'Emily Rodriguez',
+      company: 'Rodriguez & Associates',
+      email: 'emily@rodriguezlaw.com',
+      phone: '+1 (555) 456-7890',
+      totalRevenue: 8900.0,
+      lastActivity: '3 days ago',
+      status: 'pending',
+      avatar: 'ER',
     },
     {
       id: '4',
-      symbol: 'TSLA',
-      name: 'Tesla Inc.',
-      shares: 8,
-      currentPrice: 245.3,
-      totalValue: 1962.4,
-      dayChange: -12.8,
-      dayChangePercent: -0.52,
-      chartData: [
-        { x: 1, y: 250 },
-        { x: 2, y: 248 },
-        { x: 3, y: 252 },
-        { x: 4, y: 247 },
-        { x: 5, y: 246 },
-        { x: 6, y: 245.3 },
-      ],
+      name: 'David Thompson',
+      company: 'Thompson Enterprises',
+      email: 'david@thompsonent.com',
+      phone: '+1 (555) 321-0987',
+      totalRevenue: 31200.0,
+      lastActivity: '1 week ago',
+      status: 'active',
+      avatar: 'DT',
     },
   ];
 
-  const renderInvestment = (investment: Investment, index: number) => {
-    const isPositive = investment.dayChange >= 0;
-    const changeColor = isPositive ? colors.success : colors.error;
+  const filteredClients = clients.filter(
+    (client) =>
+      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.company.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    return (
-      <Animated.View
-        key={investment.id}
-        entering={FadeInUp.delay(400 + index * 50).springify()}
-      >
-        <TouchableOpacity style={styles.investmentItem}>
-          <View style={styles.investmentLeft}>
-            <View style={styles.symbolContainer}>
-              <Text style={styles.symbolText}>{investment.symbol}</Text>
-            </View>
-            <View style={styles.investmentInfo}>
-              <Text style={styles.investmentName}>{investment.name}</Text>
-              <Text style={styles.investmentShares}>
-                {investment.shares} shares • ${investment.currentPrice}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.investmentChart}>
-            <VictoryChart padding={0} width={60} height={30}>
-              <VictoryLine
-                data={investment.chartData}
-                style={{ data: { stroke: changeColor, strokeWidth: 2 } }}
-                interpolation="natural"
-              />
-            </VictoryChart>
-          </View>
-
-          <View style={styles.investmentRight}>
-            <Text style={styles.investmentValue}>
-              ${investment.totalValue.toLocaleString()}
-            </Text>
-            <View style={styles.changeContainer}>
-              {isPositive ? (
-                <TrendingUp size={12} color={changeColor} />
-              ) : (
-                <TrendingDown size={12} color={changeColor} />
-              )}
-              <Text style={[styles.changeText, { color: changeColor }]}>
-                {isPositive ? '+' : ''}$
-                {Math.abs(investment.dayChange).toFixed(2)} (
-                {investment.dayChangePercent.toFixed(2)}%)
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    );
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return isDark ? '#64ffda' : '#10b981';
+      case 'pending':
+        return isDark ? '#fbbf24' : '#f59e0b';
+      case 'inactive':
+        return isDark ? '#94a3b8' : '#6b7280';
+      default:
+        return isDark ? '#94a3b8' : '#6b7280';
+    }
   };
+
+  const renderClient = (client: Client, index: number) => (
+    <Animated.View
+      key={client.id}
+      entering={FadeInUp.delay(300 + index * 50).springify()}
+    >
+      <TouchableOpacity style={styles.clientCard}>
+        <View style={styles.clientHeader}>
+          <View style={styles.avatarContainer}>
+            <Text style={styles.avatarText}>{client.avatar}</Text>
+          </View>
+          <View style={styles.clientInfo}>
+            <Text style={styles.clientName}>{client.name}</Text>
+            <Text style={styles.clientCompany}>{client.company}</Text>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(client.status) + '20' },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                { color: getStatusColor(client.status) },
+              ]}
+            >
+              {client.status}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.clientDetails}>
+          <View style={styles.detailRow}>
+            <Mail size={16} color={isDark ? '#64748b' : '#9ca3af'} />
+            <Text style={styles.detailText}>{client.email}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Phone size={16} color={isDark ? '#64748b' : '#9ca3af'} />
+            <Text style={styles.detailText}>{client.phone}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <DollarSign size={16} color={isDark ? '#64748b' : '#9ca3af'} />
+            <Text style={styles.detailText}>
+              Total Revenue: ${client.totalRevenue.toLocaleString()}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Calendar size={16} color={isDark ? '#64748b' : '#9ca3af'} />
+            <Text style={styles.detailText}>
+              Last activity: {client.lastActivity}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.clientActions}>
+          <TouchableOpacity style={styles.actionButton}>
+            <FileText size={16} color={isDark ? '#64ffda' : '#3b82f6'} />
+            <Text style={styles.actionButtonText}>View Reports</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton}>
+            <Mail size={16} color={isDark ? '#64ffda' : '#3b82f6'} />
+            <Text style={styles.actionButtonText}>Send Message</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Investments</Text>
+        <Text style={styles.headerTitle}>Clients</Text>
         <TouchableOpacity style={styles.addButton}>
-          <Plus size={20} color={isDark ? colors.background : colors.surface} />
+          <Plus size={20} color={isDark ? '#0a192f' : '#ffffff'} />
         </TouchableOpacity>
       </View>
 
+      {/* Search */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchContainer}>
+          <Search size={20} color={isDark ? '#64748b' : '#9ca3af'} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search clients..."
+            placeholderTextColor={isDark ? '#64748b' : '#9ca3af'}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      </View>
+
+      {/* Stats */}
+      <Animated.View
+        entering={FadeInUp.delay(200).springify()}
+        style={styles.statsContainer}
+      >
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{clients.length}</Text>
+          <Text style={styles.statLabel}>Total Clients</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>
+            {clients.filter((c) => c.status === 'active').length}
+          </Text>
+          <Text style={styles.statLabel}>Active</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>
+            $
+            {clients
+              .reduce((sum, c) => sum + c.totalRevenue, 0)
+              .toLocaleString()}
+          </Text>
+          <Text style={styles.statLabel}>Total Revenue</Text>
+        </View>
+      </Animated.View>
+
+      {/* Clients List */}
       <ScrollView
-        style={styles.scrollView}
+        style={styles.clientsList}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <Animated.View
-          entering={FadeInUp.delay(100).springify()}
-          style={styles.portfolioCard}
-        >
-          <View style={styles.portfolioHeader}>
-            <Text style={styles.portfolioTitle}>Portfolio Value</Text>
-            <TouchableOpacity
-              onPress={() => setBalanceVisible(!balanceVisible)}
-            >
-              {balanceVisible ? (
-                <Eye size={20} color={colors.textSecondary} />
-              ) : (
-                <EyeOff size={20} color={colors.textSecondary} />
-              )}
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.portfolioValue}>
-            {balanceVisible ? `$${portfolioValue.toLocaleString()}` : '••••••'}
-          </Text>
-
-          <View style={styles.portfolioChange}>
-            <TrendingUp size={16} color={colors.success} />
-            <Text style={styles.portfolioChangeText}>
-              +${portfolioChange.toFixed(2)} (+{portfolioChangePercent}%) today
-            </Text>
-          </View>
-        </Animated.View>
-
-        <View style={styles.holdingsSection}>
-          <Text style={styles.sectionTitle}>Holdings</Text>
-          <View style={styles.holdingsList}>
-            {investments.map((investment, index) =>
-              renderInvestment(investment, index)
-            )}
-          </View>
-        </View>
+        {filteredClients.map((client, index) => renderClient(client, index))}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const createStyles = (colors: { background: any; surface: any; surfaceVariant: any; text: any; textSecondary: any; border: any; primary: any; success: any; warning?: string; error?: string; tabBarActive?: string; tabBarInactive?: string; }, isDark: boolean) =>
+const createStyles = (isDark: boolean) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
+    container: {
+      flex: 1,
+      backgroundColor: isDark ? '#0a192f' : '#f8fafc',
+    },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 20,
       paddingVertical: 16,
-      backgroundColor: colors.surface,
+      backgroundColor: isDark ? '#0a192f' : '#ffffff',
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: isDark ? '#1e293b' : '#e2e8f0',
     },
-    headerTitle: { fontSize: 24, fontWeight: '700', color: colors.text },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: isDark ? '#ffffff' : '#1f2937',
+    },
     addButton: {
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: colors.primary,
+      backgroundColor: isDark ? '#64ffda' : '#3b82f6',
       justifyContent: 'center',
       alignItems: 'center',
     },
-    scrollView: { flex: 1 },
-    scrollContent: { paddingBottom: 100, paddingTop: 20 },
-    portfolioCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 24,
-      marginHorizontal: 20,
-      borderWidth: 1,
-      borderColor: colors.border,
+    searchSection: {
+      paddingHorizontal: 20,
+      paddingVertical: 16,
     },
-    portfolioHeader: {
+    searchContainer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+      backgroundColor: isDark ? '#1e293b' : '#ffffff',
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: isDark ? '#334155' : '#e2e8f0',
     },
-    portfolioTitle: {
+    searchInput: {
+      flex: 1,
       fontSize: 16,
-      color: colors.textSecondary,
+      color: isDark ? '#ffffff' : '#1f2937',
+    },
+    statsContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      marginBottom: 20,
+      gap: 12,
+    },
+    statItem: {
+      flex: 1,
+      backgroundColor: isDark ? '#1e293b' : '#ffffff',
+      borderRadius: 12,
+      padding: 16,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#334155' : '#e2e8f0',
+    },
+    statValue: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: isDark ? '#ffffff' : '#1f2937',
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: isDark ? '#94a3b8' : '#6b7280',
       fontWeight: '500',
     },
-    portfolioValue: {
-      fontSize: 32,
-      fontWeight: '800',
-      color: colors.text,
-      marginBottom: 8,
+    clientsList: {
+      flex: 1,
+      paddingHorizontal: 20,
     },
-    portfolioChange: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    portfolioChangeText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.success,
+    scrollContent: {
+      paddingBottom: 100,
     },
-    holdingsSection: { paddingHorizontal: 20, paddingTop: 24 },
-    sectionTitle: {
-      fontSize: 22,
-      fontWeight: '700',
-      color: colors.text,
+    clientCard: {
+      backgroundColor: isDark ? '#1e293b' : '#ffffff',
+      borderRadius: 16,
+      padding: 20,
       marginBottom: 16,
+      shadowColor: isDark ? '#000000' : '#000000',
+      shadowOffset: { width: 0, height: 4 }, // Increased height for more pronounced shadow
+      shadowOpacity: isDark ? 0.4 : 0.15, // Adjusted opacity for better visibility in both themes
+      shadowRadius: 10, // Increased radius for a softer, more diffused shadow
+      // Consider using platform-specific shadow properties for better consistency
+      // For iOS: shadowColor, shadowOffset, shadowOpacity, shadowRadius
+      // For Android: elevation (already present)
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: isDark ? '#334155' : '#e2e8f0',
     },
-    holdingsList: { gap: 12 },
-    investmentItem: {
+    clientHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
+      marginBottom: 16,
     },
-    investmentLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    symbolContainer: {
+    avatarContainer: {
       width: 48,
       height: 48,
       borderRadius: 24,
-      backgroundColor: colors.surfaceVariant,
+      backgroundColor: isDark ? '#64ffda' : '#3b82f6',
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
     },
-    symbolText: { fontSize: 14, fontWeight: '700', color: colors.primary },
-    investmentInfo: { flex: 1 },
-    investmentName: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 2,
-    },
-    investmentShares: { fontSize: 12, color: colors.textSecondary },
-    investmentChart: { width: 60, height: 30, marginHorizontal: 12 },
-    investmentRight: { alignItems: 'flex-end', flexBasis: 110 },
-    investmentValue: {
+    avatarText: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.text,
+      color: isDark ? '#0a192f' : '#ffffff',
+    },
+    clientInfo: {
+      flex: 1,
+    },
+    clientName: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: isDark ? '#ffffff' : '#1f2937',
       marginBottom: 2,
     },
-    changeContainer: {
+    clientCompany: {
+      fontSize: 14,
+      color: isDark ? '#94a3b8' : '#6b7280',
+    },
+    statusBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    statusText: {
+      fontSize: 12,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+    },
+    clientDetails: {
+      gap: 8,
+      marginBottom: 16,
+    },
+    detailRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      flexWrap: 'nowrap',
+      gap: 8,
     },
-    changeText: { fontSize: 12, fontWeight: '600' },
+    detailText: {
+      fontSize: 14,
+      color: isDark ? '#94a3b8' : '#6b7280',
+    },
+    clientActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    actionButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? '#334155' : '#f1f5f9',
+      borderRadius: 12,
+      paddingVertical: 12,
+      gap: 8,
+    },
+    actionButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: isDark ? '#64ffda' : '#3b82f6',
+    },
   });
