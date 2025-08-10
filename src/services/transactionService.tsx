@@ -1,4 +1,3 @@
-import React from 'react';
 import { Briefcase, Car, Home, Coffee, ShoppingBag } from 'lucide-react-native';
 import { palette, ThemeColors } from '@/theme/colors';
 
