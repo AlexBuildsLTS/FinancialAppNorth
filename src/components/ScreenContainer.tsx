@@ -1,34 +1,33 @@
 import React from 'react';
-import { ScrollView, StyleSheet, ViewStyle } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeProvider';
 
 interface ScreenContainerProps {
   children: React.ReactNode;
-  style?: ViewStyle;
 }
 
-export default function ScreenContainer({ children, style }: ScreenContainerProps) {
+/**
+ * A responsive container for screens that respects safe areas and applies
+ * the current theme's background color. It ensures content is displayed
+ * correctly across different devices.
+ */
+const ScreenContainer: React.FC<ScreenContainerProps> = ({ children }) => {
   const { colors } = useTheme();
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <ScrollView
-        contentContainerStyle={[styles.scrollContainer, style]}
-        showsVerticalScrollIndicator={false}
-      >
-        {children}
-      </ScrollView>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      {children}
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
   },
-  scrollContainer: {
-    padding: 16,
-    gap: 24,
-  },
 });
+
+export default ScreenContainer;

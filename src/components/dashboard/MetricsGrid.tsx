@@ -1,96 +1,173 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { DollarSign, TrendingUp, TrendingDown, Users } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { DollarSign, TrendingUp, TrendingDown, Target, LucideIcon } from 'lucide-react-native';
+import InvestmentsScreen from '@/app/(tabs)/investments';
+
+interface Metric {
+  id: string;
+  title: string;
+  value: string;
+  change: string;
+  isPositive: boolean;
+  icon: typeof InvestmentsScreen | typeof TrendingUp | typeof TrendingDown | typeof Target;
+}
 
 const { width } = Dimensions.get('window');
-// Calculate width for two columns with a 16px gap, respecting container padding
-const cardWidth = (width - 16 * 3) / 2;
-
-const MetricCard = ({ icon: Icon, title, value, change, isPositive, index }: { icon: any, title: string, value: string, change: string, isPositive: boolean, index: number }) => {
-  const { colors } = useTheme();
-  const styles = createStyles(colors);
-  const changeColor = isPositive ? colors.success : colors.error;
-
-  return (
-    <Animated.View entering={FadeInUp.delay(index * 100).springify()} style={styles.card}>
-      <View style={[styles.iconContainer, { backgroundColor: `${changeColor}20` }]}>
-        <Icon color={changeColor} size={22} />
-      </View>
-      <Text style={styles.title}>{title}</Text>
-      <View style={styles.valueContainer}>
-        <Text style={styles.value}>{value}</Text>
-        <Text style={[styles.change, { color: changeColor }]}>{change}</Text>
-      </View>
-    </Animated.View>
-  );
-};
 
 export default function MetricsGrid() {
-  const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const { colors, isDark } = useTheme();
 
-  const metrics = [
-    { id: '1', icon: DollarSign, title: "Total Balance", value: "$124,592", change: "+12.5%", isPositive: true },
-    { id: '2', icon: TrendingUp, title: "Monthly Income", value: "$8,450", change: "+8.2%", isPositive: true },
-    { id: '3', icon: TrendingDown, title: "Monthly Expenses", value: "$5,230", change: "-3.1%", isPositive: false },
-    { id: '4', icon: Users, title: "Active Clients", value: "47", change: "+2", isPositive: true },
+  const METRICS_DATA: Metric[] = [
+    {
+      id: '1',
+      title: 'Total Balance',
+      value: '$124,592',
+      change: '+12.5%',
+      isPositive: true,
+      icon: DollarSign,
+    },
+    {
+      id: '2',
+      title: 'Monthly Income',
+      value: '$8,450',
+      change: '+8.2%',
+      isPositive: true,
+      icon: TrendingUp,
+    },
+    {
+      id: '3',
+      title: 'Monthly Expenses',
+      value: '$5,230',
+      change: '-3.1%',
+      isPositive: false,
+      icon: TrendingDown,
+    },
+    {
+      id: '4',
+      title: 'Savings Goal',
+      value: '62%',
+      change: '+5%',
+      isPositive: true,
+      icon: Target,
+    },
   ];
+
+  const styles = createStyles(colors, width);
+
+  const renderMetric = (item: Metric, index: number) => {
+    const IconComponent = item.icon;
+    const changeBgColor = item.isPositive
+      ? `${colors.success}20`
+      : `${colors.error}20`;
+    const changeTextColor = item.isPositive ? colors.success : colors.error;
+    const iconColor = colors.primary;
+
+    return (
+      <Animated.View
+        key={item.id}
+        entering={FadeInUp.delay(index * 100)
+          .duration(600)
+          .springify()}
+        style={styles.card}
+      >
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconContainer, { backgroundColor: `${iconColor}20` }]}>
+            <IconComponent size={24} color={iconColor} />
+          </View>
+          <View style={[styles.changeContainer, { backgroundColor: changeBgColor }]}>
+            <Text style={[styles.changeText, { color: changeTextColor }]}>
+              {item.change}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.value}>{item.value}</Text>
+        <Text style={styles.title}>{item.title}</Text>
+      </Animated.View>
+    );
+  };
 
   return (
     <View>
-      <Text style={styles.header}>Financial Overview</Text>
+      <Text style={styles.sectionTitle}>Financial Overview</Text>
       <View style={styles.grid}>
-        {metrics.map((metric, index) => (
-          <MetricCard key={metric.id} {...metric} index={index} />
-        ))}
+        {METRICS_DATA.map((item, index) => renderMetric(item, index))}
       </View>
     </View>
   );
 }
 
-const createStyles = (colors: { background?: string; surface: any; surfaceVariant?: string; text: any; textSecondary: any; border: any; primary?: string; success?: string; warning?: string; error?: string; tabBarActive?: string; tabBarInactive?: string; }) => StyleSheet.create({
-  header: { fontFamily: 'Inter-Bold', fontSize: 22, color: colors.text, marginBottom: 16 },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  card: {
-    width: cardWidth,
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 8,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontFamily: 'Inter-Regular',
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  valueContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  value: {
-    fontFamily: 'Inter-Bold',
-    fontSize: 20,
-    color: colors.text,
-  },
-  change: {
-    fontFamily: 'Inter-Bold',
-    fontSize: 12,
-    marginBottom: 2,
-  },
-});
+const createStyles = (colors: any, screenWidth: number) => {
+  const cardWidth = (screenWidth - 48) / 2; // Account for padding and gap
+  
+  return StyleSheet.create({
+    sectionTitle: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 16,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      gap: 16,
+    },
+    card: {
+      width: cardWidth,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...Platform.select({
+        ios: {
+          boxboxShadowdowColor: '#000',
+          boxboxShadowdowOffset: { width: 0, height: 2 },
+          boxboxShadowdowOpacity: 0.1,
+          boxboxShadowdowRadius: 8,
+        },
+        android: {
+          elevation: 4,
+        },
+        web: {
+          boxboxboxShadowdow: '0 2px 8px rgba(0,0,0,0.1)',
+        },
+      }),
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    iconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    changeContainer: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    changeText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    value: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    title: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+  });
+};

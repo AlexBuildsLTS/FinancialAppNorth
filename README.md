@@ -325,4 +325,4 @@ The project has successfully moved from initial setup to a stable, well-structur
 NorthStar
 ---
 
-## FinanceFlow - Empowering financial literacy through intelligent technology
+*FinanceFlow - Empowering financial literacy through intelligent technology*
