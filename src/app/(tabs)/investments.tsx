@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -228,7 +229,7 @@ export default function InvestmentsScreen() {
   );
 }
 
-const createStyles = (colors: { background: string; surface: string; surfaceVariant: string; text: string; textSecondary: string; border: string; primary: string; success: string; warning?: string; error?: string; tabBarActive?: string; tabBarInactive?: string; }, isDark: boolean) =>
+const createStyles = (colors: any, isDark: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     header: {

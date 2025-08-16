@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
   FileText,
@@ -20,10 +19,15 @@ import {
 } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
+import Button from '@/components/common/Button';
+import { exportToXLSX } from '@/utils/fileUtils';
+import { Transaction } from '@/types';
+import ScreenContainer from '@/components/ScreenContainer';
 
-const { width } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
 
-interface ReportCard {
+// Re-defining interface from your original file
+interface ReportCardData {
   id: string;
   title: string;
   description: string;
@@ -32,13 +36,52 @@ interface ReportCard {
   lastGenerated: string;
 }
 
+// Mock data for export demonstration
+const mockTransactions: Transaction[] = [
+    {
+      id: '1', date: '2025-08-15', description: 'Monthly Salary', amount: 5000, type: 'income', category: 'Salary',
+      accountId: '',
+      title: '',
+      time: '',
+      status: 'completed'
+    },
+    {
+      id: '2', date: '2025-08-15', description: 'Groceries', amount: -75.50, type: 'expense', category: 'Food',
+      accountId: '',
+      title: '',
+      time: '',
+      status: 'completed'
+    },
+    {
+      id: '3', date: '2025-08-16', description: 'Stock Dividend', amount: 120, type: 'income', category: 'Investments',
+      accountId: '',
+      title: '',
+      time: '',
+      status: 'completed'
+    },
+    {
+      id: '4', date: '2025-08-17', description: 'Gasoline', amount: -50.00, type: 'expense', category: 'Transport',
+      accountId: '',
+      title: '',
+      time: '',
+      status: 'completed'
+    },
+    {
+      id: '5', date: '2025-08-18', description: 'Dinner with friends', amount: -120.00, type: 'expense', category: 'Social',
+      accountId: '',
+      title: '',
+      time: '',
+      status: 'completed'
+    },
+];
+
+
 export default function ReportsScreen() {
   const { colors, isDark } = useTheme();
   const [selectedPeriod, setSelectedPeriod] = useState('This Month');
+  const styles = createStyles(colors, screenWidth);
 
-  const styles = createStyles(colors, width);
-
-  const reportCards: ReportCard[] = [
+  const reportCards: ReportCardData[] = [
     {
       id: '1',
       title: 'Profit & Loss',
@@ -53,244 +96,189 @@ export default function ReportsScreen() {
       description: 'Assets, liabilities, and equity',
       icon: BarChart3,
       color: colors.primary,
-      lastGenerated: '1 day ago',
+      lastGenerated: 'Yesterday',
     },
     {
       id: '3',
-      title: 'Cash Flow',
-      description: 'Money in and out analysis',
+      title: 'Cash Flow Statement',
+      description: 'Inflows and outflows of cash',
       icon: DollarSign,
       color: colors.warning,
-      lastGenerated: '3 hours ago',
+      lastGenerated: '3 days ago',
     },
     {
       id: '4',
-      title: 'Expense Analysis',
-      description: 'Category breakdown and trends',
+      title: 'Expense Breakdown',
+      description: 'Spending by category',
       icon: PieChart,
-      color: '#8b5cf6',
-      lastGenerated: '5 hours ago',
+      color: colors.error,
+      lastGenerated: 'This morning',
     },
   ];
 
-  const periods = ['This Week', 'This Month', 'This Quarter', 'This Year'];
+  const timePeriods = ['Today', 'This Week', 'This Month', 'This Year'];
 
-  const renderReportCard = (report: ReportCard, index: number) => {
-    const IconComponent = report.icon;
-
-    return (
-      <Animated.View
-        key={report.id}
-        entering={FadeInUp.delay(200 + index * 100)
-          .duration(600)
-          .springify()}
-        style={styles.reportCard}
-      >
-        <TouchableOpacity
-          style={styles.reportContent}
-          activeOpacity={0.7}
-          onPress={() => console.log(`Generate ${report.title}`)}
-        >
-          <View style={styles.reportHeader}>
-            <View style={[styles.reportIcon, { backgroundColor: `${report.color}20` }]}>
-              <IconComponent size={24} color={report.color} />
-            </View>
-            <TouchableOpacity style={styles.downloadButton} activeOpacity={0.7}>
-              <Download size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.reportTitle}>{report.title}</Text>
-          <Text style={styles.reportDescription}>{report.description}</Text>
-          
-          <View style={styles.reportFooter}>
-            <Text style={styles.lastGenerated}>
-              Last generated: {report.lastGenerated}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    );
+  const handleExport = () => {
+    exportToXLSX(mockTransactions, `Transaction_Report_${selectedPeriod.replace(' ', '_')}`);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenContainer>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Reports</Text>
-        <TouchableOpacity style={styles.calendarButton} activeOpacity={0.7}>
-          <Calendar size={20} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <Animated.View
-          entering={FadeInUp.delay(100).springify()}
-          style={styles.periodSelector}
-        >
-          <Text style={styles.periodLabel}>Period:</Text>
-          <View style={styles.periodButtons}>
-            {periods.map((period) => (
-              <TouchableOpacity
-                key={period}
-                style={[
-                  styles.periodButton,
-                  selectedPeriod === period && styles.activePeriodButton,
-                ]}
-                onPress={() => setSelectedPeriod(period)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.periodButtonText,
-                    selectedPeriod === period && styles.activePeriodButtonText,
-                  ]}
-                >
-                  {period}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Animated.View entering={FadeInUp.duration(500)}>
+          <Text style={styles.headerTitle}>Financial Reports</Text>
+          <Text style={styles.headerSubtitle}>
+            Generate, view, and export your key financial statements.
+          </Text>
         </Animated.View>
 
-        <View style={styles.reportsGrid}>
-          {reportCards.map((report, index) => renderReportCard(report, index))}
+        <View style={styles.timeFilterContainer}>
+          {timePeriods.map((period) => (
+            <TouchableOpacity
+              key={period}
+              style={[
+                styles.timeFilterButton,
+                selectedPeriod === period && styles.timeFilterButtonSelected,
+              ]}
+              onPress={() => setSelectedPeriod(period)}
+            >
+              <Text
+                style={[
+                  styles.timeFilterText,
+                  selectedPeriod === period && styles.timeFilterTextSelected,
+                ]}
+              >
+                {period}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        <Animated.View
-          entering={FadeInUp.delay(600).springify()}
-          style={styles.quickStatsCard}
-        >
-          <Text style={styles.quickStatsTitle}>Quick Stats - {selectedPeriod}</Text>
-          
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>$12,450</Text>
-              <Text style={styles.statLabel}>Total Revenue</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>$8,230</Text>
-              <Text style={styles.statLabel}>Total Expenses</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.success }]}>$4,220</Text>
-              <Text style={styles.statLabel}>Net Profit</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>34%</Text>
-              <Text style={styles.statLabel}>Profit Margin</Text>
-            </View>
-          </View>
+        <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.exportSection}>
+            <Text style={styles.exportTitle}>Export Data</Text>
+            <Text style={styles.exportSubtitle}>
+                Download a spreadsheet of your transactions for the selected period.
+            </Text>
+            <Button
+                title={`Export ${selectedPeriod} Report`}
+                onPress={handleExport}
+                icon="download"
+            />
         </Animated.View>
+
+        <View style={styles.reportList}>
+          {reportCards.map((report, index) => (
+            <Animated.View
+              key={report.id}
+              entering={FadeInUp.duration(500).delay(300 + index * 100)}
+            >
+              <TouchableOpacity style={styles.reportCard}>
+                <View style={styles.reportIconContainer}>
+                  <report.icon color={report.color} size={24} />
+                </View>
+                <View style={styles.reportInfo}>
+                  <Text style={styles.reportTitle}>{report.title}</Text>
+                  <Text style={styles.reportDescription}>{report.description}</Text>
+                  <View style={styles.reportFooter}>
+                     <Text style={styles.lastGenerated}>Last generated: {report.lastGenerated}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
 
-const createStyles = (colors: any, screenWidth: number) => {
-  const cardWidth = (screenWidth - 52) / 2;
-
-  return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    header: {
+const createStyles = (colors: any, screenWidth: number) =>
+  StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      padding: 20,
+      backgroundColor: colors.background,
+    },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginTop: 16,
+    },
+    headerSubtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      marginTop: 8,
+      marginBottom: 24,
+    },
+    timeFilterContainer: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
       backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderRadius: 12,
+      padding: 4,
+      marginBottom: 24,
     },
-    headerTitle: { fontSize: 24, fontWeight: '700', color: colors.text },
-    calendarButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.surfaceVariant,
-      justifyContent: 'center',
+    timeFilterButton: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
       alignItems: 'center',
     },
-    scrollView: { flex: 1 },
-    scrollContent: {
-      paddingBottom: 100,
-      paddingHorizontal: 20,
-      paddingTop: 20,
+    timeFilterButtonSelected: {
+      backgroundColor: colors.primary,
     },
-    periodSelector: { marginBottom: 24 },
-    periodLabel: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 12,
-    },
-    periodButtons: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-    },
-    periodButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceVariant,
-      minWidth: 80,
-      alignItems: 'center',
-    },
-    activePeriodButton: { backgroundColor: colors.primary },
-    periodButtonText: {
+    timeFilterText: {
       fontSize: 14,
       fontWeight: '600',
       color: colors.textSecondary,
     },
-    activePeriodButtonText: { color: colors.surface },
-    reportsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'space-between',
+    timeFilterTextSelected: {
+      color: '#FFFFFF',
+    },
+    exportSection: {
+        backgroundColor: colors.surface,
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    exportTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: colors.text,
+        marginBottom: 4,
+    },
+    exportSubtitle: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        marginBottom: 16,
+    },
+    reportList: {
       gap: 16,
-      marginBottom: 24,
     },
     reportCard: {
-      width: cardWidth,
+      flexDirection: 'row',
       backgroundColor: colors.surface,
       borderRadius: 16,
+      padding: 16,
       borderWidth: 1,
       borderColor: colors.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    reportContent: {
-      padding: 20,
-    },
-    reportHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+      gap: 16,
     },
-    reportIcon: {
+    reportIconContainer: {
       width: 48,
       height: 48,
       borderRadius: 24,
       justifyContent: 'center',
       alignItems: 'center',
+      backgroundColor: colors.background,
     },
-    downloadButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.surfaceVariant,
-      justifyContent: 'center',
-      alignItems: 'center',
+    reportInfo: {
+      flex: 1,
     },
     reportTitle: {
       fontSize: 16,
@@ -301,56 +289,15 @@ const createStyles = (colors: any, screenWidth: number) => {
     reportDescription: {
       fontSize: 14,
       color: colors.textSecondary,
-      marginBottom: 16,
+      marginBottom: 12,
     },
     reportFooter: {
       borderTopWidth: 1,
       borderTopColor: colors.border,
-      paddingTop: 12,
+      paddingTop: 8,
     },
     lastGenerated: {
       fontSize: 12,
       color: colors.textSecondary,
     },
-    quickStatsCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 20,
-      borderWidth: 1,
-      borderColor: colors.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    quickStatsTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: colors.text,
-      marginBottom: 16,
-    },
-    statsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'space-between',
-      gap: 16,
-    },
-    statItem: {
-      width: (screenWidth - 92) / 2,
-      alignItems: 'center',
-      paddingVertical: 12,
-    },
-    statValue: {
-      fontSize: 20,
-      fontWeight: '800',
-      color: colors.text,
-      marginBottom: 4,
-    },
-    statLabel: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-  });
-};
+});

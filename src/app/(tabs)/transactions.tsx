@@ -10,88 +10,106 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Search, Filter, Plus, Download, ShoppingBag, Car, Chrome as Home, Coffee, Briefcase } from 'lucide-react-native';
+import { Search, Filter, Plus, Download, ShoppingBag, Car, Wallet as Home, Coffee, Briefcase } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
+import AddTransactionModal from '@/components/forms/AddTransactionModal';
+import { Transaction } from '@/types';
 
 const { width } = Dimensions.get('window');
-
-interface Transaction {
-  id: string;
-  title: string;
-  category: string;
-  amount: number;
-  date: string;
-  time: string;
-  type: 'income' | 'expense';
-  status: 'completed' | 'pending' | 'failed';
-  icon: React.ReactNode;
-}
 
 export default function TransactionsScreen() {
   const { colors, isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const styles = createStyles(colors, width);
 
-  const transactions: Transaction[] = [
+  const initialTransactions: Transaction[] = [
     {
       id: '1',
+      accountId: '1',
       title: 'Whole Foods Market',
+      description: 'Weekly grocery shopping',
       category: 'Groceries',
       amount: -156.5,
       date: 'Jan 15, 2025',
       time: '2:30 PM',
       type: 'expense',
       status: 'completed',
-      icon: <ShoppingBag size={20} color={colors.primary} />,
     },
     {
       id: '2',
+      accountId: '1',
       title: 'Monthly Salary',
+      description: 'Software Engineer Salary',
       category: 'Salary',
       amount: 5200.0,
       date: 'Jan 15, 2025',
       time: '9:00 AM',
       type: 'income',
       status: 'completed',
-      icon: <Briefcase size={20} color={colors.success} />,
     },
     {
       id: '3',
+      accountId: '1',
       title: 'Shell Gas Station',
+      description: 'Fuel for commute',
       category: 'Transportation',
       amount: -45.2,
       date: 'Jan 14, 2025',
       time: '6:45 PM',
       type: 'expense',
       status: 'completed',
-      icon: <Car size={20} color={colors.warning} />,
     },
     {
       id: '4',
+      accountId: '1',
       title: 'Starbucks Coffee',
+      description: 'Morning coffee',
       category: 'Food & Dining',
       amount: -12.75,
       date: 'Jan 14, 2025',
       time: '8:15 AM',
       type: 'expense',
       status: 'pending',
-      icon: <Coffee size={20} color="#8b5cf6" />,
     },
     {
       id: '5',
+      accountId: '1',
       title: 'Apartment Rent',
+      description: 'Monthly rent payment',
       category: 'Housing',
       amount: -1200.0,
       date: 'Jan 1, 2025',
       time: '12:00 PM',
       type: 'expense',
       status: 'completed',
-      icon: <Home size={20} color={colors.error} />,
     },
   ];
+
+  React.useEffect(() => {
+    setTransactions(initialTransactions);
+  }, []);
+
+  const getTransactionIcon = (category: string) => {
+    switch (category) {
+      case 'Groceries':
+        return <ShoppingBag size={20} color={colors.primary} />;
+      case 'Salary':
+        return <Briefcase size={20} color={colors.success} />;
+      case 'Transportation':
+        return <Car size={20} color={colors.warning} />;
+      case 'Food & Dining':
+        return <Coffee size={20} color="#8b5cf6" />;
+      case 'Housing':
+        return <Home size={20} color={colors.error} />;
+      default:
+        return <ShoppingBag size={20} color={colors.primary} />;
+    }
+  };
 
   const filteredTransactions = transactions.filter((transaction) => {
     const matchesSearch =
@@ -101,6 +119,10 @@ export default function TransactionsScreen() {
       selectedFilter === 'all' || transaction.type === selectedFilter;
     return matchesSearch && matchesFilter;
   });
+
+  const handleTransactionAdded = (newTransaction: Transaction) => {
+    setTransactions(prev => [newTransaction, ...prev]);
+  };
 
   const renderTransaction = (transaction: Transaction, index: number) => {
     const isIncome = transaction.type === 'income';
@@ -121,7 +143,9 @@ export default function TransactionsScreen() {
           .springify()}
       >
         <TouchableOpacity style={styles.transactionItem} activeOpacity={0.7}>
-          <View style={styles.transactionIcon}>{transaction.icon}</View>
+          <View style={styles.transactionIcon}>
+            {getTransactionIcon(transaction.category)}
+          </View>
 
           <View style={styles.transactionContent}>
             <Text style={styles.transactionTitle}>{transaction.title}</Text>
@@ -158,7 +182,11 @@ export default function TransactionsScreen() {
           <TouchableOpacity style={styles.headerButton} activeOpacity={0.7}>
             <Download size={20} color={colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.addButton} activeOpacity={0.7}>
+          <TouchableOpacity 
+            style={styles.addButton} 
+            activeOpacity={0.7}
+            onPress={() => setShowAddModal(true)}
+          >
             <Plus size={20} color={colors.surface} />
           </TouchableOpacity>
         </View>
@@ -213,6 +241,12 @@ export default function TransactionsScreen() {
           renderTransaction(transaction, index)
         )}
       </ScrollView>
+
+      <AddTransactionModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onTransactionAdded={handleTransactionAdded}
+      />
     </SafeAreaView>
   );
 }
@@ -331,10 +365,10 @@ const createStyles = (colors: any, screenWidth: number) =>
       borderRadius: 16,
       padding: 16,
       marginBottom: 12,
-      shadowRadius: 8,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
+      shadowRadius: 8,
       elevation: 4,
       borderWidth: 1,
       borderColor: colors.border,

@@ -4,7 +4,7 @@
     "slug": "north-star-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": " ",
+    "icon": "./src/assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -24,9 +24,11 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./src/assets/images/favicon.png"
+      "favicon": "./src/assets/images/icon.png"
     },
     "plugins": [
+      "expo-router",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
