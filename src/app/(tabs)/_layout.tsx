@@ -2,7 +2,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { useTheme } from '../../context/ThemeProvider';
 import { useAuth } from '../../context/AuthContext';
-import { Platform, Pressable } from 'react-native';
+import { Platform } from 'react-native';
 import {
   LayoutDashboard,
   Briefcase,
@@ -45,9 +45,9 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontFamily: 'Inter-Bold',
           fontSize: 10,
-          display: Platform.OS === 'web' ? 'flex' : 'none',
+          display: 'flex',
         },
-        tabBarShowLabel: false, // Added this line to hide labels
+        tabBarShowLabel: false,
         headerShown: false,
       }}
     >
@@ -63,13 +63,6 @@ export default function TabLayout() {
         options={{
           title: 'Clients',
           tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Briefcase} color={color} size={size} />,
-          tabBarButton: (props) => (
-            <Pressable
-              {...props}
-              disabled={!isProfessional}
-              style={[{ opacity: isProfessional ? 1 : 0.5 }, props.style]}
-            />
-          ),
         }}
       />
       <Tabs.Screen
@@ -77,13 +70,6 @@ export default function TabLayout() {
         options={{
           title: 'Transactions',
           tabBarIcon: ({ color, size }) => <TabBarIcon Icon={ArrowRightLeft} color={color} size={size} />,
-          tabBarButton: (props) => (
-            <Pressable
-              {...props}
-              disabled={!isProfessional}
-              style={[{ opacity: isProfessional ? 1 : 0.5 }, props.style]}
-            />
-          ),
         }}
       />
       <Tabs.Screen
@@ -91,13 +77,6 @@ export default function TabLayout() {
         options={{
           title: 'Reports',
           tabBarIcon: ({ color, size }) => <TabBarIcon Icon={FilePieChart} color={color} size={size} />,
-          tabBarButton: (props) => (
-            <Pressable
-              {...props}
-              disabled={!isProfessional}
-              style={[{ opacity: isProfessional ? 1 : 0.5 }, props.style]}
-            />
-          ),
         }}
       />
       <Tabs.Screen
@@ -105,13 +84,6 @@ export default function TabLayout() {
         options={{
           title: 'Accounts',
           tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Landmark} color={color} size={size} />,
-          tabBarButton: (props) => (
-            <Pressable
-              {...props}
-              disabled={isProfessional}
-              style={[{ opacity: isProfessional ? 0.5 : 1 }, props.style]}
-            />
-          ),
         }}
       />
       <Tabs.Screen
@@ -119,13 +91,6 @@ export default function TabLayout() {
         options={{
           title: 'Analytics',
           tabBarIcon: ({ color, size }) => <TabBarIcon Icon={AreaChart} color={color} size={size} />,
-          tabBarButton: (props) => (
-            <Pressable
-              {...props}
-              disabled={isProfessional}
-              style={[{ opacity: isProfessional ? 0.5 : 1 }, props.style]}
-            />
-          ),
         }}
       />
       <Tabs.Screen
@@ -133,13 +98,6 @@ export default function TabLayout() {
         options={{
           title: 'Investments',
           tabBarIcon: ({ color, size }) => <TabBarIcon Icon={TrendingUp} color={color} size={size} />,
-          tabBarButton: (props) => (
-            <Pressable
-              {...props}
-              disabled={isProfessional}
-              style={[{ opacity: isProfessional ? 0.5 : 1 }, props.style]}
-            />
-          ),
         }}
       />
       <Tabs.Screen
