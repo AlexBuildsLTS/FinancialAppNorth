@@ -1,155 +1,77 @@
 import React from 'react';
-import {
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  ViewStyle,
-  TextStyle,
-  ActivityIndicator,
-} from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
+import { Briefcase, User, LucideIcon } from 'lucide-react-native';
+
+type ButtonVariant = 'solid' | 'outline' | 'ghost';
+type ButtonSize = 'small' | 'medium' | 'large';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  size?: 'small' | 'medium' | 'large';
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  isLoading?: boolean;
   disabled?: boolean;
-  loading?: boolean;
+  icon?: LucideIcon;
   style?: ViewStyle;
-  textStyle?: TextStyle;
-  icon?: React.ReactNode;
 }
+
+const iconSizeMap: Record<ButtonSize, number> = {
+  small: 14,
+  medium: 16,
+  large: 20,
+};
 
 export default function Button({
   title,
   onPress,
-  variant = 'primary',
+  variant = 'solid',
   size = 'medium',
+  isLoading = false,
   disabled = false,
-  loading = false,
+  icon: Icon,
   style,
-  textStyle,
-  icon,
 }: ButtonProps) {
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const isDisabled = isLoading || disabled;
 
-  const buttonStyle = [
-    styles.button,
-    styles[variant],
-    styles[size],
-    disabled && styles.disabled,
-    style,
-  ];
+  const buttonStyles: ViewStyle[] = [ styles.buttonBase, styles[size] ];
+  if (variant === 'solid') buttonStyles.push({ backgroundColor: colors.primary });
+  else if (variant === 'outline') buttonStyles.push({ borderColor: colors.primary, borderWidth: 2 });
+  if (isDisabled) buttonStyles.push(styles.disabled);
+  if (style) buttonStyles.push(style);
 
-  const textStyleCombined = [
-    styles.text,
-    styles[`${variant}Text`],
-    styles[`${size}Text`],
-    disabled && styles.disabledText,
-    textStyle,
-  ];
+  const textStyles: TextStyle[] = [ styles.textBase, styles[`text_${size}`] ];
+  if (variant === 'solid') textStyles.push({ color: colors.primaryContrast });
+  else if (variant === 'ghost') textStyles.push({ color: colors.textSecondary });
+  else textStyles.push({ color: colors.primary });
+
+  const iconColor = textStyles[textStyles.length - 1].color;
 
   return (
-    <TouchableOpacity
-      style={buttonStyle}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.7}
-    >
-      {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === 'primary' ? colors.surface : colors.primary}
-        />
+    <TouchableOpacity onPress={onPress} style={buttonStyles} disabled={isDisabled}>
+      {isLoading ? (
+        <ActivityIndicator color={variant === 'solid' ? colors.primaryContrast : colors.primary} />
       ) : (
         <>
-          {icon}
-          <Text style={textStyleCombined}>{title}</Text>
+          {Icon && <Icon color={iconColor} size={iconSizeMap[size]} style={styles.icon} />}
+          <Text style={textStyles}>{title}</Text>
         </>
       )}
     </TouchableOpacity>
   );
 }
 
-const createStyles = (colors: any) =>
-  StyleSheet.create({
-    button: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 12,
-      gap: 8,
-    },
-    text: {
-      fontWeight: '600',
-      textAlign: 'center',
-    },
-    
-    // Variants
-    primary: {
-      backgroundColor: colors.primary,
-    },
-    secondary: {
-      backgroundColor: colors.surfaceVariant,
-    },
-    outline: {
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    ghost: {
-      backgroundColor: 'transparent',
-    },
-    
-    // Text variants
-    primaryText: {
-      color: colors.surface,
-    },
-    secondaryText: {
-      color: colors.text,
-    },
-    outlineText: {
-      color: colors.primary,
-    },
-    ghostText: {
-      color: colors.primary,
-    },
-    
-    // Sizes
-    small: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      minHeight: 36,
-    },
-    medium: {
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      minHeight: 44,
-    },
-    large: {
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      minHeight: 52,
-    },
-    
-    // Text sizes
-    smallText: {
-      fontSize: 14,
-    },
-    mediumText: {
-      fontSize: 16,
-    },
-    largeText: {
-      fontSize: 18,
-    },
-    
-    // Disabled state
-    disabled: {
-      opacity: 0.5,
-    },
-    disabledText: {
-      opacity: 0.5,
-    },
-  });
+const styles = StyleSheet.create({
+  buttonBase: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', borderRadius: 12, gap: 8 },
+  textBase: { fontFamily: 'Inter-Bold', fontWeight: '600', textAlign: 'center' },
+  disabled: { opacity: 0.6 },
+  icon: {},
+  small: { paddingVertical: 8, paddingHorizontal: 12 },
+  medium: { paddingVertical: 12, paddingHorizontal: 20 },
+  large: { paddingVertical: 16, paddingHorizontal: 24 },
+  text_small: { fontSize: 12 },
+  text_medium: { fontSize: 14 },
+  text_large: { fontSize: 16 },
+});

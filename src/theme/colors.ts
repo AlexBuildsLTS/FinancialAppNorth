@@ -1,43 +1,44 @@
-export type ColorScheme = 'light' | 'dark';
-
-export const palette = {
-  blue: '#3b82f6',
-  green: '#10b981',
-  yellow: '#f59e0b',
-  red: '#ef4444',
-  purple: '#8b5cf6',
-  white: '#ffffff',
+/**
+ * A professional color palette based on user specifications.
+ * Light Theme: Off-White, Light Blue Primary, Orange Highlight, Black Text
+ * Dark Theme: Dark Navy Blue, White Text, Green Accent, Orange Highlight
+ */
+export const lightColors = {
+  background: '#F8F9FA',      // Soft off-white
+  surface: '#FFFFFF',          // Pure white for cards
+  surfaceVariant: '#E9ECEF',   // Light gray for subtle contrast
+  text: '#212529',             // Very dark gray (Black) for primary text
+  textSecondary: '#6C757D',    // Muted gray for secondary text
+  border: '#DEE2E6',           // Light gray for borders
+  
+  primary: '#3498DB',          // Professional light blue
+  primaryContrast: '#FFFFFF',
+  
+  success: '#2ECC71',          // Vibrant green
+  warning: '#F39C12',          // Professional orange
+  error: '#E74C3C',             // Clear red
+  
+  tabBarActive: '#3498DB',
+  tabBarInactive: '#6C757D',
 };
 
-export const colors = {
-  light: {
-    background: '#f9fafb', // Off-white
-    surface: '#ffffff', // Pure white for cards
-    surfaceVariant: '#f1f5f9', // Light variant for secondary surfaces
-    text: '#111827', // Dark gray
-    textSecondary: '#6b7280', // Medium gray
-    border: '#e5e7eb', // Light gray
-    primary: palette.blue,
-    success: palette.green,
-    warning: palette.yellow,
-    error: palette.red,
-    tabBarActive: palette.blue,
-    tabBarInactive: '#9ca3af',
-  },
-  dark: {
-    background: '#111827', // Dark blue-gray
-    surface: '#1f2937', // Slightly lighter card background
-    surfaceVariant: '#374151', // Dark variant for secondary surfaces
-    text: '#f9fafb', // Off-white
-    textSecondary: '#9ca3af', // Medium gray
-    border: '#374151', // Darker border
-    primary: palette.blue,
-    success: palette.green,
-    warning: palette.yellow,
-    error: palette.red,
-    tabBarActive: palette.white,
-    tabBarInactive: '#6b7280',
-  },
+export const darkColors = {
+  background: '#0A192F',      // Dark navy blue
+  surface: '#172A45',          // Slightly lighter navy for cards
+  surfaceVariant: '#223A5E',   // Even lighter navy for contrast
+  text: '#FFFFFF',             // Pure white text
+  textSecondary: '#8892B0',    // Light slate gray for secondary text
+  border: '#223A5E',           // Muted navy border
+  
+  primary: '#1DB954',          // Vibrant green accent
+  primaryContrast: '#FFFFFF',
+
+  success: '#1DB954',
+  warning: '#FF7B00',          // Bright, professional orange
+  error: '#E74C3C',
+
+  tabBarActive: '#1DB954',
+  tabBarInactive: '#8892B0',
 };
 
-export type ThemeColors = typeof colors.light;
+export type ColorScheme = typeof lightColors;
