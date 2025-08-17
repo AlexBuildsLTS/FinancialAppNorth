@@ -20,6 +20,7 @@ export const lightColors = {
   
   tabBarActive: '#3498DB',
   tabBarInactive: '#6C757D',
+  purple: '#8A2BE2',            // Blue Violet for Food & Dining
 };
 
 export const darkColors = {
@@ -36,7 +37,8 @@ export const darkColors = {
   success: '#1DB954',
   warning: '#FF7B00',          // Bright, professional orange
   error: '#E74C3C',
-
+  purple: '#BF40BF',            // A shade of purple for Food & Dining
+  
   tabBarActive: '#1DB954',
   tabBarInactive: '#8892B0',
 };

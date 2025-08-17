@@ -32,11 +32,7 @@ export default function DashboardScreen() {
           <AddTransactionModal
             visible={modalVisible} // Corrected prop name from isVisible
             onClose={() => setModalVisible(false)}
-            onTransactionAdded={(transaction: Omit<Transaction, 'id'>) => {
-              console.log('New Transaction:', transaction);
-              // Here you would typically call a service to add the transaction
-            }}
-          />
+            onSuccess={(transaction: Omit<Transaction, 'id'>) => console.log('New Transaction:', transaction)} clientId={''}          />
         </View>
       </ScrollView>
     </ScreenContainer>

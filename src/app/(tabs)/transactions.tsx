@@ -39,6 +39,7 @@ export default function TransactionsScreen() {
       time: '2:30 PM',
       type: 'expense',
       status: 'completed',
+      clientId: ''
     },
     {
       id: '2',
@@ -51,6 +52,7 @@ export default function TransactionsScreen() {
       time: '9:00 AM',
       type: 'income',
       status: 'completed',
+      clientId: ''
     },
     {
       id: '3',
@@ -63,6 +65,7 @@ export default function TransactionsScreen() {
       time: '6:45 PM',
       type: 'expense',
       status: 'completed',
+      clientId: ''
     },
     {
       id: '4',
@@ -75,6 +78,7 @@ export default function TransactionsScreen() {
       time: '8:15 AM',
       type: 'expense',
       status: 'pending',
+      clientId: ''
     },
     {
       id: '5',
@@ -87,6 +91,7 @@ export default function TransactionsScreen() {
       time: '12:00 PM',
       type: 'expense',
       status: 'completed',
+      clientId: ''
     },
   ];
 
@@ -245,7 +250,8 @@ export default function TransactionsScreen() {
       <AddTransactionModal
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onTransactionAdded={handleTransactionAdded}
+        clientId={''} // Pass null or an appropriate default if clientId is not applicable here
+        onSuccess={handleTransactionAdded}
       />
     </SafeAreaView>
   );

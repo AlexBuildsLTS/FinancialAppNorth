@@ -13,6 +13,7 @@ import {
   AreaChart,
   TrendingUp,
   FilePieChart,
+  BookOpen,
 } from 'lucide-react-native';
 
 interface TabBarIconProps {
@@ -105,7 +106,13 @@ export default function TabLayout() {
         options={{
           title: 'Budgets',
           tabBarIcon: ({ color, size }) => <TabBarIcon Icon={PiggyBank} color={color} size={size} />,
-          // This tab is visible for both professional and individual users, so no conditional tabBarButton is needed.
+        }}
+      />
+      <Tabs.Screen
+        name="journal"
+        options={{
+          title: 'Journal',
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={BookOpen} color={color} size={size} />,
         }}
       />
       <Tabs.Screen

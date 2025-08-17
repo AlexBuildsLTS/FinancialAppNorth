@@ -334,7 +334,5 @@ Tax Preparation: Organizing financial data, tracking deductible expenses, and pr
 
 Budgeting & Forecasting: Analyzing past performance to create future budgets and financial models, helping clients or their own business plan for the future.
 
-Auditing & Compliance: Ensuring all financial records adhere to legal standards and principles like GAAP (Generally Accepted Accounting Principles).
-
-This application must be a professional-grade tool that facilitates these exact tasks with precision and efficiency. My previous work did not reflect this understanding. It will now
+Auditing & Compliance: Ensuring all financial records adhere to legal standards and principles like GAAP (Generally Accepted Accounting Principles)
 ---

@@ -22,7 +22,7 @@ const InitialLayout = () => {
     if (user && !inTabsGroup) {
       router.replace('/(tabs)');
     } else if (!user && inTabsGroup) {
-      router.replace('/login');
+      router.replace('/login'); 
     }
   }, [user, initialized, segments, router]);
 

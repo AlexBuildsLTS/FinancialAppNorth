@@ -21,8 +21,10 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
 import Button from '@/components/common/Button';
 import { exportToXLSX } from '@/utils/fileUtils';
-import { Transaction } from '@/types';
+import { generateFinancialStatement } from '@/services/accountingService';
+import { FinancialStatement } from '@/types/accounting';
 import ScreenContainer from '@/components/ScreenContainer';
+import { Transaction } from '@/types';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -69,6 +71,7 @@ const mockTransactions: Transaction[] = [
 export default function ReportsScreen() {
   const { colors, isDark } = useTheme();
   const [selectedPeriod, setSelectedPeriod] = useState('This Month');
+  const [isGenerating, setIsGenerating] = useState(false);
   const styles = createStyles(colors, screenWidth);
 
   const reportCards: ReportCardData[] = [
@@ -108,8 +111,44 @@ export default function ReportsScreen() {
 
   const timePeriods = ['Today', 'This Week', 'This Month', 'This Year'];
 
-  const handleExport = () => {
-    exportToXLSX(mockTransactions, `Transaction_Report_${selectedPeriod.replace(' ', '_')}`);
+  const handleGenerateReport = async (reportType: 'profit_loss' | 'balance_sheet' | 'cash_flow') => {
+    setIsGenerating(true);
+    try {
+      const periodStart = '2025-01-01';
+      const periodEnd = '2025-12-31';
+      
+      const statement = await generateFinancialStatement(
+        reportType,
+        'cli1', // In real app, get from context
+        periodStart,
+        periodEnd
+      );
+      
+      // Export the generated statement
+      const exportData = formatStatementForExport(statement);
+      exportToXLSX(exportData, `${reportType}_${selectedPeriod.replace(' ', '_')}`);
+    } catch (error) {
+      console.error('Failed to generate report:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const formatStatementForExport = (statement: FinancialStatement) => {
+    if (statement.type === 'profit_loss') {
+      return [
+        { Section: 'REVENUE' },
+        ...statement.data.revenues.map((rev: any) => ({ Account: rev.name, Amount: rev.balance })),
+        { Section: 'Total Revenue', Amount: statement.data.totalRevenue },
+        { Section: '' },
+        { Section: 'EXPENSES' },
+        ...statement.data.expenses.map((exp: any) => ({ Account: exp.name, Amount: exp.balance })),
+        { Section: 'Total Expenses', Amount: statement.data.totalExpenses },
+        { Section: '' },
+        { Section: 'NET INCOME', Amount: statement.data.netIncome },
+      ];
+    }
+    return [];
   };
 
   return (
@@ -148,12 +187,13 @@ export default function ReportsScreen() {
         <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.exportSection}>
             <Text style={styles.exportTitle}>Export Data</Text>
             <Text style={styles.exportSubtitle}>
-                Download a spreadsheet of your transactions for the selected period.
+                Generate and download financial statements for the selected period.
             </Text>
             <Button
-                title={`Export ${selectedPeriod} Report`}
-                onPress={handleExport}
+                title={isGenerating ? 'Generating...' : `Generate P&L Report`}
+                onPress={() => handleGenerateReport('profit_loss')}
                 icon={Download}
+                isLoading={isGenerating}
             />
         </Animated.View>
 
@@ -163,7 +203,14 @@ export default function ReportsScreen() {
               key={report.id}
               entering={FadeInUp.duration(500).delay(300 + index * 100)}
             >
-              <TouchableOpacity style={styles.reportCard}>
+              <TouchableOpacity 
+                style={styles.reportCard}
+                onPress={() => {
+                  if (report.id === '1') handleGenerateReport('profit_loss');
+                  else if (report.id === '2') handleGenerateReport('balance_sheet');
+                  else if (report.id === '3') handleGenerateReport('cash_flow');
+                }}
+              >
                 <View style={styles.reportIconContainer}>
                   <report.icon color={report.color} size={24} />
                 </View>
