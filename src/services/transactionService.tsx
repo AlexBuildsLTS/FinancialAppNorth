@@ -1,6 +1,6 @@
 import React from 'react';
 import { Briefcase, Car, Home, Coffee, ShoppingBag } from 'lucide-react-native';
-import { palette, ThemeColors } from '@/theme/colors';
+import { ColorScheme } from '@/theme/colors';
 
 export interface Transaction {
   id: string;
@@ -22,7 +22,7 @@ const transactionIcons: { [key: string]: React.ElementType } = {
   Housing: Home,
 };
 
-function getTransactionIcon(category: string, colors: ThemeColors): React.ReactNode {
+function getTransactionIcon(category: string, colors: ColorScheme): React.ReactNode {
   const IconComponent = transactionIcons[category] || ShoppingBag;
   let color = colors.primary;
   switch (category) {
@@ -33,7 +33,7 @@ function getTransactionIcon(category: string, colors: ThemeColors): React.ReactN
       color = colors.warning;
       break;
     case 'Food & Dining':
-      color = palette.purple; // Use palette color explicitly
+      color = colors.purple; // Use palette color explicitly
       break;
     case 'Housing':
       color = colors.error;
@@ -42,7 +42,7 @@ function getTransactionIcon(category: string, colors: ThemeColors): React.ReactN
   return <IconComponent size={20} color={color} />;
 }
 
-export async function fetchTransactions(colors: ThemeColors): Promise<Transaction[]> {
+export async function fetchTransactions(colors: ColorScheme): Promise<Transaction[]> {
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve([
