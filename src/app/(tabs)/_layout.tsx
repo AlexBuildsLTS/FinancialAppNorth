@@ -1,93 +1,160 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { useTheme } from '@/context/ThemeProvider';
-import { Chrome as Home, Wallet, List, Target, PieChart, Briefcase, Settings, TrendingUp } from 'lucide-react-native';
+import { useTheme } from '../../context/ThemeProvider';
+import { useAuth } from '../../context/AuthContext';
+import { Platform, Pressable } from 'react-native';
+import {
+  LayoutDashboard,
+  Briefcase,
+  ArrowRightLeft,
+  Settings,
+  Landmark,
+  PiggyBank,
+  AreaChart,
+  TrendingUp,
+  FilePieChart,
+} from 'lucide-react-native';
+
+interface TabBarIconProps {
+  Icon: React.ComponentType<{ color: string; size: number }>;
+  color: string;
+  size: number;
+}
+
+const TabBarIcon: React.FC<TabBarIconProps> = React.memo(({ Icon, color, size }) => (
+  <Icon color={color} size={size} />
+));
 
 export default function TabLayout() {
   const { colors } = useTheme();
+  const { user } = useAuth();
+  const isProfessional = user?.role === 'professional';
 
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
         tabBarActiveTintColor: colors.tabBarActive,
         tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 65,
-          paddingBottom: 8,
+          height: 60,
+          paddingBottom: Platform.OS === 'ios' ? 0 : 8,
           paddingTop: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          elevation: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          marginTop: 4,
+          fontFamily: 'Inter-Bold',
+          fontSize: 10,
+          display: Platform.OS === 'web' ? 'flex' : 'none',
         },
-        tabBarIconStyle: {
-          marginTop: 4,
-        },
+        tabBarShowLabel: false, // Added this line to hide labels
+        headerShown: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, size = 24 }) => <Home color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={LayoutDashboard} color={color} size={size} />,
         }}
       />
       <Tabs.Screen
-        name="accounts"
+        name="clients"
         options={{
-          title: 'Accounts',
-          tabBarIcon: ({ color, size = 24 }) => <Wallet color={color} size={size} />,
+          title: 'Clients',
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Briefcase} color={color} size={size} />,
+          tabBarButton: (props) => (
+            <Pressable
+              {...props}
+              disabled={!isProfessional}
+              style={[{ opacity: isProfessional ? 1 : 0.5 }, props.style]}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="transactions"
         options={{
           title: 'Transactions',
-          tabBarIcon: ({ color, size = 24 }) => <List color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="budgets"
-        options={{
-          title: 'Budgets',
-          tabBarIcon: ({ color, size = 24 }) => <Target color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="analytics"
-        options={{
-          title: 'Analytics',
-          tabBarIcon: ({ color, size = 24 }) => <PieChart color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="investments"
-        options={{
-          title: 'Investments',
-          tabBarIcon: ({ color, size = 24 }) => <TrendingUp color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={ArrowRightLeft} color={color} size={size} />,
+          tabBarButton: (props) => (
+            <Pressable
+              {...props}
+              disabled={!isProfessional}
+              style={[{ opacity: isProfessional ? 1 : 0.5 }, props.style]}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="reports"
         options={{
           title: 'Reports',
-          tabBarIcon: ({ color, size = 24 }) => <Briefcase color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={FilePieChart} color={color} size={size} />,
+          tabBarButton: (props) => (
+            <Pressable
+              {...props}
+              disabled={!isProfessional}
+              style={[{ opacity: isProfessional ? 1 : 0.5 }, props.style]}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="accounts"
+        options={{
+          title: 'Accounts',
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Landmark} color={color} size={size} />,
+          tabBarButton: (props) => (
+            <Pressable
+              {...props}
+              disabled={isProfessional}
+              style={[{ opacity: isProfessional ? 0.5 : 1 }, props.style]}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          title: 'Analytics',
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={AreaChart} color={color} size={size} />,
+          tabBarButton: (props) => (
+            <Pressable
+              {...props}
+              disabled={isProfessional}
+              style={[{ opacity: isProfessional ? 0.5 : 1 }, props.style]}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="investments"
+        options={{
+          title: 'Investments',
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={TrendingUp} color={color} size={size} />,
+          tabBarButton: (props) => (
+            <Pressable
+              {...props}
+              disabled={isProfessional}
+              style={[{ opacity: isProfessional ? 0.5 : 1 }, props.style]}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="budgets"
+        options={{
+          title: 'Budgets',
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={PiggyBank} color={color} size={size} />,
+          // This tab is visible for both professional and individual users, so no conditional tabBarButton is needed.
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, size = 24 }) => <Settings color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Settings} color={color} size={size} />,
         }}
       />
     </Tabs>

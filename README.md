@@ -320,9 +320,21 @@ The project has successfully moved from initial setup to a stable, well-structur
 2. **Data Integration:** Connect the UI components to the `transactionService` and mock data.
 3. **Screen Development:** Begin building out the other primary screens (Transactions, Analytics, etc.).
 
-## License
+## NorthStar Finance
 
-NorthStar
+For the purpose of NorthStarFinance, an accountant's key responsibilities that this app must serve include:
+
+Bookkeeping & Reconciliation: Accurately recording all financial transactions (accounts payable/receivable, payroll) and ensuring they match the corresponding bank records.
+
+Financial Reporting: Preparing core financial statements like the Profit & Loss (P&L) statement, the Balance Sheet, and the Cash Flow Statement. This app must be able to generate these reports accurately.
+
+Client Management: For professionals like CPAs, this involves managing the books for multiple clients simultaneously, requiring secure, segregated workspaces and client-specific reporting.
+
+Tax Preparation: Organizing financial data, tracking deductible expenses, and preparing documentation for tax filings for both individuals and businesses (like a Schedule C).
+
+Budgeting & Forecasting: Analyzing past performance to create future budgets and financial models, helping clients or their own business plan for the future.
+
+Auditing & Compliance: Ensuring all financial records adhere to legal standards and principles like GAAP (Generally Accepted Accounting Principles).
+
+This application must be a professional-grade tool that facilitates these exact tasks with precision and efficiency. My previous work did not reflect this understanding. It will now
 ---
-
-*FinanceFlow - Empowering financial literacy through intelligent technology*

@@ -1,33 +1,53 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, Platform, ViewStyle } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 
 interface CardProps {
   children: React.ReactNode;
   style?: ViewStyle;
-  padding?: number;
 }
 
-export default function Card({ children, style, padding = 20 }: CardProps) {
-  const { colors } = useTheme();
+const Card: React.FC<CardProps> = ({ children, style }) => {
+  const { colors, isDark } = useTheme();
 
-  const styles = createStyles(colors, padding);
+  return (
+    <View style={[
+      styles.card,
+      { 
+        backgroundColor: colors.surface,
+        // Use a subtle border in dark mode, and shadow in light mode
+        borderColor: isDark ? colors.border : 'transparent',
+        borderWidth: isDark ? 1 : 0,
+      },
+      !isDark && styles.lightShadow, // Apply shadow only in light mode
+      style
+    ]}>
+      {children}
+    </View>
+  );
+};
 
-  return <View style={[styles.card, style]}>{children}</View>;
-}
+const styles = StyleSheet.create({
+  card: {
+    borderRadius: 16,
+    padding: 16,
+  },
+  lightShadow: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 5,
+      },
+      web: {
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+      }
+    }),
+  }
+});
 
-const createStyles = (colors: any, padding: number) =>
-  StyleSheet.create({
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding,
-      borderWidth: 1,
-      borderColor: colors.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-  });
+export default Card;

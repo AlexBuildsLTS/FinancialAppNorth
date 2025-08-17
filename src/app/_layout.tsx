@@ -1,23 +1,57 @@
 import React, { useEffect } from 'react';
-import { Slot, SplashScreen } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeProvider';
-import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 
-// NOTE: The custom font loader has been temporarily disabled to get the app running.
-// You can add the fonts later by following the "Permanent Fix" instructions.
-
+// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+const InitialLayout = () => {
+  const { user, initialized } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
   useEffect(() => {
-    // Since we are not loading fonts, we can hide the splash screen immediately.
-    SplashScreen.hideAsync();
-  }, []);
+    if (!initialized) return;
+
+    const inTabsGroup = segments[0] === '(tabs)';
+
+    if (user && !inTabsGroup) {
+      router.replace('/(tabs)');
+    } else if (!user && inTabsGroup) {
+      router.replace('/login');
+    }
+  }, [user, initialized, segments, router]);
+
+  return <Slot />;
+};
+
+export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    'Inter-Regular': require('../assets/Inter/Inter-VariableFont_opsz,wght.ttf'),
+    'Inter-Bold': require('../assets/Inter/static/Inter_18pt-Bold.ttf'),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
-    <ThemeProvider>
-      <StatusBar style="light" />
-      <Slot />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <AuthProvider>
+          <InitialLayout />
+        </AuthProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -1,10 +1,12 @@
-export interface User {
+export interface Client {
   id: string;
-  email: string;
   name: string;
-  avatar?: string;
-  plan: 'free' | 'premium' | 'professional';
-  createdAt: string;
+  companyName: string;
+  email: string;
+  avatarUrl: string;
+  status: 'active' | 'pending' | 'inactive';
+  netWorth: number;
+  uncategorized: number;
 }
 
 export interface Account {
@@ -12,24 +14,24 @@ export interface Account {
   name: string;
   type: 'checking' | 'savings' | 'credit' | 'investment';
   balance: number;
-  currency: string;
+  currency: 'USD' | 'EUR' | 'GBP';
   lastUpdated: string;
 }
 
 export interface Transaction {
   id: string;
-  accountId: string;
+  clientId: string;
+  accountId?: string;
   title: string;
   description?: string;
   category: string;
   amount: number;
   date: string;
-  time: string;
-  type: 'income' | 'expense' | 'transfer';
+  time?: string;
+  type: 'income' | 'expense';
   status: 'completed' | 'pending' | 'failed';
   tags?: string[];
   location?: string;
-  receipt?: string;
 }
 
 export interface Budget {
@@ -50,11 +52,11 @@ export interface Goal {
   currentAmount: number;
   targetDate: string;
   category: string;
-  priority: 'low' | 'medium' | 'high';
+  priority: 'high' | 'medium' | 'low';
 }
 
 export interface Investment {
-  id: string;
+  id:string;
   symbol: string;
   name: string;
   shares: number;
@@ -66,11 +68,18 @@ export interface Investment {
   purchaseDate: string;
 }
 
-export interface Report {
+export interface FixedAsset {
   id: string;
-  title: string;
-  type: 'profit-loss' | 'balance-sheet' | 'cash-flow' | 'expense-analysis';
-  period: string;
-  generatedAt: string;
-  data: any;
+  clientId: string;
+  name: string;
+  value: number;
+  type: 'property' | 'equipment' | 'vehicle';
+}
+
+export interface Liability {
+  id: string;
+  clientId: string;
+  name: string;
+  type: 'credit_card' | 'loan' | 'other';
+  balance: number;
 }

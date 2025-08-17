@@ -7,15 +7,25 @@ import React, {
 } from 'react';
 import { useColorScheme as useDeviceColorScheme, Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, ColorScheme, ThemeColors } from '@/theme/colors';
+import { lightColors, darkColors, ColorScheme } from '@/theme/colors';
+
+export type ThemeColors = {
+  light: ColorScheme;
+  dark: ColorScheme;
+};
+
+const colors = {
+  light: lightColors,
+  dark: darkColors,
+};
 
 type Theme = 'light' | 'dark' | 'system';
 
 interface ThemeContextProps {
-  colorScheme: ColorScheme;
+  colorScheme: 'light' | 'dark';
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  colors: ThemeColors;
+  colors: ColorScheme;
   isDark: boolean;
 }
 

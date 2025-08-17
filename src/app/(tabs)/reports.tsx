@@ -40,38 +40,28 @@ interface ReportCardData {
 const mockTransactions: Transaction[] = [
     {
       id: '1', date: '2025-08-15', description: 'Monthly Salary', amount: 5000, type: 'income', category: 'Salary',
-      accountId: '',
-      title: '',
-      time: '',
-      status: 'completed'
+      accountId: 'acc1', title: 'Salary', time: '09:00 AM', status: 'completed',
+      clientId: 'client1',
     },
     {
       id: '2', date: '2025-08-15', description: 'Groceries', amount: -75.50, type: 'expense', category: 'Food',
-      accountId: '',
-      title: '',
-      time: '',
-      status: 'completed'
+      accountId: 'acc1', title: 'Groceries', time: '03:00 PM', status: 'completed',
+      clientId: 'client1',
     },
     {
       id: '3', date: '2025-08-16', description: 'Stock Dividend', amount: 120, type: 'income', category: 'Investments',
-      accountId: '',
-      title: '',
-      time: '',
-      status: 'completed'
+      accountId: 'acc2', title: 'Dividend', time: '10:00 AM', status: 'completed',
+      clientId: 'client1',
     },
     {
       id: '4', date: '2025-08-17', description: 'Gasoline', amount: -50.00, type: 'expense', category: 'Transport',
-      accountId: '',
-      title: '',
-      time: '',
-      status: 'completed'
+      accountId: 'acc1', title: 'Gas', time: '05:00 PM', status: 'completed',
+      clientId: 'client1',
     },
     {
       id: '5', date: '2025-08-18', description: 'Dinner with friends', amount: -120.00, type: 'expense', category: 'Social',
-      accountId: '',
-      title: '',
-      time: '',
-      status: 'completed'
+      accountId: 'acc1', title: 'Dinner', time: '08:00 PM', status: 'completed',
+      clientId: 'client1',
     },
 ];
 
@@ -163,7 +153,7 @@ export default function ReportsScreen() {
             <Button
                 title={`Export ${selectedPeriod} Report`}
                 onPress={handleExport}
-                icon="download"
+                icon={Download}
             />
         </Animated.View>
 
