@@ -1,388 +1,110 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { X, DollarSign, Calendar, Tag } from 'lucide-react-native';
-import Button from '@/components/common/Button';
-import Card from '@/components/common/Card';
 import { createTransaction } from '@/services/dataService';
 import { Transaction } from '@/types';
+import Button from '@/components/common/Button';
+import DateTimePickerModal from "@react-native-community/datetimepicker";
 
 interface AddTransactionModalProps {
   visible: boolean;
   onClose: () => void;
-  onTransactionAdded: (transaction: Transaction) => void;
+  onSuccess: (newTransaction: Transaction) => void;
+  clientId: string;
 }
 
-export default function AddTransactionModal({
-  visible,
-  onClose,
-  onTransactionAdded,
-}: AddTransactionModalProps) {
+export default function AddTransactionModal({ visible, onClose, onSuccess, clientId }: AddTransactionModalProps) {
   const { colors } = useTheme();
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    amount: '',
-    category: '',
-    description: '',
-    type: 'expense' as 'income' | 'expense',
-  });
+  const [type, setType] = useState<'income' | 'expense'>('expense');
+  const [amount, setAmount] = useState('');
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const styles = createStyles(colors);
-
-  const categories = [
-    'Groceries',
-    'Transportation',
-    'Food & Dining',
-    'Housing',
-    'Entertainment',
-    'Healthcare',
-    'Shopping',
-    'Utilities',
-    'Salary',
-    'Freelance',
-    'Investment',
-    'Other',
-  ];
-
-  const handleSubmit = async () => {
-    if (!formData.title || !formData.amount || !formData.category) {
-      Alert.alert('Error', 'Please fill in all required fields');
+  const handleSave = async () => {
+    if (!title || !amount || !category) {
+      Alert.alert('Missing Fields', 'Please fill in Title, Amount, and Category.');
       return;
     }
-
-    setLoading(true);
+    setIsSubmitting(true);
+    const newTransactionData = {
+      clientId, title, category,
+      amount: type === 'expense' ? -Math.abs(parseFloat(amount)) : Math.abs(parseFloat(amount)),
+      date: date.toISOString(),
+      type, status: 'completed',
+    };
     try {
-      const amount = parseFloat(formData.amount);
-      const finalAmount = formData.type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
-
-      const newTransaction = await createTransaction({
-        accountId: '1',
-        title: formData.title,
-        description: formData.description,
-        category: formData.category,
-        amount: finalAmount,
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString('en-US', { 
-          hour12: false, 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        }),
-        type: formData.type,
-        status: 'completed',
-      });
-
-      onTransactionAdded(newTransaction);
-      setFormData({
-        title: '',
-        amount: '',
-        category: '',
-        description: '',
-        type: 'expense',
-      });
-      onClose();
+      const result = await createTransaction(newTransactionData as Omit<Transaction, 'id'>);
+      onSuccess(result);
+      resetForm();
     } catch (error) {
-      Alert.alert('Error', 'Failed to add transaction');
+      Alert.alert('Error', 'Failed to save transaction.');
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
+  };
+  
+  const resetForm = () => { setType('expense'); setAmount(''); setTitle(''); setCategory(''); setDate(new Date()); };
+
+  const handleConfirmDate = (selectedDate: Date) => {
+    setDate(selectedDate);
+    setDatePickerVisibility(false);
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Add Transaction</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color={colors.text} />
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>Add Transaction</Text>
+          
+          <View style={[styles.typeSelector, { backgroundColor: colors.background }]}>
+            <TouchableOpacity style={[styles.typeButton, type === 'expense' && { backgroundColor: colors.primary }]} onPress={() => setType('expense')}>
+              <Text style={[styles.typeButtonText, { color: colors.text }, type === 'expense' && { color: colors.primaryContrast }]}>Expense</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.typeButton, type === 'income' && { backgroundColor: colors.primary }]} onPress={() => setType('income')}>
+              <Text style={[styles.typeButtonText, { color: colors.text }, type === 'income' && { color: colors.primaryContrast }]}>Income</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <TextInput placeholder="Title (e.g., Office Supplies)" value={title} onChangeText={setTitle} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} placeholderTextColor={colors.textSecondary}/>
+          <TextInput placeholder="Amount" value={amount} onChangeText={setAmount} keyboardType="numeric" style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} placeholderTextColor={colors.textSecondary}/>
+          <TextInput placeholder="Category (e.g., Business Expense)" value={category} onChangeText={setCategory} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} placeholderTextColor={colors.textSecondary}/>
+          
+          <TouchableOpacity onPress={() => setDatePickerVisibility(true)} style={[styles.input, { justifyContent: 'center' }]}>
+             <Text style={{color: colors.text}}>{date.toLocaleDateString()}</Text>
           </TouchableOpacity>
-        </View>
+          {isDatePickerVisible && (
+            <DateTimePickerModal
+              value={date}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                const currentDate = selectedDate || date;
+                setDatePickerVisibility(false);
+                setDate(currentDate);
+              }}
+            />
+          )}
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Card style={styles.formCard}>
-            {/* Transaction Type */}
-            <View style={styles.typeSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.typeButton,
-                  formData.type === 'expense' && styles.activeTypeButton,
-                ]}
-                onPress={() => setFormData({ ...formData, type: 'expense' })}
-              >
-                <Text
-                  style={[
-                    styles.typeButtonText,
-                    formData.type === 'expense' && styles.activeTypeButtonText,
-                  ]}
-                >
-                  Expense
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.typeButton,
-                  formData.type === 'income' && styles.activeTypeButton,
-                ]}
-                onPress={() => setFormData({ ...formData, type: 'income' })}
-              >
-                <Text
-                  style={[
-                    styles.typeButtonText,
-                    formData.type === 'income' && styles.activeTypeButtonText,
-                  ]}
-                >
-                  Income
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Title */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Title *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter transaction title"
-                placeholderTextColor={colors.textSecondary}
-                value={formData.title}
-                onChangeText={(text) => setFormData({ ...formData, title: text })}
-              />
-            </View>
-
-            {/* Amount */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Amount *</Text>
-              <View style={styles.amountContainer}>
-                <DollarSign size={20} color={colors.textSecondary} />
-                <TextInput
-                  style={styles.amountInput}
-                  placeholder="0.00"
-                  placeholderTextColor={colors.textSecondary}
-                  value={formData.amount}
-                  onChangeText={(text) => setFormData({ ...formData, amount: text })}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-
-            {/* Category */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Category *</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.categoryScroll}
-              >
-                <View style={styles.categoryContainer}>
-                  {categories.map((category) => (
-                    <TouchableOpacity
-                      key={category}
-                      style={[
-                        styles.categoryChip,
-                        formData.category === category && styles.activeCategoryChip,
-                      ]}
-                      onPress={() => setFormData({ ...formData, category })}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryChipText,
-                          formData.category === category && styles.activeCategoryChipText,
-                        ]}
-                      >
-                        {category}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-
-            {/* Description */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Add a note (optional)"
-                placeholderTextColor={colors.textSecondary}
-                value={formData.description}
-                onChangeText={(text) => setFormData({ ...formData, description: text })}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-          </Card>
-        </ScrollView>
-
-        <View style={styles.footer}>
-          <Button
-            title="Cancel"
-            onPress={onClose}
-            variant="outline"
-            style={styles.cancelButton}
-          />
-          <Button
-            title="Add Transaction"
-            onPress={handleSubmit}
-            loading={loading}
-            style={styles.submitButton}
-          />
+          <View style={styles.buttonContainer}>
+            <Button title="Cancel" variant="outline" onPress={onClose} style={{ flex: 1 }} />
+            <Button title="Save" onPress={handleSave} style={{ flex: 1 }} isLoading={isSubmitting} />
+          </View>
         </View>
       </View>
     </Modal>
   );
 }
 
-const createStyles = (colors: any) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerTitle: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    closeButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceVariant,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    content: {
-      flex: 1,
-      padding: 20,
-    },
-    formCard: {
-      marginBottom: 20,
-    },
-    typeSelector: {
-      flexDirection: 'row',
-      backgroundColor: colors.surfaceVariant,
-      borderRadius: 12,
-      padding: 4,
-      marginBottom: 24,
-    },
-    typeButton: {
-      flex: 1,
-      paddingVertical: 12,
-      borderRadius: 8,
-      alignItems: 'center',
-    },
-    activeTypeButton: {
-      backgroundColor: colors.primary,
-    },
-    typeButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.textSecondary,
-    },
-    activeTypeButtonText: {
-      color: colors.surface,
-    },
-    inputGroup: {
-      marginBottom: 20,
-    },
-    label: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 8,
-    },
-    input: {
-      backgroundColor: colors.surfaceVariant,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      fontSize: 16,
-      color: colors.text,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    textArea: {
-      minHeight: 80,
-      textAlignVertical: 'top',
-    },
-    amountContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.surfaceVariant,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    amountInput: {
-      flex: 1,
-      fontSize: 16,
-      color: colors.text,
-      marginLeft: 8,
-    },
-    categoryScroll: {
-      marginHorizontal: -4,
-    },
-    categoryContainer: {
-      flexDirection: 'row',
-      gap: 8,
-      paddingHorizontal: 4,
-    },
-    categoryChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceVariant,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    activeCategoryChip: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    categoryChipText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.text,
-    },
-    activeCategoryChipText: {
-      color: colors.surface,
-    },
-    footer: {
-      flexDirection: 'row',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      gap: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    cancelButton: {
-      flex: 1,
-    },
-    submitButton: {
-      flex: 2,
-    },
-  });
+const styles = StyleSheet.create({
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { padding: 24, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
+  typeSelector: { flexDirection: 'row', borderRadius: 12, padding: 4, marginBottom: 16 },
+  typeButton: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  typeButtonText: { fontWeight: '600' },
+  input: { height: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, fontSize: 16 },
+  buttonContainer: { flexDirection: 'row', gap: 16, marginTop: 16 },
+});
