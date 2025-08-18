@@ -1,8 +1,8 @@
-# FinanceFlow - Professional Financial Management App
+# NorthFinance - Professional Financial Management App
 
 ## Overview
 
-FinanceFlow is a comprehensive financial management application designed to serve two distinct yet interconnected audiences: everyday users who struggle with personal finance management and accounting professionals who need powerful tools to streamline their workflow. Built with React Native and Expo, this cross-platform solution delivers enterprise-grade functionality with consumer-friendly usability.
+NorthFinance is a comprehensive financial management application designed to serve two distinct yet interconnected audiences: everyday users who struggle with personal finance management and accounting professionals who need powerful tools to streamline their workflow. Built with React Native and Expo, this cross-platform solution delivers enterprise-grade functionality with consumer-friendly usability.
 
 ## Target Audiences
 
@@ -132,7 +132,7 @@ FinanceFlow is a comprehensive financial management application designed to serv
 
 ### Code Organization
 
-```
+```text
 src/
 ├── components/          # Reusable UI components
 ├── screens/            # Screen-level components
@@ -168,8 +168,8 @@ src/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/financeflow-app.git
-cd financeflow-app
+git clone https://github.com/your-org/NorthFinance-app.git
+cd NorthFinance-app
 
 # Install dependencies
 npm install
@@ -278,9 +278,9 @@ We welcome contributions from the developer community. Please review our contrib
 - Document all public APIs and components
 - Ensure accessibility compliance (WCAG 2.1)
 
-# progress
+## Project Progress
 
-# North-Star-App - Professional Financial Management
+### North-Star-App - Professional Financial Management
 
 North-Star-App is a comprehensive financial management application built with React Native and Expo. It serves both personal finance users and accounting professionals with a suite of powerful, intuitive tools.
 
@@ -335,4 +335,113 @@ Tax Preparation: Organizing financial data, tracking deductible expenses, and pr
 Budgeting & Forecasting: Analyzing past performance to create future budgets and financial models, helping clients or their own business plan for the future.
 
 Auditing & Compliance: Ensuring all financial records adhere to legal standards and principles like GAAP (Generally Accepted Accounting Principles)
+
 ---
+```
+└── 📁src
+    └── 📁app
+        └── 📁(auth)
+            ├── _layout.tsx
+            ├── .login.tsx.swp
+            ├── login.tsx
+            ├── register.tsx
+        └── 📁(tabs)
+            └── 📁client
+                └── 📁reports
+                    └── 📁balance-sheet
+                        ├── _layout.tsx
+                        ├── [id].tsx
+                    └── 📁cash-flow
+                        ├── _layout.tsx
+                        ├── [id].tsx
+                    └── 📁profit-loss
+                        ├── _layout.tsx
+                        ├── [id].tsx
+                    ├── _layout.tsx
+                    ├── [id].tsx
+                └── 📁transactions
+                    ├── _layout.tsx
+                    ├── [id].tsx
+                ├── _layout.tsx
+                ├── [id].tsx
+            └── 📁profile
+                ├── _layout.tsx
+                ├── api-keys.tsx
+                ├── edit.tsx
+                ├── index.tsx
+            └── 📁security
+                ├── _layout.tsx
+                ├── change-password.tsx
+            ├── _layout.tsx
+            ├── accounts.tsx
+            ├── ai-assistant.tsx
+            ├── analytics.tsx
+            ├── budgets.tsx
+            ├── camera.tsx
+            ├── clients.tsx
+            ├── index.tsx
+            ├── journal.tsx
+            ├── reports.tsx
+            ├── settings.tsx
+            ├── transactions.tsx
+        ├── _layout.tsx
+        ├── +not-found.tsx
+        ├── index.tsx
+    └── 📁assets
+        └── 📁fonts
+            └── 📁components
+                └── 📁inter
+                    └── 📁tests
+                        ├── inter.test.tsx
+                    ├── index.ts
+                    ├── inter.css
+                    ├── inter.stories.tsx
+                    ├── inter.tsx
+                ├── index.ts
+            ├── Inter
+        └── 📁images
+            ├── favicon.png
+            ├── icon.png
+            ├── splash.png
+        └── 📁Inter
+            └── 📁static
+    └── 📁components
+        └── 📁common
+            ├── Button.tsx
+            ├── Card.tsx
+        └── 📁dashboard
+            ├── ChartSection.tsx
+            ├── DashboardHeader.tsx
+            ├── MetricsGrid.tsx
+            ├── QuickActions.tsx
+            ├── RecentTransactions.tsx
+        └── 📁forms
+            ├── AddClientModal.tsx
+            ├── AddTransactionModal.tsx
+            ├── JournalEntryModal.tsx
+        ├── LoadingSkeleton.tsx
+        ├── ScreenContainer.tsx
+    └── 📁constants
+        ├── navigationOptions.ts
+    └── 📁context
+        ├── AuthContext.tsx
+        ├── ThemeProvider.tsx
+    └── 📁hooks
+        ├── useFrameworkReady.ts
+        ├── useTransactions.ts
+    └── 📁images
+        ├── favicon.png
+        ├── icon.png
+        ├── splash.png
+    └── 📁services
+        ├── accountingService.ts
+        ├── dataService.ts
+        ├── transactionService.tsx
+    └── 📁theme
+        ├── colors.ts
+    └── 📁types
+        ├── accounting.ts
+        ├── index.ts
+    └── 📁utils
+        └── fileUtils.ts
+```
