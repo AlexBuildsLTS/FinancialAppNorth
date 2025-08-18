@@ -2,7 +2,7 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
 
-export default function ClientTransactionsLayout() {
+export default function ClientReportsLayout() {
   const { colors } = useTheme();
 
   return (
@@ -16,6 +16,11 @@ export default function ClientTransactionsLayout() {
           fontWeight: 'bold',
         },
       }}
-    />
+    >
+      <Stack.Screen name="[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="balance-sheet" options={{ headerShown: false }} />
+      <Stack.Screen name="cash-flow" options={{ headerShown: false }} />
+      <Stack.Screen name="profit-loss" options={{ headerShown: false }} />
+    </Stack>
   );
 }
