@@ -7,7 +7,7 @@ interface CardProps {
   style?: ViewStyle;
 }
 
-const Card: React.FC<CardProps> = ({ children, style }) => {
+const Card = ({ children, style }: CardProps) => {
   const { colors, isDark } = useTheme();
 
   return (
@@ -35,16 +35,16 @@ const styles = StyleSheet.create({
   lightShadow: {
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
+        shadowColor: 'rgb(0, 0, 0)',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
       },
       android: {
-        elevation: 5,
+        elevation: 10,
       },
       web: {
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
       }
     }),
   }

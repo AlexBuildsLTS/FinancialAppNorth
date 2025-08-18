@@ -1,19 +1,50 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Clipboard } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import ScreenContainer from '@/components/ScreenContainer';
-import { ChevronLeft, Edit } from 'lucide-react-native';
+import { ChevronLeft, CreditCard as Edit, Copy, Shield, Key } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Button from '@/components/common/Button';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth(); // Assuming updateUser and a more detailed user object
   const router = useRouter();
 
-  const handleChangeImage = () => {
-    Alert.alert("Feature Coming Soon", "The ability to change your profile image is under development.");
+  const copyUserId = () => {
+    if (user?.uniqueUserId) {
+      Clipboard.setString(user.uniqueUserId);
+      Alert.alert('Copied', 'User ID copied to clipboard');
+    }
+  };
+
+  const handleChangeImage = async () => {
+    // Request permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    // Launch image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      const newAvatarUri = result.assets[0].uri;
+      // In a real app, you would upload this URI to your backend (e.g., Supabase Storage)
+      // and then update the user context with the new URL.
+      // For now, we'll just log it and show an alert.
+      console.log('New avatar URI:', newAvatarUri);
+      Alert.alert("Avatar Updated", "Your new profile picture is ready (in a real app!).");
+      // Example: await updateUser({ ...user, avatarUrl: newAvatarUrlFromServer });
+    }
   };
 
   return (
@@ -28,22 +59,41 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.profileHeader}>
             <View>
-                <Image 
-                    source={{ uri: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' }} 
+                <Image
+                    // Use user's avatar or a placeholder
+                    source={{ uri: user?.avatarUrl || `https://i.pravatar.cc/150?u=${user?.email}` }} 
                     style={[styles.avatar, { borderColor: colors.surface }]}
                 />
                 <TouchableOpacity onPress={handleChangeImage} style={[styles.editIcon, {backgroundColor: colors.primary}]}>
                     <Edit size={16} color={colors.primaryContrast} />
                 </TouchableOpacity>
             </View>
-            <Text style={[styles.name, { color: colors.text }]}>Alex Professional</Text>
+            <View style={styles.nameContainer}>
+              <Text style={[styles.name, { color: colors.text }]}>{user?.displayName || 'Alex Professional'}</Text>
+              <TouchableOpacity onPress={() => router.push('/profile/edit')}>
+                <Edit size={18} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
             <Text style={[styles.email, { color: colors.textSecondary }]}>{user?.email}</Text>
         </View>
 
         <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
             <View style={styles.infoRow}>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Unique User ID</Text>
+                <TouchableOpacity onPress={copyUserId} style={styles.copyButton}>
+                    <Text style={[styles.infoValue, { color: colors.text }]}>{user?.uniqueUserId}</Text>
+                    <Copy size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+            </View>
+            <View style={styles.infoRow}>
                 <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Account Type</Text>
                 <Text style={[styles.infoValue, { color: colors.text, textTransform: 'capitalize' }]}>{user?.role}</Text>
+            </View>
+            <View style={styles.infoRow}>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Role</Text>
+                <View style={[styles.roleBadge, { backgroundColor: getRoleColor(user?.role) }]}>
+                    <Text style={[styles.roleText, { color: colors.surface }]}>{user?.role}</Text>
+                </View>
             </View>
             <View style={styles.infoRow}>
                 <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Subscription</Text>
@@ -55,11 +105,38 @@ export default function ProfileScreen() {
             </View>
         </View>
 
-        <Button title="Manage Subscription" onPress={() => {}}/>
+        <View style={styles.actionButtons}>
+            <Button 
+                title="Change Password" 
+                onPress={() => router.push('/change-password')} 
+                icon={Key}
+                variant="outline"
+                style={{ flex: 1 }}
+            />
+            <Button 
+                title="Security Settings" 
+                onPress={() => router.push('/security')} 
+                icon={Shield}
+                style={{ flex: 1 }}
+            />
+        </View>
+        
+        <Button title="Manage Subscription" onPress={() => {}} style={{ marginTop: 16 }}/>
       </ScrollView>
     </ScreenContainer>
   );
 }
+
+const getRoleColor = (role?: string) => {
+  switch (role) {
+    case 'Administrator': return '#E74C3C';
+    case 'Accountant': return '#3498DB';
+    case 'Moderator': return '#9B59B6';
+    case 'Support': return '#F39C12';
+    case 'Customer': return '#2ECC71';
+    default: return '#95A5A6';
+  }
+};
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
@@ -68,11 +145,16 @@ const styles = StyleSheet.create({
   container: { padding: 16, paddingTop: 0 },
   profileHeader: { alignItems: 'center', marginBottom: 32 },
   avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 4 },
+  nameContainer: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 },
   editIcon: { position: 'absolute', bottom: 5, right: 5, padding: 8, borderRadius: 16 },
-  name: { fontFamily: 'Inter-Bold', fontSize: 24, fontWeight: 'bold', marginTop: 16 },
+  name: { fontFamily: 'Inter-Bold', fontSize: 24, fontWeight: 'bold' },
   email: { fontFamily: 'Inter-Regular', fontSize: 16, marginTop: 4 },
   infoCard: { borderRadius: 16, paddingHorizontal: 16, marginBottom: 24 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(128,128,128,0.1)' },
   infoLabel: { fontFamily: 'Inter-Regular', fontSize: 16 },
   infoValue: { fontFamily: 'Inter-Bold', fontSize: 16, fontWeight: '600' },
+  copyButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  roleBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  roleText: { fontFamily: 'Inter-Bold', fontSize: 14, fontWeight: '600' },
+  actionButtons: { flexDirection: 'row', gap: 16, marginTop: 24 },
 });

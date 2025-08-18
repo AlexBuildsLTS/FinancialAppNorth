@@ -1,7 +1,7 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, Platform } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { Briefcase, User, LucideIcon } from 'lucide-react-native';
+import { LucideIcon } from 'lucide-react-native';
 
 type ButtonVariant = 'solid' | 'outline' | 'ghost';
 type ButtonSize = 'small' | 'medium' | 'large';
@@ -33,12 +33,34 @@ export default function Button({
   icon: Icon,
   style,
 }: ButtonProps) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const isDisabled = isLoading || disabled;
 
+  const lightShadowStyle: ViewStyle = {
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+        shadowColor: colors.primary, // For newer Android versions
+      },
+      web: {
+        boxShadow: `0 4px 14px ${colors.primary}50`,
+      }
+    }),
+  };
+
   const buttonStyles: ViewStyle[] = [ styles.buttonBase, styles[size] ];
-  if (variant === 'solid') buttonStyles.push({ backgroundColor: colors.primary });
-  else if (variant === 'outline') buttonStyles.push({ borderColor: colors.primary, borderWidth: 2 });
+  if (variant === 'solid') {
+    buttonStyles.push({ backgroundColor: colors.primary });
+    if (!isDark) buttonStyles.push(lightShadowStyle);
+  } else if (variant === 'outline') {
+    buttonStyles.push({ borderColor: colors.primary, borderWidth: 2 });
+  }
   if (isDisabled) buttonStyles.push(styles.disabled);
   if (style) buttonStyles.push(style);
 

@@ -11,9 +11,10 @@ import {
   Landmark,
   PiggyBank,
   AreaChart,
-  TrendingUp,
+  Camera,
   FilePieChart,
   BookOpen,
+  Bot,
 } from 'lucide-react-native';
 
 interface TabBarIconProps {
@@ -29,7 +30,7 @@ const TabBarIcon: React.FC<TabBarIconProps> = React.memo(({ Icon, color, size })
 export default function TabLayout() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const isProfessional = user?.role === 'professional';
+  const isProfessional = user?.role === 'Accountant' || user?.role === 'Administrator';
 
   return (
     <Tabs
@@ -95,10 +96,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="investments"
+        name="camera"
         options={{
-          title: 'Investments',
-          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={TrendingUp} color={color} size={size} />,
+          title: 'Camera',
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Camera} color={color} size={size} />,
         }}
       />
       <Tabs.Screen
@@ -113,6 +114,13 @@ export default function TabLayout() {
         options={{
           title: 'Journal',
           tabBarIcon: ({ color, size }) => <TabBarIcon Icon={BookOpen} color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="ai-assistant"
+        options={{
+          title: 'AI Assistant',
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Bot} color={color} size={size} />,
         }}
       />
       <Tabs.Screen

@@ -68,6 +68,31 @@ export interface Investment {
   purchaseDate: string;
 }
 
+export interface ScannedDocument {
+  id: string;
+  clientId: string;
+  fileName: string;
+  filePath: string;
+  extractedText: string;
+  aiProcessedData?: any;
+  createdAt: string;
+  processedAt?: string;
+  status: 'pending' | 'processed' | 'error';
+}
+
+export interface AIProvider {
+  id: string;
+  name: string;
+  apiEndpoint: string;
+  requiresApiKey: boolean;
+  supportedFormats: string[];
+}
+
+export interface UserRole {
+  id: string;
+  name: 'Customer' | 'Support' | 'Accountant' | 'Administrator' | 'Moderator';
+  permissions: string[];
+}
 export interface FixedAsset {
   id: string;
   clientId: string;

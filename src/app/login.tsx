@@ -28,13 +28,13 @@ export default function LoginScreen() {
           </Text>
           <Button
             title="Continue as Professional"
-            onPress={() => signIn('professional')}
+            onPress={() => signIn('Accountant')}
             icon={Briefcase}
             size="large"
           />
           <Button
             title="Continue as Personal User"
-            onPress={() => signIn('personal')}
+            onPress={() => signIn('Customer')}
             variant="outline"
             icon={User}
             size="large"

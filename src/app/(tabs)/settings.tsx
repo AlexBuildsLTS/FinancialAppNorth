@@ -39,7 +39,7 @@ export default function SettingsScreen() {
         <View style={[styles.sectionContainer, { backgroundColor: colors.surface }]}>
           <SettingItem icon={User} label="Profile" onPress={() => router.push('/profile')} colors={colors} />
           <SettingItem icon={Bell} label="Notifications" onPress={() => {}} colors={colors} />
-          <SettingItem icon={Shield} label="Security" onPress={() => {}} colors={colors} />
+          <SettingItem icon={Shield} label="Security" onPress={() => router.push('/security' as any)} colors={colors} />
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Appearance</Text>

@@ -4,14 +4,14 @@
  * Dark Theme: Dark Navy Blue, White Text, Green Accent, Orange Highlight
  */
 export const lightColors = {
-  background: '#F8F9FA',      // Soft off-white
+  background: '#A5A2A5FF',      // Soft off-white
   surface: '#FFFFFF',          // Pure white for cards
   surfaceVariant: '#E9ECEF',   // Light gray for subtle contrast
-  text: '#212529',             // Very dark gray (Black) for primary text
+  text: '#0B0C0EFF',             // Very dark gray (Black) for primary text
   textSecondary: '#6C757D',    // Muted gray for secondary text
   border: '#DEE2E6',           // Light gray for borders
   
-  primary: '#3498DB',          // Professional light blue
+  primary: '#BB4711FF',          // Professional light blue
   primaryContrast: '#FFFFFF',
   
   success: '#2ECC71',          // Vibrant green
