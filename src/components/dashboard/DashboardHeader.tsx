@@ -1,15 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
-import { Bell } from 'lucide-react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native'; // Added TouchableOpacity
+import { Bell, User, Settings } from 'lucide-react-native'; // Added User and Settings icons
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
 
 interface DashboardHeaderProps {
   username: string;
   avatarUrl: string;
+  onPressProfile: () => void; // New prop for profile button press
+  onPressSettings: () => void; // New prop for settings button press
 }
 
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({ username, avatarUrl }) => {
+const DashboardHeader: React.FC<DashboardHeaderProps> = ({ username, avatarUrl, onPressProfile, onPressSettings }) => {
   const { colors } = useTheme();
 
   return (
@@ -23,8 +25,16 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ username, avatarUrl }
           <Text style={[styles.username, { color: colors.text }]}>{username}</Text>
         </View>
       </View>
-      <View style={[styles.notificationIcon, { backgroundColor: colors.surface }]}>
-        <Bell color={colors.text} size={24} />
+      <View style={styles.rightIcons}> {/* New container for right-aligned icons */}
+        <TouchableOpacity onPress={() => { /* Handle notifications */ }} style={[styles.iconButton, { backgroundColor: colors.surface }]}>
+          <Bell color={colors.text} size={24} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onPressSettings} style={[styles.iconButton, { backgroundColor: colors.surface }]}>
+          <Settings color={colors.text} size={24} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onPressProfile} style={[styles.iconButton, { backgroundColor: colors.surface }]}>
+          <User color={colors.text} size={24} />
+        </TouchableOpacity>
       </View>
     </Animated.View>
   );
@@ -53,7 +63,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  notificationIcon: {
+  rightIcons: { // Styles for the new container
+    flexDirection: 'row',
+    gap: 8, // Space between icons
+  },
+  iconButton: { // Styles for individual icon buttons
     padding: 12,
     borderRadius: 25,
   },

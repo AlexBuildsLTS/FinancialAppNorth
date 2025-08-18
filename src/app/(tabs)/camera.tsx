@@ -22,11 +22,13 @@ import ScreenContainer from '@/components/ScreenContainer';
 import Button from '@/components/common/Button';
 import Card from '@/components/common/Card';
 import { ScannedDocument } from '@/types';
-import { exportToXLSX } from '@/utils/fileUtils';
+import { exportToCSV } from '@/utils/fileUtils';
+import { useRouter } from 'expo-router';
 
 export default function CameraScreen() {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
+  const router = useRouter(); // Initialize useRouter
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [showCamera, setShowCamera] = useState(false);
@@ -68,7 +70,7 @@ Payment Terms: Net 30`;
       
       const newDocument: ScannedDocument = {
         id: `doc_${Date.now()}`,
-        clientId: user?.role === 'Accountant' ? 'current_client' : user?.id || '',
+        clientId: user?.role === 'Professional Accountant' ? 'current_client' : user?.id || '',
         fileName: `scanned_${Date.now()}.jpg`,
         filePath: mockImageUri,
         extractedText,
@@ -109,7 +111,7 @@ Payment Terms: Net 30`;
         
         const newDocument: ScannedDocument = {
           id: `doc_${Date.now()}`,
-          clientId: user?.role === 'Accountant' ? 'current_client' : user?.id || '',
+          clientId: user?.role === 'Professional Accountant' ? 'current_client' : user?.id || '',
           fileName: `imported_${Date.now()}.jpg`,
           filePath: result.assets[0].uri,
           extractedText,
@@ -129,7 +131,7 @@ Payment Terms: Net 30`;
     }
   };
 
-  const exportToCSV = (document: ScannedDocument) => {
+  const handleExportToCSV = (document: ScannedDocument) => {
     // Parse the extracted text into structured data
     const lines = document.extractedText.split('\n');
     const csvData = lines.map((line, index) => ({
@@ -138,7 +140,7 @@ Payment Terms: Net 30`;
       Type: line.includes('$') ? 'Amount' : line.includes('Date:') ? 'Date' : 'Text'
     }));
 
-    exportToXLSX(csvData, `extracted_text_${document.id}`);
+    exportToCSV(csvData, `extracted_text_${document.id}`);
   };
 
   if (!permission) {
@@ -221,7 +223,7 @@ Payment Terms: Net 30`;
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Document Scanner</Text>
         <Text style={styles.headerSubtitle}>
-          {user?.role === 'Accountant' ? 'Scan client documents' : 'Scan your receipts and bills'}
+          {user?.role === 'Professional Accountant' ? 'Scan client documents' : 'Scan your receipts and bills'}
         </Text>
       </View>
 
@@ -293,7 +295,7 @@ Payment Terms: Net 30`;
                     
                     <TouchableOpacity
                       style={styles.exportButton}
-                      onPress={() => exportToCSV(doc)}
+                      onPress={() => handleExportToCSV(doc)}
                     >
                       <Download size={20} color={colors.primary} />
                     </TouchableOpacity>
@@ -304,7 +306,7 @@ Payment Terms: Net 30`;
           </Card>
         </Animated.View>
 
-        {user?.role === 'Accountant' && (
+        {user?.role === 'Professional Accountant' && (
           <Animated.View entering={FadeInUp.delay(400).springify()}>
             <Card style={styles.aiCard}>
               <View style={styles.aiHeader}>
@@ -317,7 +319,7 @@ Payment Terms: Net 30`;
               </Text>
               <Button
                 title="Configure AI Assistant"
-                onPress={() => {/* Navigate to AI tab */}}
+                onPress={() => router.push('/ai-assistant' as any)}
                 variant="outline"
                 icon={Zap}
               />

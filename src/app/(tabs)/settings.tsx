@@ -5,7 +5,7 @@ import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import ScreenContainer from '@/components/ScreenContainer';
 import Button from '@/components/common/Button';
-import { User, Bell, Shield, LogOut, ChevronRight, Moon, Sun } from 'lucide-react-native';
+import { User, Bell, Shield, LogOut, ChevronRight, Moon, Sun, Key } from 'lucide-react-native';
 
 const SettingItem = ({ icon: Icon, label, onPress, colors, isDestructive = false }: any) => (
   <TouchableOpacity style={styles.itemContainer} onPress={onPress}>
@@ -40,6 +40,7 @@ export default function SettingsScreen() {
           <SettingItem icon={User} label="Profile" onPress={() => router.push('/profile')} colors={colors} />
           <SettingItem icon={Bell} label="Notifications" onPress={() => {}} colors={colors} />
           <SettingItem icon={Shield} label="Security" onPress={() => router.push('/security' as any)} colors={colors} />
+          <SettingItem icon={Key} label="API Key Management" onPress={() => router.push('/profile/api-keys' as any)} colors={colors} />
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Appearance</Text>

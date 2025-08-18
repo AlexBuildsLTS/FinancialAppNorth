@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { DollarSign, TrendingUp, TrendingDown, Target, LucideIcon } from 'lucide-react-native';
-import InvestmentsScreen from '@/app/(tabs)/investments';
 
 interface Metric {
   id: string;
@@ -11,7 +10,7 @@ interface Metric {
   value: string;
   change: string;
   isPositive: boolean;
-  icon: typeof InvestmentsScreen | typeof TrendingUp | typeof TrendingDown | typeof Target;
+  icon: LucideIcon;
 }
 
 const { width } = Dimensions.get('window');
