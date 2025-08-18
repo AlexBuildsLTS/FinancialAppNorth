@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Clipboard } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { useAuth } from '@/context/AuthContext';
-import ScreenContainer from '@/components/ScreenContainer';
-import { ChevronLeft, CreditCard as Edit, Copy, Shield, Key } from 'lucide-react-native';
+import { useTheme } from '../../../context/ThemeProvider';
+import { useAuth } from '../../../context/AuthContext';
+import ScreenContainer from '../../../components/ScreenContainer';
+import { ChevronLeft, Edit, Copy, Shield, Key, Crown } from 'lucide-react-native'; // Added Crown icon for upgrade
 import { useRouter } from 'expo-router';
-import Button from '@/components/common/Button';
+import Button from '../../../components/common/Button';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function ProfileScreen() {
@@ -40,10 +40,8 @@ export default function ProfileScreen() {
       const newAvatarUri = result.assets[0].uri;
       // In a real app, you would upload this URI to your backend (e.g., Supabase Storage)
       // and then update the user context with the new URL.
-      // For now, we'll just log it and show an alert.
-      console.log('New avatar URI:', newAvatarUri);
-      Alert.alert("Avatar Updated", "Your new profile picture is ready (in a real app!).");
-      // Example: await updateUser({ ...user, avatarUrl: newAvatarUrlFromServer });
+      updateUser({ avatarUrl: newAvatarUri }); // Update user context with new avatar URI
+      Alert.alert("Avatar Updated", "Your profile picture has been updated!");
     }
   };
 
@@ -60,8 +58,7 @@ export default function ProfileScreen() {
         <View style={styles.profileHeader}>
             <View>
                 <Image
-                    // Use user's avatar or a placeholder
-                    source={{ uri: user?.avatarUrl || `https://i.pravatar.cc/150?u=${user?.email}` }} 
+                    source={{ uri: user?.avatarUrl }} // Rely on generated avatar or user-selected
                     style={[styles.avatar, { borderColor: colors.surface }]}
                 />
                 <TouchableOpacity onPress={handleChangeImage} style={[styles.editIcon, {backgroundColor: colors.primary}]}>
@@ -69,8 +66,8 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
             </View>
             <View style={styles.nameContainer}>
-              <Text style={[styles.name, { color: colors.text }]}>{user?.displayName || 'Alex Professional'}</Text>
-              <TouchableOpacity onPress={() => router.push('/profile/edit')}>
+              <Text style={[styles.name, { color: colors.text }]}>{user?.displayName || 'User Profile'}</Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/profile/edit')}>
                 <Edit size={18} color={colors.primary} />
               </TouchableOpacity>
             </View>
@@ -97,7 +94,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.infoRow}>
                 <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Subscription</Text>
-                <Text style={[styles.infoValue, { color: colors.primary }]}>Pro Plan</Text>
+                <Text style={[styles.infoValue, { color: colors.primary }]}>{user?.role === 'Premium Member' ? 'Pro Plan' : 'Basic Plan'}</Text>
             </View>
              <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
                 <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Member Since</Text>
@@ -108,19 +105,27 @@ export default function ProfileScreen() {
         <View style={styles.actionButtons}>
             <Button 
                 title="Change Password" 
-                onPress={() => router.push('/change-password')} 
+                onPress={() => router.push('/(tabs)/security/change-password')} 
                 icon={Key}
                 variant="outline"
                 style={{ flex: 1 }}
             />
             <Button 
-                title="Security Settings" 
-                onPress={() => router.push('/security')} 
+                title="2FA Settings" // Changed text to 2FA Settings
+                onPress={() => router.push('/(tabs)/settings')} // Navigates to security index for 2FA
                 icon={Shield}
                 style={{ flex: 1 }}
             />
         </View>
         
+        {user?.role === 'Member' && (
+          <Button 
+            title="Upgrade to Premium" 
+            onPress={() => Alert.alert("Upgrade", "Navigate to upgrade flow (mock)")} 
+            icon={Crown}
+            style={{ marginTop: 16 }}
+          />
+        )}
         <Button title="Manage Subscription" onPress={() => {}} style={{ marginTop: 16 }}/>
       </ScrollView>
     </ScreenContainer>
@@ -130,7 +135,7 @@ export default function ProfileScreen() {
 const getRoleColor = (role?: string) => {
   switch (role) {
     case 'Administrator': return '#E74C3C';
-    case 'Accountant': return '#3498DB';
+    case 'Professional Accountant': return '#3498DB';
     case 'Moderator': return '#9B59B6';
     case 'Support': return '#F39C12';
     case 'Customer': return '#2ECC71';
