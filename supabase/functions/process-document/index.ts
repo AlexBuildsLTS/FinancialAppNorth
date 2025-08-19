@@ -1,49 +1,61 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai@0.2.1';
 
-console.log('Hello from Functions!');
+// Initialize the Google AI client with the secret API key
+const genAI = new GoogleGenerativeAI(Deno.env.get('GEMINI_API_KEY')!);
 
-Deno.serve(async (req: { json: () => PromiseLike<{ record: any; }> | { record: any; }; }) => {
+Deno.serve(async (req) => {
   try {
     const { record } = await req.json();
-    const documentId = record.id;
+    const document = record;
 
-    if (!documentId) {
-      throw new Error('Document ID is missing in the request body.');
+    if (!document) {
+      throw new Error('Document record is missing.');
     }
 
-    // Create a Supabase client with the required service_role key
-    // This is secure because it runs on the server, not the client
+    // Securely create a Supabase client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SERVICE_ROLE_KEY')!
     );
 
-    // Step 1: Update the document status to 'processing'
-    const { error: updateError } = await supabaseAdmin
+    // --- OCR Step (Simulated) ---
+    const extractedText = `Simulated OCR text for: ${document.file_name}`;
+
+    // Update status to 'processing'
+    await supabaseAdmin
       .from('documents')
-      .update({ status: 'processing' })
-      .eq('id', documentId);
+      .update({ status: 'processing', extracted_text: extractedText })
+      .eq('id', document.id);
 
-    if (updateError) throw updateError;
+    // --- AI Processing Step with Gemini ---
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const prompt = `
+      You are a financial data extraction assistant. Based on the following text from a receipt or invoice,
+      extract the vendor name, the total amount, and the transaction date.
+      Return the data ONLY as a valid JSON object with the keys "vendor", "total", and "date" (in YYYY-MM-DD format).
+      
+      Text: "${extractedText}"
+    `;
 
-    // --- AI PROCESSING LOGIC WILL GO HERE IN THE NEXT STEP ---
-    // For now, we simulate a delay and then mark it as complete.
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const aiResponseText = response.text();
+    
+    // Clean the response to ensure it's valid JSON
+    const jsonString = aiResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const processedData = JSON.parse(jsonString || '{}');
 
-    await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate AI work
-
-    // Step 2: Update the document with processed data (mocked for now)
-    const { error: finalUpdateError } = await supabaseAdmin
+    // --- Final Database Update ---
+    await supabaseAdmin
       .from('documents')
       .update({
         status: 'processed',
-        extracted_text: 'Mock OCR text from the document.',
-        processed_data: { vendor: 'MockMart', total: 12.99, date: '2025-08-19' }
+        processed_data: processedData,
       })
-      .eq('id', documentId);
+      .eq('id', document.id);
 
-    if (finalUpdateError) throw finalUpdateError;
-
-    return new Response(JSON.stringify({ message: `Successfully processed document ${documentId}` }), {
+    return new Response(JSON.stringify({ message: `Successfully processed document ${document.id}` }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,
     });

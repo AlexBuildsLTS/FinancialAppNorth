@@ -36,26 +36,34 @@ const ProcessDocumentScreen = () => {
       const filePath = `${user.id}/${fileName}`;
       const contentType = 'image/jpeg';
 
-      // Step 1: Upload the image to Supabase Storage
+      // Step 1: Upload the image
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, decode(base64), { contentType });
-
       if (uploadError) throw uploadError;
 
-      // Step 2: Create a record in the 'documents' database table
-      const { error: insertError } = await supabase.from('documents').insert({
-        user_id: user.id,
-        file_name: documentName,
-        storage_path: filePath,
-        status: 'uploaded',
-      });
-
+      // Step 2: Create a record in the database
+      const { data: documentRecord, error: insertError } = await supabase
+        .from('documents')
+        .insert({
+          user_id: user.id,
+          file_name: documentName,
+          storage_path: filePath,
+          status: 'uploaded',
+        })
+        .select()
+        .single();
       if (insertError) throw insertError;
+      
+      // Step 3: Call the Edge Function to start processing
+      const { error: functionError } = await supabase.functions.invoke('process-document', {
+          body: { record: documentRecord },
+      });
+      if (functionError) throw functionError;
 
       Alert.alert(
-        'Upload Complete',
-        `The document "${documentName}" has been successfully uploaded.`,
+        'Processing Started',
+        `"${documentName}" was uploaded and is now being processed by our AI.`,
         [{ text: 'OK', onPress: () => router.back() }]
       );
 
@@ -78,7 +86,6 @@ const ProcessDocumentScreen = () => {
         contentContainerStyle={{ flexGrow: 1 }}
       >
         <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="contain" />
-        
         <View style={styles.form}>
           <Text style={[styles.label, { color: colors.text }]}>Document Name</Text>
           <TextInput
@@ -88,17 +95,12 @@ const ProcessDocumentScreen = () => {
             value={documentName}
             onChangeText={setDocumentName}
           />
-
           <TouchableOpacity
             style={[styles.processButton, { backgroundColor: isProcessing ? colors.textSecondary : colors.primary }]}
             onPress={handleProcess}
             disabled={isProcessing}
           >
-            {isProcessing ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.processButtonText}>Upload Document</Text>
-            )}
+            {isProcessing ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.processButtonText}>Upload & Process</Text>}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -106,43 +108,15 @@ const ProcessDocumentScreen = () => {
   );
 };
 
+// Styles remain the same...
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  imagePreview: {
-    width: '100%',
-    height: 300,
-    backgroundColor: '#000',
-  },
-  form: {
-    padding: 24,
-    flex: 1,
-  },
-  label: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    marginBottom: 8,
-  },
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    marginBottom: 24,
-  },
-  processButton: {
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  processButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-  },
+  container: { flex: 1 },
+  imagePreview: { width: '100%', height: 300, backgroundColor: '#000' },
+  form: { padding: 24, flex: 1 },
+  label: { fontSize: 16, fontFamily: 'Inter-Bold', marginBottom: 8 },
+  input: { height: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, fontSize: 16, marginBottom: 24 },
+  processButton: { height: 50, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  processButtonText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-Bold' },
 });
 
 export default ProcessDocumentScreen;
