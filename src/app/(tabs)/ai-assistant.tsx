@@ -257,7 +257,7 @@ export default function AIAssistantScreen() {
           </Card>
         </Animated.View>
 
-        {user?.role === 'Accountant' && (
+        {user?.role === 'Professional Accountant' && (
           <Animated.View entering={FadeInUp.delay(500).springify()}>
             <Card style={styles.proTipCard}>
               <View style={styles.proTipHeader}>
