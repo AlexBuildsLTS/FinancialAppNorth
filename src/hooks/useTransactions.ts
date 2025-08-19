@@ -1,51 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Transaction } from '@/types';
-import { getTransactions, createTransaction as createTransactionService } from '@/services/dataService';
+import { Transaction } from '../types';
+import { fetchTransactions } from '../services/transactionService';
 
-export const useTransactions = (accountId?: string) => {
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
+export const useTransactions = () => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const fetchTransactions = useCallback(async () => {
-        if (!accountId) {
-            setTransactions([]);
-            setIsLoading(false);
-            return;
-        }
+  const refreshTransactions = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await fetchTransactions();
+      setTransactions(data);
+      setError(null);
+    } catch (e) {
+      setError("Failed to fetch transactions.");
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-        try {
-            setIsLoading(true);
-            const data = await getTransactions(accountId);
-            setTransactions(data);
-            setError(null);
-        } catch (err) {
-            setError('Failed to fetch transactions');
-            console.error(err);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [accountId]);
+  useEffect(() => {
+    refreshTransactions();
+  }, [refreshTransactions]);
 
-    useEffect(() => {
-        fetchTransactions();
-    }, [fetchTransactions]);
-
-    const addTransaction = useCallback(async (transaction: Omit<Transaction, 'id'>) => {
-        try {
-            setIsLoading(true);
-            const newTransaction = await createTransactionService(transaction);
-            setTransactions((prevTransactions) => [newTransaction, ...prevTransactions]);
-            setError(null);
-            return newTransaction;
-        } catch (err) {
-            setError('Failed to add transaction');
-            console.error(err);
-            throw err;
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    return { transactions, isLoading, error, addTransaction, refetchTransactions: fetchTransactions };
+  return { transactions, isLoading, error, refreshTransactions };
 };

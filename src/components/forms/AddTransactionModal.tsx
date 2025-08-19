@@ -1,110 +1,136 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Modal, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { createTransaction } from '@/services/dataService';
-import { Transaction } from '@/types';
-import Button from '@/components/common/Button';
-import DateTimePickerModal from "@react-native-community/datetimepicker";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { Picker } from '@react-native-picker/picker';
 
 interface AddTransactionModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess: (newTransaction: Transaction) => void;
-  clientId: string;
+  onSuccess: () => void;
 }
 
-export default function AddTransactionModal({ visible, onClose, onSuccess, clientId }: AddTransactionModalProps) {
+const AddTransactionModal = ({ visible, onClose, onSuccess }: AddTransactionModalProps) => {
   const { colors } = useTheme();
-  const [type, setType] = useState<'income' | 'expense'>('expense');
-  const [amount, setAmount] = useState('');
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState('Groceries');
   const [date, setDate] = useState(new Date());
+  const [type, setType] = useState<'income' | 'expense'>('expense');
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = async () => {
+  const handleSaveTransaction = async () => {
     if (!title || !amount || !category) {
-      Alert.alert('Missing Fields', 'Please fill in Title, Amount, and Category.');
+      Alert.alert('Missing Information', 'Please fill out all required fields.');
       return;
     }
-    setIsSubmitting(true);
-    const newTransactionData = {
-      clientId, title, category,
-      amount: type === 'expense' ? -Math.abs(parseFloat(amount)) : Math.abs(parseFloat(amount)),
-      date: date.toISOString(),
-      type, status: 'completed',
-    };
-    try {
-      const result = await createTransaction(newTransactionData as Omit<Transaction, 'id'>);
-      onSuccess(result);
-      resetForm();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save transaction.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  const resetForm = () => { setType('expense'); setAmount(''); setTitle(''); setCategory(''); setDate(new Date()); };
 
-  const handleConfirmDate = (selectedDate: Date) => {
-    setDate(selectedDate);
-    setDatePickerVisibility(false);
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount)) {
+      Alert.alert('Invalid Amount', 'Please enter a valid number for the amount.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await createTransaction({
+        title,
+        amount: numericAmount,
+        category,
+        date: date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        type,
+        status: 'completed',
+        clientId: ''
+      });
+      
+      onSuccess(); // Signal to the dashboard that a new transaction was added
+      onClose();   // Close the modal
+      // Reset form for next time
+      setTitle('');
+      setAmount('');
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to save the transaction. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Add Transaction</Text>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>Add New Transaction</Text>
           
-          <View style={[styles.typeSelector, { backgroundColor: colors.background }]}>
-            <TouchableOpacity style={[styles.typeButton, type === 'expense' && { backgroundColor: colors.primary }]} onPress={() => setType('expense')}>
-              <Text style={[styles.typeButtonText, { color: colors.text }, type === 'expense' && { color: colors.primaryContrast }]}>Expense</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.typeButton, type === 'income' && { backgroundColor: colors.primary }]} onPress={() => setType('income')}>
-              <Text style={[styles.typeButtonText, { color: colors.text }, type === 'income' && { color: colors.primaryContrast }]}>Income</Text>
-            </TouchableOpacity>
-          </View>
+          <TextInput
+            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+            placeholder="Title (e.g., Coffee)"
+            placeholderTextColor={colors.textSecondary}
+            value={title}
+            onChangeText={setTitle}
+          />
           
-          <TextInput placeholder="Title (e.g., Office Supplies)" value={title} onChangeText={setTitle} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} placeholderTextColor={colors.textSecondary}/>
-          <TextInput placeholder="Amount" value={amount} onChangeText={setAmount} keyboardType="numeric" style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} placeholderTextColor={colors.textSecondary}/>
-          <TextInput placeholder="Category (e.g., Business Expense)" value={category} onChangeText={setCategory} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} placeholderTextColor={colors.textSecondary}/>
-          
-          <TouchableOpacity onPress={() => setDatePickerVisibility(true)} style={[styles.input, { justifyContent: 'center' }]}>
-             <Text style={{color: colors.text}}>{date.toLocaleDateString()}</Text>
-          </TouchableOpacity>
-          {isDatePickerVisible && (
-            <DateTimePickerModal
-              value={date}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                const currentDate = selectedDate || date;
-                setDatePickerVisibility(false);
-                setDate(currentDate);
-              }}
-            />
-          )}
+          <TextInput
+            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+            placeholder="Amount"
+            placeholderTextColor={colors.textSecondary}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="numeric"
+          />
 
-          <View style={styles.buttonContainer}>
-            <Button title="Cancel" variant="outline" onPress={onClose} style={{ flex: 1 }} />
-            <Button title="Save" onPress={handleSave} style={{ flex: 1 }} isLoading={isSubmitting} />
+          <TouchableOpacity style={[styles.input, styles.datePickerButton]} onPress={() => setDatePickerVisibility(true)}>
+            <Text style={{ color: colors.text }}>{date.toDateString()}</Text>
+          </TouchableOpacity>
+          <DateTimePickerModal
+            isVisible={isDatePickerVisible}
+            mode="date"
+            onConfirm={(selectedDate) => { setDate(selectedDate); setDatePickerVisibility(false); }}
+            onCancel={() => setDatePickerVisibility(false)}
+          />
+          
+          <View style={[styles.pickerContainer, {borderColor: colors.border, backgroundColor: colors.background}]}>
+            <Picker
+                selectedValue={type}
+                onValueChange={(itemValue) => setType(itemValue)}
+                style={{ color: colors.text }}
+            >
+                <Picker.Item label="Expense" value="expense" />
+                <Picker.Item label="Income" value="income" />
+            </Picker>
           </View>
+
+          <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSaveTransaction} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save Transaction</Text>}
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.cancelButton} onPress={onClose} disabled={loading}>
+            <Text style={{ color: colors.textSecondary }}>Cancel</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { padding: 24, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
-  typeSelector: { flexDirection: 'row', borderRadius: 12, padding: 4, marginBottom: 16 },
-  typeButton: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  typeButtonText: { fontWeight: '600' },
-  input: { height: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, fontSize: 16 },
-  buttonContainer: { flexDirection: 'row', gap: 16, marginTop: 16 },
+    modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+    modalContent: { padding: 24, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+    modalTitle: { fontSize: 22, fontFamily: 'Inter-Bold', marginBottom: 20, textAlign: 'center' },
+    input: { height: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, fontSize: 16, marginBottom: 16, justifyContent: 'center' },
+    datePickerButton: { justifyContent: 'center' },
+    pickerContainer: { borderWidth: 1, borderRadius: 8, marginBottom: 16 },
+    saveButton: { height: 50, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 8 },
+    saveButtonText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-Bold' },
+    cancelButton: { marginTop: 16, alignItems: 'center' }
 });
+
+export default AddTransactionModal;
