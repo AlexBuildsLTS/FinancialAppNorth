@@ -2,33 +2,69 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
 import { Stack } from 'expo-router';
+import { supabase } from '@/lib/supabase';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
 
 const ProcessDocumentScreen = () => {
   const { colors } = useTheme();
   const { imageUri } = useLocalSearchParams<{ imageUri: string }>();
+  const { user } = useAuth();
   const router = useRouter();
   const [documentName, setDocumentName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleProcess = async () => {
+    if (!imageUri || !user) {
+      Alert.alert('Error', 'Image or user is missing.');
+      return;
+    }
     if (!documentName.trim()) {
       Alert.alert('Missing Name', 'Please give this document a name.');
       return;
     }
-    setIsProcessing(true);
 
-    // --- MOCK PROCESSING ---
-    // In a real app, you would upload the image and call OCR/AI services here.
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setIsProcessing(false);
-    
-    Alert.alert(
-      'Processing Complete',
-      `The document "${documentName}" has been saved and is ready for categorization.`,
-      [{ text: 'OK', onPress: () => router.back() }]
-    );
+    setIsProcessing(true);
+    try {
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      const fileName = `${documentName.replace(/\s+/g, '-')}-${Date.now()}.jpg`;
+      const filePath = `${user.id}/${fileName}`;
+      const contentType = 'image/jpeg';
+
+      // Step 1: Upload the image to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, decode(base64), { contentType });
+
+      if (uploadError) throw uploadError;
+
+      // Step 2: Create a record in the 'documents' database table
+      const { error: insertError } = await supabase.from('documents').insert({
+        user_id: user.id,
+        file_name: documentName,
+        storage_path: filePath,
+        status: 'uploaded',
+      });
+
+      if (insertError) throw insertError;
+
+      Alert.alert(
+        'Upload Complete',
+        `The document "${documentName}" has been successfully uploaded.`,
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+
+    } catch (error: any) {
+      console.error('Error processing document:', error);
+      Alert.alert('Error', error.message || 'An unexpected error occurred.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -61,7 +97,7 @@ const ProcessDocumentScreen = () => {
             {isProcessing ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.processButtonText}>Process Document</Text>
+              <Text style={styles.processButtonText}>Upload Document</Text>
             )}
           </TouchableOpacity>
         </View>
