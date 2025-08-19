@@ -19,7 +19,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/icon.png",
         "backgroundColor": "#111827"
-      }
+      },
+      "package": "com.northstar.financeapp"
     },
     "web": {
       "bundler": "metro",
@@ -38,7 +39,8 @@
         "origin": false
       },
       "eas": {
-        "projectId": "4c907106-b02c-473d-921d-9e6129818a22"
-      }     }
+        "projectId": "470fb4b6-b97a-4adb-9fea-917ebc37acec"
+      }
+    }
   }
 }
