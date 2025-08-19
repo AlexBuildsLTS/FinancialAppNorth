@@ -1,51 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/supabase';
+import { Session, AuthError } from '@supabase/supabase-js';
 
-// Helper function to generate a random color
-const getRandomColor = () => {
-  const letters = '0123456789ABCDEF';
-  let color = '#';
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)];
-  }
-  return color;
-};
-
-// Helper function to generate initials from an email
-const getInitials = (email: string) => {
-  const parts = email.split('@')[0].split('.');
-  let initials = '';
-  if (parts.length > 0) {
-    initials += parts[0].charAt(0);
-    if (parts.length > 1) {
-      initials += parts[parts.length - 1].charAt(0);
-    }
-  }
-  return initials.toUpperCase();
-};
-
-// Helper function to generate an SVG data URL for a profile picture
-const generateAvatarUrl = (email: string) => {
-  const initials = getInitials(email);
-  const bgColor = getRandomColor();
-  const textColor = '#FFFFFF'; // White text for contrast
-
-  const svg = `
-    <svg width="150" height="150" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="150" height="150" fill="${bgColor}"/>
-      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="${textColor}" font-family="Arial, sans-serif" font-size="60">${initials}</text>
-    </svg>
-  `;
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
-};
-
-export type UserRole = 'Member' | 'Premium Member' | 'Professional Accountant' | 'Support' | 'Administrator';
-
+// Define the shape of our User object
 export interface User {
   id: string;
-  uniqueUserId: string;
-  email: string;
-  role: UserRole;
+  email?: string;
+  role: string;
   displayName?: string;
   avatarUrl?: string;
   apiKeys?: {
@@ -55,85 +16,86 @@ export interface User {
   };
 }
 
+// Define the shape of the AuthContext
 export interface AuthContextType {
   user: User | null;
-  signIn: (role: UserRole) => void;
-  signOut: () => void;
+  session: Session | null;
   initialized: boolean;
-  updateUser: (updatedData: Partial<User>) => void;
-  isLoading: boolean;
+  signOut: () => void;
+  signUp: (params: any) => Promise<{ error: AuthError | null }>;
+  signInWithPassword: (params: any) => Promise<{ error: AuthError | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const storedUser = await AsyncStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (error) {
+            console.error('Error fetching profile:', error);
+            setUser(null);
+          } else if (data) {
+            setUser({
+              id: data.id,
+              email: session.user.email,
+              role: data.role,
+              displayName: data.display_name,
+              avatarUrl: data.avatar_url,
+            });
+          }
+        } else {
+          setUser(null);
         }
-      } catch (e) {
-        console.error("Failed to load user from storage", e);
-      } finally {
-        setInitialized(true);
+        
+        if (!initialized) {
+          setInitialized(true);
+        }
       }
-    };
-    loadUser();
-  }, []);
+    );
 
-  const signIn = async (role: UserRole) => {
-    const mockEmail = `user${Math.random().toString(36).substring(2, 8)}@domain.com`; // Mock email
-    const uniqueUserId = `USR_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    
-    let displayName = 'New User';
-    if (role === 'Professional Accountant') {
-      displayName = 'Alex Professional';
-    } else if (role === 'Member') {
-      displayName = 'Alex Member';
-    } else if (role === 'Premium Member') {
-      displayName = 'Alex Premium';
-    } else if (role === 'Administrator') {
-      displayName = 'Admin User';
-    } else if (role === 'Support') {
-      displayName = 'Support Agent';
-    }
-
-    const newUser: User = { 
-      id: '123', 
-      uniqueUserId,
-      email: mockEmail, 
-      role, 
-      displayName, 
-      avatarUrl: generateAvatarUrl(mockEmail), // Generate avatar based on email
-      apiKeys: {}
+    return () => {
+      authListener.subscription.unsubscribe();
     };
-    setUser(newUser);
-    await AsyncStorage.setItem('user', JSON.stringify(newUser));
+  }, [initialized]);
+
+  const signUp = async (params: any) => {
+    const { data, error } = await supabase.auth.signUp(params);
+    return { error };
+  };
+
+  const signInWithPassword = async (params: any) => {
+    const { data, error } = await supabase.auth.signInWithPassword(params);
+    return { error };
   };
 
   const signOut = async () => {
-    setUser(null);
-    await AsyncStorage.removeItem('user');
+    await supabase.auth.signOut();
   };
 
-  const updateUser = async (updatedData: Partial<User>) => {
-    if (user) {
-      const newUser = { ...user, ...updatedData };
-      setUser(newUser);
-      await AsyncStorage.setItem('user', JSON.stringify(newUser));
-    }
+  const value = {
+    session,
+    user,
+    initialized,
+    signOut,
+    signUp,
+    signInWithPassword,
   };
 
-  return (
-    <AuthContext.Provider value={{ user, signIn, signOut, initialized, updateUser, isLoading: !initialized }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
