@@ -1,3 +1,13 @@
+export interface Profile {
+  id: string;
+  display_name: string;
+  avatar_url: string;
+  email: string;
+  role: 'Member' | 'Premium Member' | 'Professional Accountant';
+  assignment_status?: string; // Optional status from the join
+}
+
+
 export interface Client {
   id: string;
   name: string;

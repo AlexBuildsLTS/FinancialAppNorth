@@ -1,179 +1,90 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Image,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import ScreenContainer from '@/components/ScreenContainer';
-import { getClients } from '@/services/dataService';
-import { Client } from '@/types';
-import { Plus, Search, AlertCircle, ChevronRight } from 'lucide-react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { fetchAssignedClients } from '@/services/cpaService';
+import { Profile } from '@/types';
 import { useRouter } from 'expo-router';
-import AddClientModal from '@/components/forms/AddClientModal';
+import { ChevronRight } from 'lucide-react-native';
 
-const ClientCard = ({ item, colors, onNavigate }: { item: Client; colors: any; onNavigate: () => void }) => {
-  const statusColor = item.status === 'active' ? colors.success : item.status === 'pending' ? colors.warning : colors.textSecondary;
-  
-  return (
-    <TouchableOpacity
-      style={[styles.clientCard, { backgroundColor: colors.surface }]}
-      onPress={onNavigate}
-    >
-      <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
-      <View style={styles.clientInfo}>
-        <Text style={[styles.clientName, { color: colors.text }]}>{item.name}</Text>
-        <Text style={[styles.companyName, { color: colors.textSecondary }]}>{item.companyName}</Text>
-        <View style={styles.statusBadge}>
-          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
+const ClientItem = ({ client, colors, onPress }: { client: Profile, colors: any, onPress: () => void }) => (
+  <TouchableOpacity onPress={onPress} style={[styles.itemContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <Image source={{ uri: client.avatar_url || `https://i.pravatar.cc/150?u=${client.id}` }} style={styles.avatar} />
+    <View style={styles.clientInfo}>
+      <Text style={[styles.clientName, { color: colors.text }]}>{client.display_name}</Text>
+      <Text style={[styles.clientEmail, { color: colors.textSecondary }]}>{client.email}</Text>
+    </View>
+    <View style={styles.statusContainer}>
+        <View style={[styles.statusBadge, { backgroundColor: client.assignment_status === 'active' ? colors.success : colors.primary }]}>
+            <Text style={styles.statusText}>{client.assignment_status}</Text>
         </View>
-      </View>
-      <View style={styles.clientActions}>
-        {item.uncategorized > 0 && (
-          <View style={styles.alertBadge}>
-            <AlertCircle color="#FFFFFF" size={14} />
-            <Text style={styles.alertText}>{item.uncategorized}</Text>
-          </View>
-        )}
         <ChevronRight color={colors.textSecondary} size={24} />
-      </View>
-    </TouchableOpacity>
-  );
-};
+    </View>
+  </TouchableOpacity>
+);
 
 export default function ClientsScreen() {
   const { colors } = useTheme();
-  const router = useRouter();
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isModalVisible, setIsModalVisible] = useState(false);
-
-  const loadClients = useCallback(async () => {
-    // No need to set loading true here for refetches, only initial load
-    try {
-      const data = await getClients();
-      setClients(data);
-    } catch (error) {
-      console.error("Failed to load clients:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const router = useRouter();
 
   useEffect(() => {
-    setLoading(true);
+    const loadClients = async () => {
+      try {
+        const data = await fetchAssignedClients();
+        setClients(data);
+      } catch (error) {
+        console.error("Failed to load clients on screen", error);
+      } finally {
+        setLoading(false);
+      }
+    };
     loadClients();
-  }, [loadClients]);
+  }, []);
 
-  // FIXED: This function now correctly updates the UI
-  const handleClientAdded = (newClient: Client) => {
-    // Optimistically update the UI for an instant response
-    setClients(prevClients => [newClient, ...prevClients]);
-    setIsModalVisible(false);
-    // Optionally, you can still call loadClients() to sync with the "server"
-    // loadClients(); 
+  const handleClientPress = (client: Profile) => {
+    // We will build this client workspace in the next step
+    router.push(`/client/${client.id}`);
   };
-
-  const filteredClients = useMemo(() =>
-    clients.filter(client =>
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.companyName.toLowerCase().includes(searchQuery.toLowerCase())
-    ), [clients, searchQuery]
-  );
 
   if (loading) {
     return (
-      <ScreenContainer>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </ScreenContainer>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     );
   }
 
   return (
-    <ScreenContainer>
-      <View style={[styles.header, { backgroundColor: colors.surface }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Clients</Text>
-        <TouchableOpacity 
-            style={[styles.addButton, { backgroundColor: colors.primary }]}
-            onPress={() => setIsModalVisible(true)}
-        >
-          <Plus size={24} color={colors.primaryContrast} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.searchContainer, { backgroundColor: colors.surface }]}>
-        <View style={[styles.searchInputWrapper, { backgroundColor: colors.background }]}>
-          <Search color={colors.textSecondary} size={20} />
-          <TextInput
-            placeholder="Search clients..."
-            placeholderTextColor={colors.textSecondary}
-            style={[styles.searchInput, { color: colors.text }]}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>Client Management</Text>
+      {clients.length === 0 ? (
+        <View style={styles.centered}>
+            <Text style={[styles.emptyText, {color: colors.textSecondary}]}>You have not been assigned any clients.</Text>
         </View>
-      </View>
-      
-      <FlatList
-        data={filteredClients}
-        keyExtractor={item => item.id}
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInUp.delay(index * 100).duration(400)}>
-            <ClientCard 
-              item={item} 
-              colors={colors}
-              onNavigate={() => router.push(`/client/${item.id}`)}
-            />
-          </Animated.View>
-        )}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={
-          <View style={styles.emptyStateContainer}>
-            <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-              No clients found.
-            </Text>
-          </View>
-        }
-      />
-
-      <AddClientModal 
-        visible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
-        onSuccess={handleClientAdded}
-      />
-    </ScreenContainer>
+      ) : (
+        <FlatList
+          data={clients}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <ClientItem client={item} colors={colors} onPress={() => handleClientPress(item)} />}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+        />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderColor: 'transparent' },
-  headerTitle: { fontSize: 28, fontWeight: 'bold' },
-  addButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  searchContainer: { padding: 16, borderBottomWidth: 1, borderColor: 'rgba(128, 128, 128, 0.1)' },
-  searchInputWrapper: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 12, gap: 8 },
-  searchInput: { flex: 1, height: 44, fontSize: 16 },
-  listContainer: { padding: 16, gap: 16, paddingBottom: 100 },
-  clientCard: { borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'rgba(128, 128, 128, 0.1)' },
-  avatar: { width: 50, height: 50, borderRadius: 25 },
+  container: { flex: 1 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 28, fontFamily: 'Inter-Bold', padding: 16 },
+  emptyText: { fontSize: 16, fontFamily: 'Inter-Regular' },
+  itemContainer: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8, borderWidth: 1, marginBottom: 12 },
+  avatar: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
   clientInfo: { flex: 1 },
-  clientName: { fontSize: 16, fontWeight: '600' },
-  companyName: { fontSize: 14, marginTop: 2 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 6 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 12, fontWeight: '500', textTransform: 'capitalize' },
-  clientActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  alertBadge: { backgroundColor: '#EF4444', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  alertText: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' },
-  emptyStateContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
-  emptyStateText: { fontSize: 16 },
+  clientName: { fontSize: 16, fontFamily: 'Inter-Bold' },
+  clientEmail: { fontSize: 14, fontFamily: 'Inter-Regular', marginTop: 4 },
+  statusContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  statusBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12 },
+  statusText: { color: '#fff', fontSize: 12, fontFamily: 'Inter-Bold', textTransform: 'capitalize' },
 });
