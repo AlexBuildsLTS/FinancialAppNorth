@@ -2,25 +2,24 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { useTheme } from '../../context/ThemeProvider';
 import { useAuth } from '../../context/AuthContext';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native'; // Added View, Text, StyleSheet, Image, TouchableOpacity
-import { useRouter } from 'expo-router'; // Import useRouter
+import { useNotifications } from '../../hooks/useNotifications'; // Import the hook
+import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
   LayoutDashboard,
-  Briefcase, // Keep Briefcase for now, will change to Users
+  Briefcase,
   ArrowRightLeft,
-  Settings, // Keep Settings for now, will change to MessageSquare
+  Settings,
   Landmark,
   PiggyBank,
   AreaChart,
   Camera,
   FilePieChart,
   BookOpen,
-  Bot,
   User,
   Bell,
-  MessageSquare, // Added MessageSquare icon
-  Users, // Added Users icon
-  Contact
+  MessageSquare,
+  Users,
 } from 'lucide-react-native';
 
 interface TabBarIconProps {
@@ -34,35 +33,46 @@ const TabBarIcon: React.FC<TabBarIconProps> = React.memo(({ Icon, color, size })
 ));
 
 // Custom Header Component
-const CustomHeader = ({ title, user, colors, router }: any) => (
-  <View style={[headerStyles.container, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-    <View style={headerStyles.userInfo}>
-      <Image source={{ uri: user?.avatarUrl || '' }} style={headerStyles.avatar} />
-      <View>
-        <Text style={[headerStyles.greeting, { color: colors.textSecondary }]}>
-          Welcome back,
-        </Text>
-        <Text style={[headerStyles.username, { color: colors.text }]}>{user?.displayName || 'User'}</Text>
+const CustomHeader = () => {
+  const { colors } = useTheme();
+  const { user } = useAuth();
+  const { unreadCount } = useNotifications(); // Use the hook to get the count
+  const router = useRouter();
+  
+  return (
+    <View style={[headerStyles.container, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={headerStyles.userInfo}>
+        <Image source={{ uri: user?.avatarUrl || '' }} style={headerStyles.avatar} />
+        <View>
+          <Text style={[headerStyles.greeting, { color: colors.textSecondary }]}>
+            Welcome back,
+          </Text>
+          <Text style={[headerStyles.username, { color: colors.text }]}>{user?.displayName || 'User'}</Text>
+        </View>
+      </View>
+      <View style={headerStyles.rightIcons}>
+        <TouchableOpacity onPress={() => { /* Handle notifications */ }} style={headerStyles.iconButton}>
+          <Bell color={colors.text} size={24} />
+          {unreadCount > 0 && (
+            <View style={[headerStyles.badgeContainer, { backgroundColor: colors.error }]}>
+              <Text style={headerStyles.badgeText}>{unreadCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/ai-assistant' })} style={headerStyles.iconButton}>
+          <MessageSquare color={colors.text} size={24} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={headerStyles.iconButton}>
+          <User color={colors.text} size={24} />
+        </TouchableOpacity>
       </View>
     </View>
-    <View style={headerStyles.rightIcons}>
-      <TouchableOpacity onPress={() => { /* Handle notifications */ }} style={[headerStyles.iconButton, { backgroundColor: colors.surface }]}>
-        <Bell color={colors.text} size={24} />
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => { /* Handle messages */ }} style={[headerStyles.iconButton, { backgroundColor: colors.surface }]}>
-        <MessageSquare color={colors.text} size={24} /> {/* Changed to Message icon */}
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={[headerStyles.iconButton, { backgroundColor: colors.surface }]}>
-        <User color={colors.text} size={24} />
-      </TouchableOpacity>
-    </View>
-  </View>
-);
+  );
+};
 
 export default function TabLayout() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const router = useRouter(); // Initialize useRouter
   const isProfessional = user?.role === 'Professional Accountant' || user?.role === 'Administrator';
 
   return (
@@ -82,16 +92,7 @@ export default function TabLayout() {
           fontSize: 10,
           display: 'flex',
         },
-        tabBarShowLabel: false,
-        headerShown: true, // Show header for all tabs
-        header: ({ options }) => ( // Custom header component
-          <CustomHeader
-            title={options.title}
-            user={user}
-            colors={colors}
-            router={router}
-          />
-        ),
+        header: () => <CustomHeader />, // Use the updated CustomHeader
       }}
     >
       <Tabs.Screen
@@ -106,7 +107,7 @@ export default function TabLayout() {
           name="clients"
           options={{
             title: 'Clients',
-          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Briefcase} color={color} size={size} />,
+            tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Briefcase} color={color} size={size} />,
           }}
         />
       )}
@@ -117,84 +118,18 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <TabBarIcon Icon={ArrowRightLeft} color={color} size={size} />,
         }}
       />
-      <Tabs.Screen
-        name="accounts"
-        options={{
-          title: 'Accounts',
-          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Landmark} color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="reports"
-        options={{
-          title: 'Reports',
-          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={FilePieChart} color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="budgets"
-        options={{
-          title: 'Budgets',
-          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={PiggyBank} color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="journal"
-        options={{
-          title: 'Journal',
-          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={BookOpen} color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="analytics"
-        options={{
-          title: 'Analytics',
-          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={AreaChart} color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="camera"
-        options={{
-          title: 'Camera',
-          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Camera} color={color} size={size} />,
-        }}
-      />
+      {/* Add other tabs here */}
       <Tabs.Screen
         name="ai-assistant"
         options={{
-          title: 'AI Assistant',
-          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Bot} color={color} size={size} />,
+          title: 'Messages',
+          tabBarIcon: ({ color, size }) => <TabBarIcon Icon={MessageSquare} color={color} size={size} />,
         }}
       />
-      {/* These screens are part of the stack but not shown in the tab bar */}
-      <Tabs.Screen
-        name="settings"
-        options={{
-          href: null, // Hide this tab from the tab bar
-          headerShown: false, // Hide header for nested stack
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          href: null, // Hide this tab from the tab bar
-          headerShown: false, // Hide header for nested stack
-        }}
-      />
-      <Tabs.Screen
-        name="client"
-        options={{
-          href: null, // Hide this tab from the tab bar
-          headerShown: false, // Hide header for nested stack
-        }}
-      />
-      <Tabs.Screen
-        name="security" // Explicitly hide the security group from tabs
-        options={{
-          href: null,
-          headerShown: false,
-        }}
-      />
+      
+      {/* Screens not in tab bar */}
+      <Tabs.Screen name="profile" options={{ href: null }} />
+      <Tabs.Screen name="client" options={{ href: null }}/>
     </Tabs>
   );
 }
@@ -205,33 +140,26 @@ const headerStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 10, // Adjust for iOS notch
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
     paddingBottom: 10,
     borderBottomWidth: 1,
   },
-  userInfo: {
-    flexDirection: 'row',
+  userInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 40, height: 40, borderRadius: 20 },
+  greeting: { fontSize: 14 },
+  username: { fontSize: 18, fontWeight: 'bold' },
+  rightIcons: { flexDirection: 'row', gap: 8 },
+  iconButton: { padding: 8, borderRadius: 20, position: 'relative' },
+  badgeContainer: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    paddingHorizontal: 5,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  greeting: {
-    fontSize: 14,
-  },
-  username: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  rightIcons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  iconButton: {
-    padding: 8,
-    borderRadius: 20,
-  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
 });
