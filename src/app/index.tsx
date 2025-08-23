@@ -1,3 +1,4 @@
+// src/app/(tabs)/index.tsx
 import React from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { useTheme } from "@/context/ThemeProvider";
@@ -11,7 +12,7 @@ import { useRouter } from 'expo-router';
 
 export default function DashboardScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { user, profile } = useAuth(); // Destructure profile from the context
   const router = useRouter();
 
   return (
@@ -20,20 +21,20 @@ export default function DashboardScreen() {
       contentContainerStyle={styles.container}
     >
       <DashboardHeader
-  username={user?.displayName || 'User'}
-  avatarUrl={user?.avatarUrl || ''}
-  onPressProfile={() => router.push('/(tabs)/profile')}
-  onPressSettings={() => {}}
-/>
+        // Use the profile's username, with the user's email as a fallback
+        username={profile?.username || user?.email || 'User'}
+        // Use the profile's avatar_url
+        avatarUrl={profile?.avatar_url || ''}
+        onPressProfile={() => router.push('/(tabs)/profile')}
+        onPressSettings={() => {}}
+      />
 
       <MetricsGrid />
       <ChartSection />
       <QuickActions onAddTransaction={() => {
-        // We will implement this next
         console.log("Add transaction pressed");
       }} />
       <RecentTransactions />
-
     </ScrollView>
   );
 }

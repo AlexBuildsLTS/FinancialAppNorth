@@ -1,13 +1,10 @@
+// src/app/(auth)/login.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeProvider';
-import { useRouter } from 'expo-router';
+import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
+import { supabase } from '../../lib/supabase'; // Direct import
+import { Link, router } from 'expo-router';
 
-const LoginScreen = () => {
-  const { signInWithPassword } = useAuth();
-  const { colors } = useTheme();
-  const router = useRouter();
+export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,56 +15,51 @@ const LoginScreen = () => {
       return;
     }
     setLoading(true);
-    const { error } = await signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       Alert.alert('Sign In Error', error.message);
+    } else {
+      // The onAuthStateChange listener in AuthContext will handle the redirect
+      // by updating the session state.
     }
-    // No need for a success message, the AuthRedirector will handle navigation
     setLoading(false);
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Welcome Back</Text>
       <TextInput
-        style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+        style={styles.input}
         placeholder="Email"
-        placeholderTextColor={colors.textSecondary}
         value={email}
         onChangeText={setEmail}
-        keyboardType="email-address"
         autoCapitalize="none"
+        keyboardType="email-address"
       />
       <TextInput
-        style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+        style={styles.input}
         placeholder="Password"
-        placeholderTextColor={colors.textSecondary}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: colors.primary }]}
+      <Button
+        title={loading ? 'Signing In...' : 'Sign In'}
         onPress={handleSignIn}
         disabled={loading}
-      >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign In</Text>}
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-        <Text style={[styles.link, { color: colors.textSecondary }]}>Don't have an account? Sign Up</Text>
-      </TouchableOpacity>
+      />
+      <Link href="/(auth)/register" style={styles.link}>
+        Don't have an account? Sign Up
+      </Link>
     </View>
   );
-};
+}
 
+// Add your styles here
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 28, fontFamily: 'Inter-Bold', marginBottom: 24, textAlign: 'center' },
-  input: { height: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, fontSize: 16, marginBottom: 16 },
-  button: { height: 50, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-Bold' },
-  link: { marginTop: 24, textAlign: 'center', fontFamily: 'Inter-Regular' },
+    container: { flex: 1, justifyContent: 'center', padding: 20 },
+    title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+    input: { height: 40, borderColor: 'gray', borderWidth: 1, marginBottom: 12, paddingHorizontal: 8, borderRadius: 5 },
+    link: { marginTop: 15, textAlign: 'center', color: 'blue' },
 });
-
-export default LoginScreen;

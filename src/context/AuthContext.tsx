@@ -1,23 +1,26 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase'; // Corrected import path
+import { supabase } from '../lib/supabase';
 import { Alert } from 'react-native';
 
-// Define the shape of the context's value
+// Define the shape of your profile data
+// This should match the columns in your 'profiles' table
+type Profile = {
+  username: string;
+  avatar_url: string;
+};
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
+  profile: Profile | null; // Add profile to our context
   loading: boolean;
-  signIn: (email: any, password: any) => Promise<void>;
-  signUp: (email: any, password: any) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-// Create the context with a default undefined value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Custom hook to use the AuthContext
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -26,72 +29,66 @@ export function useAuth() {
   return context;
 }
 
-// Create the provider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Fetch the initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+  // This function fetches the user's profile from the database
+  const fetchProfile = async (user: User) => {
+    try {
+      const { data, error, status } = await supabase
+        .from('profiles')
+        .select(`username, avatar_url`)
+        .eq('id', user.id)
+        .single();
+      
+      if (error && status !== 406) throw error;
 
-    // Listen for changes in authentication state
+      if (data) setProfile(data);
+    } catch (error) {
+      if (error instanceof Error) {
+        Alert.alert('Error fetching profile', error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+
+    // Listen for changes in authentication state (login/logout)
+    // The listener is called once with the initial session, and then on every auth change.
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          await fetchProfile(currentUser); // fetchProfile sets loading to false
+        } else {
+          setProfile(null); // Clear profile on logout
+          setLoading(false);
+        }
       }
     );
 
-    // Cleanup the listener on component unmount
     return () => {
       authListener?.subscription.unsubscribe();
     };
   }, []);
 
-  // Sign up function with error handling
-  const signUp = async (email: any, password: any) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) {
-      Alert.alert('Sign Up Error', error.message);
-      throw error; // Re-throw to handle in the UI if needed
-    }
-    // Optional: Alert the user to check their email if confirmation is on
-    Alert.alert('Success!', 'Please check your email to confirm your account.');
-  };
-
-  // Sign in function with error handling
-  const signIn = async (email: any, password: any) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      Alert.alert('Sign In Error', error.message);
-      throw error;
-    }
-  };
-
-  // Sign out function
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      Alert.alert('Sign Out Error', error.message);
-      throw error;
-    }
+    if (error) Alert.alert('Sign Out Error', error.message);
   };
 
-  const value = {
-    session,
-    user,
-    loading,
-    signUp,
-    signIn,
-    signOut,
-  };
+  const value = { session, user, profile, loading, signOut };
+
+  if (loading) return null; // Or a loading spinner
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
