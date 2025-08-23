@@ -1,91 +1,87 @@
+// src/app/(auth)/register.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeProvider';
-import { useRouter } from 'expo-router';
+import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
+import { useAuth } from '../../context/AuthContext'; // Corrected import path
+import { Link, router } from 'expo-router';
 
-const RegisterScreen = () => {
-  const { signUp } = useAuth();
-  const { colors } = useTheme();
-  const router = useRouter();
+export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
+  const { signUp } = useAuth();
 
   const handleSignUp = async () => {
-    if (!email || !password || !displayName) {
-      Alert.alert('Error', 'Please fill in all fields.');
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password.');
       return;
     }
     setLoading(true);
-    const { error } = await signUp({
-      email,
-      password,
-      options: {
-        data: {
-          display_name: displayName,
-        },
-      },
-    });
-
-    if (error) {
-      Alert.alert('Sign Up Error', error.message);
-    } else {
-      Alert.alert('Success', 'Please check your email for a confirmation link to complete your registration.');
-      router.push('/(auth)/login');
+    try {
+      await signUp(email, password);
+      // On success, the AuthContext already shows an alert.
+      // You can optionally redirect the user here.
+      router.replace('/(auth)/login');
+    } catch (error) {
+      // The error is already shown in an Alert by the AuthContext
+      // You can add more specific logic here if needed
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Create Account</Text>
       <TextInput
-        style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
-        placeholder="Display Name"
-        placeholderTextColor={colors.textSecondary}
-        value={displayName}
-        onChangeText={setDisplayName}
-      />
-      <TextInput
-        style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+        style={styles.input}
         placeholder="Email"
-        placeholderTextColor={colors.textSecondary}
         value={email}
         onChangeText={setEmail}
-        keyboardType="email-address"
         autoCapitalize="none"
+        keyboardType="email-address"
       />
       <TextInput
-        style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+        style={styles.input}
         placeholder="Password"
-        placeholderTextColor={colors.textSecondary}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: colors.primary }]}
+      <Button
+        title={loading ? 'Creating Account...' : 'Sign Up'}
         onPress={handleSignUp}
         disabled={loading}
-      >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign Up</Text>}
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-        <Text style={[styles.link, { color: colors.textSecondary }]}>Already have an account? Sign In</Text>
-      </TouchableOpacity>
+      />
+      <Link href="/(auth)/login" style={styles.link}>
+        Already have an account? Sign In
+      </Link>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 28, fontFamily: 'Inter-Bold', marginBottom: 24, textAlign: 'center' },
-  input: { height: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, fontSize: 16, marginBottom: 16 },
-  button: { height: 50, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-Bold' },
-  link: { marginTop: 24, textAlign: 'center', fontFamily: 'Inter-Regular' },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 12,
+    paddingHorizontal: 8,
+    borderRadius: 5,
+  },
+  link: {
+    marginTop: 15,
+    textAlign: 'center',
+    color: 'blue',
+  },
 });
-
-export default RegisterScreen;
