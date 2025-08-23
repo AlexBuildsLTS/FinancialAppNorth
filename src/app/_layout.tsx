@@ -1,45 +1,40 @@
 // src/app/_layout.tsx
-import React, { useEffect } from 'react';
-import { SplashScreen, Slot, useRouter, useSegments } from 'expo-router';
-import { AuthProvider, useAuth } from '../context/AuthContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { SplashScreen, Stack, useRouter } from 'expo-router';
+import { useEffect } from 'react';
+import { View } from 'react-native';
+import { ThemeProvider } from '@/context/ThemeProvider'; // <-- IMPORT THEME PROVIDER
 
-// This is the main layout component that wraps the entire app.
 const InitialLayout = () => {
   const { session, loading } = useAuth();
-  const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    // Wait until the session is loaded
     if (loading) return;
-
-    const inTabsGroup = segments[0] === '(tabs)';
-
-    // If the user is not signed in and the initial segment is not the auth group,
-    // redirect them to the sign-in page.
-    if (!session && !inTabsGroup) {
+    if (!session) {
       router.replace('/(auth)/login');
-    } 
-    // If the user is signed in and the initial segment is in the auth group,
-    // redirect them to the main tabs screen.
-    else if (session && inTabsGroup) {
+    } else {
       router.replace('/(tabs)');
     }
-    
-    // Hide the splash screen once we're done
-    SplashScreen.hideAsync();
+  }, [session, loading]);
 
-  }, [session, loading, segments, router]);
-
-  // Render the current route
-  return <Slot />;
+  return (
+    <View style={{ flex: 1 }}>
+      <Stack>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>
+    </View>
+  );
 };
 
-// This is the root component that provides the AuthContext to the app.
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <InitialLayout />
-    </AuthProvider>
+    // WRAP EVERYTHING IN THE THEME PROVIDER
+    <ThemeProvider>
+      <AuthProvider>
+        <InitialLayout />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
