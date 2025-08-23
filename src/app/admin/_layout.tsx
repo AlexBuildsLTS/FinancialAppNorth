@@ -6,20 +6,20 @@ import { View, Text, ActivityIndicator } from 'react-native';
 
 // This component will protect the admin routes
 const AdminLayout = () => {
-  const { user, isLoading } = useAuth();
+  const { user, initialized } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
 
   useEffect(() => {
     // If the user data has loaded and the user is not an admin, redirect them.
-    if (!isLoading && user?.role !== 'Administrator') {
+    if (initialized && user?.role !== 'Administrator') {
       // You can redirect them to the main dashboard or a 'not found' page.
       router.replace('/(tabs)');
     }
-  }, [user, isLoading, router]);
+  }, [user, initialized, router]);
 
   // While checking the user's role, show a loading indicator.
-  if (isLoading || user?.role !== 'Administrator') {
+  if (!initialized || user?.role !== 'Administrator') {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={colors.primary} />

@@ -1,16 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Transaction } from '../types';
-import { fetchTransactions } from '../services/transactionService';
+import { fetchTransactions } from '../services/realTransactionService';
+import { useAuth } from '../context/AuthContext';
 
 export const useTransactions = () => {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refreshTransactions = useCallback(async () => {
+    if (!user) {
+      setTransactions([]);
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       setIsLoading(true);
-      const data = await fetchTransactions();
+      const data = await fetchTransactions(user.id);
       setTransactions(data);
       setError(null);
     } catch (e) {
@@ -19,7 +27,7 @@ export const useTransactions = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     refreshTransactions();

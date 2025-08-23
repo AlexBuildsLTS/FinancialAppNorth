@@ -1,70 +1,169 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import { ArrowUpRight, ArrowDownLeft, ChevronRight } from 'lucide-react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
-import { Transaction } from '@/types';
-import { Feather } from '@expo/vector-icons';
-import { useTransactions } from '@/hooks/useTransactions'; // Import the hook
+import { useTransactions } from '@/hooks/useTransactions';
+import Card from '@/components/common/Card';
 
-const TransactionItem = ({ item, colors }: { item: Transaction, colors: any }) => (
-  <View style={[styles.itemContainer, { borderBottomColor: colors.border }]}>
-    <View style={styles.iconContainer}>
-      <Feather name={item.type === 'income' ? 'arrow-down-left' : 'arrow-up-right'} size={20} color={item.type === 'income' ? colors.success : colors.error} />
-    </View>
-    <View style={styles.detailsContainer}>
-      <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
-      <Text style={[styles.itemCategory, { color: colors.textSecondary }]}>{item.category}</Text>
-    </View>
-    <Text style={[styles.itemAmount, { color: item.type === 'income' ? colors.success : colors.text }]}>
-      {item.type === 'income' ? '+' : '-'}${Math.abs(item.amount).toFixed(2)}
-    </Text>
-  </View>
-);
-
-const RecentTransactions = () => {
+export default function RecentTransactions() {
   const { colors } = useTheme();
-  const { transactions, isLoading } = useTransactions(); // Use the hook
+  const { transactions, isLoading } = useTransactions();
+
+  const recentTransactions = transactions.slice(0, 5);
 
   if (isLoading) {
-    return <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />;
+    return (
+      <Card>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Recent Transactions
+        </Text>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </Card>
+    );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={[styles.title, { color: colors.text }]}>Recent Transactions</Text>
-      {transactions.length === 0 ? (
-        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No transactions yet.</Text>
-      ) : (
-        <FlatList
-          data={transactions.slice(0, 5)} // Only show the 5 most recent
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => <TransactionItem item={item} colors={colors} />}
-          scrollEnabled={false}
-        />
-      )}
-    </View>
-  );
-};
+    <Animated.View entering={FadeInUp.duration(500).delay(600)}>
+      <Card>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Recent Transactions
+          </Text>
+          <TouchableOpacity>
+            <Text style={[styles.viewAll, { color: colors.primary }]}>
+              View All
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-// Styles remain the same...
+        {recentTransactions.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              No transactions yet. Add your first transaction to get started.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.transactionsList}>
+            {recentTransactions.map((transaction, index) => {
+              const isIncome = transaction.type === 'income';
+              const IconComponent = isIncome ? ArrowUpRight : ArrowDownLeft;
+              const amountColor = isIncome ? colors.success : colors.text;
+
+              return (
+                <TouchableOpacity
+                  key={transaction.id}
+                  style={[
+                    styles.transactionItem,
+                    { borderBottomColor: colors.border },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      {
+                        backgroundColor: isIncome
+                          ? `${colors.success}20`
+                          : `${colors.error}20`,
+                      },
+                    ]}
+                  >
+                    <IconComponent
+                      color={isIncome ? colors.success : colors.error}
+                      size={20}
+                    />
+                  </View>
+                  <View style={styles.transactionInfo}>
+                    <Text style={[styles.transactionTitle, { color: colors.text }]}>
+                      {transaction.title}
+                    </Text>
+                    <Text
+                      style={[styles.transactionCategory, { color: colors.textSecondary }]}
+                    >
+                      {transaction.category}
+                    </Text>
+                  </View>
+                  <View style={styles.transactionRight}>
+                    <Text style={[styles.transactionAmount, { color: amountColor }]}>
+                      {isIncome ? '+' : '-'}$
+                      {Math.abs(transaction.amount).toLocaleString()}
+                    </Text>
+                    <ChevronRight color={colors.textSecondary} size={16} />
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+      </Card>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { marginTop: 24 },
-  title: { fontSize: 20, fontFamily: 'Inter-Bold', marginBottom: 16 },
-  emptyText: { textAlign: 'center', paddingVertical: 20, fontFamily: 'Inter-Regular' },
-  itemContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  viewAll: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  transactionsList: {
+    gap: 0,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
   iconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(128, 128, 128, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  detailsContainer: { flex: 1 },
-  itemTitle: { fontFamily: 'Inter-Bold', fontSize: 16 },
-  itemCategory: { fontFamily: 'Inter-Regular', fontSize: 14, marginTop: 2 },
-  itemAmount: { fontFamily: 'Inter-Bold', fontSize: 16 },
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  transactionCategory: {
+    fontSize: 12,
+  },
+  transactionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });
-
-
-export default RecentTransactions;

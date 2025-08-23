@@ -5,12 +5,24 @@ import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { fetchChannelMessages, sendMessage } from '@/services/chatService';
-import { Send } from 'lucide-react-native';
+import { Send, User } from 'lucide-react-native';
 
-const MessageItem = ({ message, isCurrentUser, colors }: any) => {
+interface Message {
+    id: string;
+    content: string;
+    created_at: string;
+    user_id: string;
+    profile: {
+        id: string;
+        display_name: string;
+        avatar_url: string;
+    } | null;
+}
+
+const MessageItem = ({ message, isCurrentUser, colors }: { message: Message, isCurrentUser: boolean, colors: any }) => {
     const bubbleStyle = isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble;
-    const textStyle = isCurrentUser ? styles.currentUserText : styles.otherUserText;
     const bubbleBackgroundColor = isCurrentUser ? colors.primary : colors.surface;
+    const textStyle = isCurrentUser ? styles.currentUserText : [styles.otherUserText, { color: colors.text }];
 
     return (
         <View style={[styles.bubbleContainer, bubbleStyle]}>
@@ -25,7 +37,7 @@ export default function ChatScreen() {
     const { colors } = useTheme();
     const { user } = useAuth();
     const { id: channelId } = useLocalSearchParams<{ id: string }>();
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
 
@@ -33,7 +45,7 @@ export default function ChatScreen() {
         if (!channelId) return;
         try {
             const data = await fetchChannelMessages(parseInt(channelId));
-            setMessages(data);
+            setMessages(data as unknown as Message[]);
         } catch (error) {
             console.error("Failed to load messages", error);
         } finally {
@@ -57,7 +69,7 @@ export default function ChatScreen() {
                         .eq('id', payload.new.id)
                         .single();
                     if (data) {
-                        setMessages((currentMessages) => [...currentMessages, data]);
+                        setMessages((currentMessages) => [...currentMessages, data as Message]);
                     }
                 };
                 fetchNewMessage();
@@ -92,7 +104,7 @@ export default function ChatScreen() {
             <FlatList
                 data={messages}
                 keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => <MessageItem message={item} isCurrentUser={item.profile.id === user?.id} colors={colors} />}
+                renderItem={({ item }) => <MessageItem message={item} isCurrentUser={item.profile?.id === user?.id} colors={colors} />}
                 contentContainerStyle={styles.listContainer}
             />
             <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
@@ -120,7 +132,7 @@ const styles = StyleSheet.create({
     otherUserBubble: { justifyContent: 'flex-start' },
     bubble: { borderRadius: 20, padding: 12, maxWidth: '80%' },
     currentUserText: { color: '#fff' },
-    otherUserText: { color: '#000' },
+    otherUserText: { },
     inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 8, borderTopWidth: 1 },
     input: { flex: 1, minHeight: 40, maxHeight: 120, paddingHorizontal: 12, fontSize: 16 },
     sendButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginLeft: 8 },

@@ -1,11 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/types'; // We'll add this to types next
 
-// Define the shape of a Client, which includes their profile and assignment status
-export interface Client extends Profile {
-  assignment_status: string;
-}
-
 // Fetches all clients assigned to the currently logged-in CPA
 export const fetchAssignedClients = async (): Promise<Profile[]> => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,7 +14,7 @@ export const fetchAssignedClients = async (): Promise<Profile[]> => {
     .from('client_assignments')
     .select(`
       status,
-      profiles:client_id (
+      client:profiles!client_assignments_client_id_fkey (
         id,
         display_name,
         avatar_url,
@@ -35,10 +30,43 @@ export const fetchAssignedClients = async (): Promise<Profile[]> => {
   }
 
   // The query returns a nested structure, so we flatten it for easier use in the app
-  const clients = data.map(item => ({
-    ...item.profiles,
+  const clients = (data || []).map(item => ({
+    ...item.client,
     assignment_status: item.status
   }));
 
   return clients as unknown as Profile[];
+};
+
+export const requestClientAccess = async (clientEmail: string): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("No user is logged in.");
+
+  // Find client by email
+  const { data: client, error: clientError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', clientEmail)
+    .single();
+
+  if (clientError || !client) {
+    throw new Error('Client not found with that email address.');
+  }
+
+  // Create assignment request
+  const { error } = await supabase
+    .from('client_assignments')
+    .insert({
+      cpa_id: user.id,
+      client_id: client.id,
+      status: 'pending',
+      assigned_by: user.id,
+    });
+
+  if (error) {
+    if (error.code === '23505') { // Unique constraint violation
+      throw new Error('You already have a request pending for this client.');
+    }
+    throw error;
+  }
 };

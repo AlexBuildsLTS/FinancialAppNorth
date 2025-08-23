@@ -47,8 +47,7 @@ export default function DashboardScreen() {
       <AddTransactionModal
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
-        onSuccess={onTransactionAdded}
-      />
+        onSuccess={onTransactionAdded} clientId={''}      />
     </>
   );
 }

@@ -1,1 +1,1 @@
-export {inter} from './inter';
+export {Inter} from './inter';
