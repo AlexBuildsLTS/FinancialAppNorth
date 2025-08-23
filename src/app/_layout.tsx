@@ -1,13 +1,13 @@
-// src/app/_layout.tsx
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { SplashScreen, Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { View } from 'react-native';
-import { ThemeProvider } from '@/context/ThemeProvider'; // <-- IMPORT THEME PROVIDER
+import { ThemeProvider, useTheme } from '@/context/ThemeProvider';
 
 const InitialLayout = () => {
   const { session, loading } = useAuth();
   const router = useRouter();
+  const { colors } = useTheme(); // Get colors here
 
   useEffect(() => {
     if (loading) return;
@@ -19,8 +19,15 @@ const InitialLayout = () => {
   }, [session, loading]);
 
   return (
-    <View style={{ flex: 1 }}>
-      <Stack>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: colors.surface, // Use surface instead of card
+          },
+          headerTintColor: colors.text,
+        }}
+      >
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
@@ -30,7 +37,6 @@ const InitialLayout = () => {
 
 export default function RootLayout() {
   return (
-    // WRAP EVERYTHING IN THE THEME PROVIDER
     <ThemeProvider>
       <AuthProvider>
         <InitialLayout />
