@@ -1,79 +1,36 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from 'react';
-import { useColorScheme as useDeviceColorScheme, Appearance } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { lightColors, darkColors, ColorScheme } from '@/theme/colors';
+// src/context/ThemeProvider.tsx
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { useColorScheme } from 'react-native';
+import { lightColors, darkColors } from '../theme/colors';
 
-export type ThemeColors = {
-  light: ColorScheme;
-  dark: ColorScheme;
-};
+type Theme = 'light' | 'dark';
 
-const colors = {
-  light: lightColors,
-  dark: darkColors,
-};
-
-type Theme = 'light' | 'dark' | 'system';
-
-interface ThemeContextProps {
-  colorScheme: 'light' | 'dark';
+interface ThemeContextType {
   theme: Theme;
-  setTheme: (theme: Theme) => void;
-  colors: ColorScheme;
-  isDark: boolean;
+  colors: typeof lightColors;
+  toggleTheme: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextProps | undefined>(undefined);
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const systemScheme = useDeviceColorScheme() ?? 'light';
-  const [theme, setThemeState] = useState<Theme>('system');
-  const colorScheme = theme === 'system' ? systemScheme : theme;
-  const isDark = colorScheme === 'dark';
+  const colorScheme = useColorScheme();
+  const [theme, setTheme] = useState<Theme>(colorScheme || 'light');
 
-  useEffect(() => {
-    const loadTheme = async () => {
-      const savedTheme = (await AsyncStorage.getItem('theme')) as Theme | null;
-      if (savedTheme) {
-        setThemeState(savedTheme);
-      }
-    };
-    loadTheme();
-
-    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      if (theme === 'system') {
-        // This will trigger a re-render if the system theme changes
-      }
-    });
-
-    return () => subscription.remove();
-  }, [theme]);
-
-  const setTheme = async (newTheme: Theme) => {
-    setThemeState(newTheme);
-    await AsyncStorage.setItem('theme', newTheme);
+  const toggleTheme = () => {
+    setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
-  const themeValues: ThemeContextProps = {
-    theme,
-    setTheme,
-    colorScheme,
-    colors: colors[colorScheme],
-    isDark,
-  };
+  const colors = theme === 'light' ? lightColors : darkColors;
 
   return (
-    <ThemeContext.Provider value={themeValues}>{children}</ThemeContext.Provider>
+    <ThemeContext.Provider value={{ theme, colors, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
   );
 };
 
-export const useTheme = (): ThemeContextProps => {
+export const useTheme = (): ThemeContextType => {
   const context = useContext(ThemeContext);
   if (!context) {
     throw new Error('useTheme must be used within a ThemeProvider');
