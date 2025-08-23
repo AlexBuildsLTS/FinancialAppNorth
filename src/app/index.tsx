@@ -22,7 +22,7 @@ export default function DashboardScreen() {
     >
       <DashboardHeader
         // Use the profile's username, with the user's email as a fallback
-        username={profile?.username || user?.email || 'User'}
+        displayName={profile?.username || user?.email || 'User'}
         // Use the profile's avatar_url
         avatarUrl={profile?.avatar_url || ''}
         onPressProfile={() => router.push('/(tabs)/profile')}

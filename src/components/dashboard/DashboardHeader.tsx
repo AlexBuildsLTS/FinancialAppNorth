@@ -5,13 +5,13 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
 
 interface DashboardHeaderProps {
-  username: string;
+  displayName: string;
   avatarUrl: string;
-  onPressProfile: () => void; // New prop for profile button press
-  onPressSettings: () => void; // New prop for settings button press
+  onPressProfile: () => void;
+  onPressSettings: () => void;
 }
 
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({ username, avatarUrl, onPressProfile, onPressSettings }) => {
+const DashboardHeader: React.FC<DashboardHeaderProps> = ({ displayName, avatarUrl, onPressProfile, onPressSettings }) => {
   const { colors } = useTheme();
 
   return (
@@ -22,7 +22,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ username, avatarUrl, 
           <Text style={[styles.greeting, { color: colors.textSecondary }]}>
             Welcome back,
           </Text>
-          <Text style={[styles.username, { color: colors.text }]}>{username}</Text>
+          <Text style={[styles.displayName, { color: colors.text }]}>{displayName}</Text>
         </View>
       </View>
       <View style={styles.rightIcons}> {/* New container for right-aligned icons */}
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 14,
   },
-  username: {
+  displayName: {
     fontSize: 18,
     fontWeight: 'bold',
   },
