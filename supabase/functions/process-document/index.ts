@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const aiResponseText = response.text();
-    const jsonString = aiResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const jsonString = aiResponseText.replace(/```json/g, '').replace(/```g, '').trim();
     const processedData = JSON.parse(jsonString || '{}');
 
     await supabaseAdmin

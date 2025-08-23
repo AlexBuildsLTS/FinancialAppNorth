@@ -56,7 +56,7 @@ export default function EditProfileScreen() {
       try {
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, decode(asset.base64 as string), { contentType });
+          .upload(filePath, decode(asset.base64!), { contentType });
 
         if (uploadError) throw uploadError;
 
