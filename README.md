@@ -15,7 +15,7 @@ This application is a professional-grade tool built to facilitate the following 
 - **Intelligent Document Scanning:** Use the device camera with OCR to extract text from receipts and invoices, automating data entry.
 - **AI Assistant:** An integrated assistant with multi-provider support (OpenAI, Gemini, Claude) to help with financial queries and data analysis.
 - **Multi-Currency Support:** Manage and convert between different currencies (e.g., SEK, EUR, USD) with real-time exchange rates.
-
+// export image
 ## Role-Based Access Control
 
 The application is built on a robust, role-based permission system to ensure data security and provide tailored functionality for every type of user.
