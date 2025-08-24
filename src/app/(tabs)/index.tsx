@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
-import { useTransactions } from '@/hooks/useTransactions'; // Import the hook
+import { useTransactions } from '@/hooks/useTransactions';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import MetricsGrid from '@/components/dashboard/MetricsGrid';
 import { ChartSection } from '@/components/dashboard/ChartSection';
@@ -15,13 +15,12 @@ export default function DashboardScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const router = useRouter();
-  const { refreshTransactions } = useTransactions(); // Get the refresh function
+  const { refreshTransactions } = useTransactions();
 
   const [isModalVisible, setIsModalVisible] = useState(false);
 
-  // This function will now be called by the modal on a successful save
   const onTransactionAdded = () => {
-    refreshTransactions(); // Trigger a data refresh
+    refreshTransactions();
   };
 
   return (
@@ -29,14 +28,17 @@ export default function DashboardScreen() {
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
         contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
       >
         <DashboardHeader
-          username={user?.displayName || 'User'}
+          userName={user?.displayName || 'User'}
           avatarUrl={user?.avatarUrl || ''}
           onPressProfile={() => router.push('/(tabs)/profile')}
-          onPressSettings={() => {}}
+          onPressMessages={() => router.push('/messages')}
+          onPressSettings={() => router.push('/(tabs)/settings')}
         />
 
+        {/* These components now implicitly use the useTransactions hook for live data */}
         <MetricsGrid />
         <ChartSection />
         <QuickActions onAddTransaction={() => setIsModalVisible(true)} />
@@ -47,7 +49,7 @@ export default function DashboardScreen() {
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onSuccess={onTransactionAdded}
-        clientId={''}
+        clientId={null}
       />
     </>
   );

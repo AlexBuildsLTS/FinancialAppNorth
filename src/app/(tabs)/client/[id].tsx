@@ -1,198 +1,81 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  Image,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useTheme } from '@/context/ThemeProvider';
-import { getClientById } from '@/services/dataService';
-import { Client } from '@/types';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { useLocalSearchParams, useFocusEffect, useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import ScreenContainer from '@/components/ScreenContainer';
-import Card from '@/components/common/Card';
-import {
-  Banknote,
-  FileText,
-  Upload,
-  PlusCircle,
-  AlertCircle,
-  TrendingUp,
-} from 'lucide-react-native';
+import { useTheme } from '@/context/ThemeProvider';
+import { getClientDashboardData } from '@/services/cpaService';
+import { ClientDashboardData } from '@/types';
+import MetricsGrid from '@/components/dashboard/MetricsGrid';
+import RecentTransactions from '@/components/dashboard/RecentTransactions';
 
-const MetricCard = ({ label, value, icon: Icon, colors }: any) => (
-  <Card style={styles.metricCard}>
-    <Icon color={colors.primary} size={24} />
-    <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
-    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>
-      {label}
-    </Text>
-  </Card>
-);
+export default function ClientDashboardScreen() {
+    const { colors } = useTheme();
+    const router = useRouter();
+    const { id: clientId } = useLocalSearchParams();
+    const [data, setData] = useState<ClientDashboardData | null>(null);
+    const [loading, setLoading] = useState(true);
 
-export default function ClientDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { colors } = useTheme();
-  const router = useRouter();
-  const [client, setClient] = useState<Client | null>(null);
-  const [loading, setLoading] = useState(true);
+    const fetchClientData = useCallback(async () => {
+        if (!clientId || typeof clientId !== 'string') return;
+        try {
+            setLoading(true);
+            const result = await getClientDashboardData(clientId);
+            setData(result);
+        } catch (error) {
+            console.error('Failed to fetch client dashboard data:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [clientId]);
 
-  useEffect(() => {
-    if (!id) return;
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const clientData = await getClientById(id);
-        setClient(clientData || null);
-      } catch (error) {
-        console.error('Failed to load client data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, [id]);
+    useFocusEffect(useCallback(() => {
+        fetchClientData();
+    }, [fetchClientData]));
 
-  if (loading) {
+    if (loading) {
+        return <ScreenContainer style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></ScreenContainer>;
+    }
+
+    if (!data) {
+        return <ScreenContainer style={styles.centered}><Text style={{ color: colors.text }}>Could not load client data.</Text></ScreenContainer>;
+    }
+    
+    const metrics = [
+        { label: 'Balance', value: `$${data.totalBalance.toFixed(2)}` },
+        { label: 'Income', value: `$${data.totalIncome.toFixed(2)}` },
+        { label: 'Expenses', value: `$${data.totalExpenses.toFixed(2)}` },
+    ];
+
     return (
-      <ScreenContainer>
-        <ActivityIndicator
-          style={{ flex: 1 }}
-          size="large"
-          color={colors.primary}
-        />
-      </ScreenContainer>
+        <ScreenContainer>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                    <ArrowLeft color={colors.text} size={24} />
+                </TouchableOpacity>
+                <View style={styles.headerInfo}>
+                    <Image source={{ uri: data.profile.avatar_url || `https://i.pravatar.cc/150?u=${data.profile.id}` }} style={styles.headerAvatar} />
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>{data.profile.display_name}'s Workspace</Text>
+                </View>
+                <View style={{width: 32}} />
+            </View>
+
+            <ScrollView>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Financial Overview</Text>
+                <MetricsGrid metrics={metrics} />
+                <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>Recent Client Transactions</Text>
+                <RecentTransactions transactions={data.recentTransactions} />
+            </ScrollView>
+        </ScreenContainer>
     );
-  }
-
-  if (!client) {
-    return (
-      <ScreenContainer>
-        <View
-          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
-        >
-          <Text style={{ color: colors.text }}>Client not found.</Text>
-        </View>
-      </ScreenContainer>
-    );
-  }
-
-  return (
-    <ScreenContainer>
-      <Stack.Screen options={{ title: client.name }} />
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.clientHeader}>
-          <Image source={{ uri: client.avatarUrl }} style={styles.avatar} />
-          <Text style={[styles.clientName, { color: colors.text }]}>
-            {client.name}
-          </Text>
-          <Text style={[styles.companyName, { color: colors.textSecondary }]}>
-            {client.companyName}
-          </Text>
-        </View>
-
-        <View style={styles.metricsContainer}>
-          <MetricCard
-            label="Net Worth"
-            value={`$${(client.netWorth / 1000000).toFixed(2)}M`}
-            icon={TrendingUp}
-            colors={colors}
-          />
-          <MetricCard
-            label="Uncategorized"
-            value={client.uncategorized}
-            icon={AlertCircle}
-            colors={colors}
-          />
-        </View>
-
-        <Card>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Quick Actions
-          </Text>
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => router.push(`/client/transactions/${client.id}`)}
-            >
-              <Banknote color={colors.primary} />
-              <Text style={[styles.actionText, { color: colors.text }]}>
-                Transactions
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => router.push(`/client/reports/${client.id}`)}
-            >
-              <FileText color={colors.primary} />
-              <Text style={[styles.actionText, { color: colors.text }]}>
-                Reports
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() =>
-                Alert.alert(
-                  'Coming Soon',
-                  'Journal entry feature is under development.'
-                )
-              }
-            >
-              <PlusCircle color={colors.primary} />
-              <Text style={[styles.actionText, { color: colors.text }]}>
-                Journal Entry
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() =>
-                Alert.alert(
-                  'Coming Soon',
-                  'Document management is under development.'
-                )
-              }
-            >
-              <Upload color={colors.primary} />
-              <Text style={[styles.actionText, { color: colors.text }]}>
-                Documents
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
-      </ScrollView>
-    </ScreenContainer>
-  );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 24 },
-  clientHeader: { alignItems: 'center', gap: 8 },
-  avatar: { width: 80, height: 80, borderRadius: 40 },
-  clientName: { fontSize: 24, fontWeight: 'bold' },
-  companyName: { fontSize: 16 },
-  metricsContainer: { flexDirection: 'row', gap: 16, justifyContent: 'center' },
-  metricCard: { flex: 1, alignItems: 'center', padding: 16, gap: 8 },
-  metricValue: { fontSize: 20, fontWeight: 'bold' },
-  metricLabel: { fontSize: 12, textTransform: 'uppercase' },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
-  actionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  actionButton: {
-    width: '48%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    backgroundColor: 'rgba(128,128,128,0.1)',
-  },
-  actionText: { fontSize: 14, fontWeight: '600' },
+    centered: { justifyContent: 'center', alignItems: 'center', flex: 1 },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 10 },
+    backButton: { padding: 4 },
+    headerInfo: { flexDirection: 'row', alignItems: 'center' },
+    headerAvatar: { width: 30, height: 30, borderRadius: 15, marginRight: 12 },
+    headerTitle: { fontSize: 18, fontWeight: 'bold' },
+    sectionTitle: { fontSize: 22, fontWeight: 'bold', paddingHorizontal: 16, marginBottom: 16 },
 });

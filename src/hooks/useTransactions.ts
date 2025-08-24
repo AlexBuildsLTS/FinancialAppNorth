@@ -1,37 +1,50 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Transaction } from '../types';
-import { fetchTransactions } from '../services/realTransactionService';
-import { useAuth } from '../context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { Transaction } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
-export const useTransactions = () => {
+export function useTransactions() {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshTransactions = useCallback(async () => {
+  const fetchTransactions = useCallback(async () => {
     if (!user) {
-      setTransactions([]);
       setIsLoading(false);
       return;
     }
-    
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      const data = await fetchTransactions(user.id);
-      setTransactions(data);
-      setError(null);
-    } catch (e) {
-      setError("Failed to fetch transactions.");
-      console.error(e);
+      const { data, error: fetchError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false });
+
+      if (fetchError) throw fetchError;
+      setTransactions(data || []);
+    } catch (e: any) {
+      setError('Could not load transactions.');
     } finally {
       setIsLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    refreshTransactions();
-  }, [refreshTransactions]);
+    fetchTransactions();
+    const channel = supabase
+      .channel('public:transactions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+          fetchTransactions();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchTransactions]);
 
-  return { transactions, isLoading, error, refreshTransactions };
-};
+  return { transactions, isLoading, error, refreshTransactions: fetchTransactions };
+}

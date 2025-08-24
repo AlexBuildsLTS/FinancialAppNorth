@@ -1,160 +1,61 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Alert } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { createClient } from '@/services/dataService';
-import { Client } from '@/types';
+import { useToast } from '@/context/ToastProvider';
+import { requestClientAccess } from '@/services/cpaService';
+import Modal from '@/components/common/Modal';
 import Button from '@/components/common/Button';
 
 interface AddClientModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess: (newClient: Client) => void;
+  onSuccess: () => void;
 }
 
-export default function AddClientModal({
-  visible,
-  onClose,
-  onSuccess,
-}: AddClientModalProps) {
+export default function AddClientModal({ visible, onClose, onSuccess }: AddClientModalProps) {
   const { colors } = useTheme();
-  const [name, setName] = useState('');
-  const [companyName, setCompanyName] = useState('');
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = async () => {
-    if (!name || !companyName || !email) {
-      Alert.alert('Missing Fields', 'Please fill all fields.');
-      return;
+  const handleSendRequest = async () => {
+    if (!email.includes('@')) {
+        return Alert.alert('Invalid Email', 'Please enter a valid client email address.');
     }
-    setIsSubmitting(true);
+    setLoading(true);
     try {
-      const result = await createClient({
-        name,
-        companyName,
-        email,
-        status: 'active',
-        netWorth: 0,
-        uncategorized: 0,
-      });
-      onSuccess(result);
-      resetForm();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save client.');
+        await requestClientAccess(email);
+        showToast('Access request sent!', 'success');
+        onSuccess();
+        onClose();
+        setEmail('');
+    } catch (error: any) {
+        showToast(error.message || 'Failed to send request.', 'error');
     } finally {
-      setIsSubmitting(false);
+        setLoading(false);
     }
-  };
-
-  const resetForm = () => {
-    setName('');
-    setCompanyName('');
-    setEmail('');
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View
-          style={[styles.modalContent, { backgroundColor: colors.surface }]}
-        >
-          <Text style={[styles.modalTitle, { color: colors.text }]}>
-            Add New Client
-          </Text>
-
-          <TextInput
-            placeholder="Full Name"
-            value={name}
-            onChangeText={setName}
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-            placeholderTextColor={colors.textSecondary}
-          />
-          <TextInput
-            placeholder="Company Name"
-            value={companyName}
-            onChangeText={setCompanyName}
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-            placeholderTextColor={colors.textSecondary}
-          />
-          <TextInput
-            placeholder="Email Address"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-            placeholderTextColor={colors.textSecondary}
-          />
-
-          <View style={styles.buttonContainer}>
-            <Button
-              title="Cancel"
-              variant="outline"
-              onPress={onClose}
-              style={{ flex: 1 }}
-            />
-            <Button
-              title="Save Client"
-              onPress={handleSave}
-              style={{ flex: 1 }}
-              isLoading={isSubmitting}
-            />
-          </View>
-        </View>
+    <Modal visible={visible} onClose={onClose} title="Request Client Access">
+      <View>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>Client Email Address</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          placeholder="Enter the client's email"
+          placeholderTextColor={colors.textSecondary}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <Button title="Send Request" onPress={handleSendRequest} isLoading={loading} style={{ marginTop: 16 }} />
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    padding: 24,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    fontSize: 16,
-  },
-  buttonContainer: { flexDirection: 'row', gap: 16, marginTop: 16 },
+  label: { fontSize: 14, fontWeight: '500', marginBottom: 8 },
+  input: { height: 50, borderRadius: 12, paddingHorizontal: 16, fontSize: 16, borderWidth: 1, marginBottom: 16 },
 });

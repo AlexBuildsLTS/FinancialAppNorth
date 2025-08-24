@@ -1,155 +1,53 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { Users, DollarSign, UserPlus, Star } from 'lucide-react-native';
+import ScreenContainer from '@/components/ScreenContainer';
 import { useTheme } from '@/context/ThemeProvider';
-import { useAuth } from '@/context/AuthContext';
-import { Users, BarChart3, Bell, ShieldCheck } from 'lucide-react-native';
+import { getSystemStats } from '@/services/adminService';
+import Card from '@/components/common/Card';
 
-// A reusable component for dashboard items
-const AdminDashboardItem = ({
-  icon: Icon,
-  title,
-  description,
-  onPress,
-  colors,
-}: any) => (
-  <TouchableOpacity
-    onPress={onPress}
-    style={[styles.itemContainer, { backgroundColor: colors.surface }]}
-  >
-    <View style={[styles.iconContainer, { backgroundColor: colors.primary }]}>
-      <Icon color="#FFFFFF" size={24} />
-    </View>
-    <View style={styles.textContainer}>
-      <Text style={[styles.itemTitle, { color: colors.text }]}>{title}</Text>
-      <Text style={[styles.itemDescription, { color: colors.textSecondary }]}>
-        {description}
-      </Text>
-    </View>
-  </TouchableOpacity>
+const StatCard = ({ icon: Icon, label, value, colors }: any) => (
+    <Card style={styles.statCard}>
+        <Icon color={colors.primary} size={28} />
+        <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+        <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
+    </Card>
 );
 
-const AdminDashboardScreen = () => {
-  const { colors } = useTheme();
-  const { user } = useAuth();
-  const router = useRouter();
+export default function AdminDashboardScreen() {
+    const { colors } = useTheme();
+    const [stats, setStats] = useState({ totalUsers: 0, totalRevenue: 0, newSignups: 0, activeSubscriptions: 0 });
+    const [loading, setLoading] = useState(true);
 
-  const adminActions = [
-    {
-      icon: Users,
-      title: 'Manage Users',
-      description: 'View, edit roles, and manage all users.',
-      onPress: () => router.push('./manage-users'),
-    },
-    {
-      icon: BarChart3,
-      title: 'System Analytics',
-      description: 'View application-wide usage statistics.',
-      onPress: () => {
-        /* Placeholder for future screen */
-      },
-    },
-    {
-      icon: Bell,
-      title: 'Global Messaging',
-      description: 'Send notifications to user groups.',
-      onPress: () => {
-        /* Placeholder for future screen */
-      },
-    },
-    {
-      icon: ShieldCheck,
-      title: 'Auditing & Compliance',
-      description: 'Access system logs and compliance reports.',
-      onPress: () => {
-        /* Placeholder for future screen */
-      },
-    },
-  ];
+    useFocusEffect(useCallback(() => {
+        getSystemStats().then(setStats).catch(console.error).finally(() => setLoading(false));
+    }, []));
 
-  return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Admin Panel
-        </Text>
-        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-          Welcome, {user?.displayName || 'Administrator'}.
-        </Text>
-      </View>
+    if (loading) {
+        return <ScreenContainer style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></ScreenContainer>
+    }
 
-      <View style={styles.actionsGrid}>
-        {adminActions.map((action, index) => (
-          <AdminDashboardItem
-            key={index}
-            icon={action.icon}
-            title={action.title}
-            description={action.description}
-            onPress={action.onPress}
-            colors={colors}
-          />
-        ))}
-      </View>
-    </ScrollView>
-  );
-};
+    return (
+        <ScreenContainer>
+            <ScrollView>
+                <Text style={[styles.title, { color: colors.text }]}>System Dashboard</Text>
+                <View style={styles.grid}>
+                    <StatCard icon={Users} label="Total Users" value={stats.totalUsers} colors={colors} />
+                    <StatCard icon={DollarSign} label="Total Revenue" value={`$${stats.totalRevenue.toFixed(2)}`} colors={colors} />
+                    <StatCard icon={UserPlus} label="New Signups (24h)" value={stats.newSignups} colors={colors} />
+                    <StatCard icon={Star} label="Active Subscriptions" value={stats.activeSubscriptions} colors={colors} />
+                </View>
+            </ScrollView>
+        </ScreenContainer>
+    );
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    padding: 24,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontFamily: 'Inter-Bold',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-  },
-  actionsGrid: {
-    paddingHorizontal: 16,
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-  },
-  iconContainer: {
-    padding: 12,
-    borderRadius: 8,
-    marginRight: 16,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    marginBottom: 2,
-  },
-  itemDescription: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-  },
+    centered: { justifyContent: 'center', alignItems: 'center' },
+    title: { fontSize: 28, fontWeight: 'bold', padding: 16 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', paddingHorizontal: 8 },
+    statCard: { width: '46%', margin: '2%', alignItems: 'center', paddingVertical: 20 },
+    statValue: { fontSize: 24, fontWeight: 'bold', marginVertical: 8 },
+    statLabel: { fontSize: 14 },
 });
-
-export default AdminDashboardScreen;

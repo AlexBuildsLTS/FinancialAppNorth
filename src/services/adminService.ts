@@ -1,99 +1,69 @@
 import { supabase } from '@/lib/supabase';
-import { User, UserRole } from '@/context/AuthContext';
+import { UserProfile } from '@/types'; // Assuming UserProfile type exists
 
-// Fetches all users from Supabase
-export const fetchAllUsers = async (): Promise<User[]> => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false });
+export const getAllUsers = async (): Promise<UserProfile[]> => {
+  // This requires admin privileges on the RLS policies for the 'profiles' table.
+  const { data, error } = await supabase.from('profiles').select('*');
 
-  if (error) throw error;
-
-  return (data || []).map(profile => ({
-    id: profile.id,
-    email: profile.email,
-    role: profile.role,
-    displayName: profile.display_name,
-    avatarUrl: profile.avatar_url,
-    storageLimit: profile.storage_limit_mb,
-  }));
+  if (error) {
+    console.error('Error fetching users:', error);
+    throw error;
+  }
+  return data as UserProfile[];
 };
 
-// Updates a user's role in Supabase
-export const updateUserRole = async (userId: string, newRole: UserRole): Promise<User> => {
+export const updateUserStatus = async (userId: string, status: 'Active' | 'Inactive'): Promise<UserProfile> => {
   const { data, error } = await supabase
     .from('profiles')
-    .update({ role: newRole })
+    .update({ status: status })
     .eq('id', userId)
     .select()
     .single();
 
-  if (error) throw error;
-
-  // Log the role change for auditing
-  await supabase
-    .from('audit_trails')
-    .insert({
-      user_id: userId,
-      entity_type: 'profile',
-      entity_id: userId,
-      action: 'update',
-      changes: { role: newRole },
-    });
-
-  return {
-    id: data.id,
-    email: data.email,
-    role: data.role,
-    displayName: data.display_name,
-    avatarUrl: data.avatar_url,
-    storageLimit: data.storage_limit_mb,
-  };
-};
-
-export const createNotification = async (
-  userId: string,
-  title: string,
-  message: string,
-  type: 'info' | 'warning' | 'error' | 'success' = 'info'
-): Promise<void> => {
-  const { error } = await supabase
-    .from('notifications')
-    .insert({
-      user_id: userId,
-      title,
-      message,
-      type,
-    });
-
-  if (error) throw error;
-};
-
-export const sendGlobalMessage = async (
-  title: string,
-  message: string,
-  targetRole?: UserRole
-): Promise<void> => {
-  let query = supabase.from('profiles').select('id');
-  
-  if (targetRole) {
-    query = query.eq('role', targetRole);
+  if (error) {
+    console.error('Error updating user status:', error);
+    throw error;
   }
+  return data as UserProfile;
+};
 
-  const { data: users, error: fetchError } = await query;
-  if (fetchError) throw fetchError;
+export const deleteUser = async (userId: string): Promise<UserProfile> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', userId)
+    .select()
+    .single();
 
-  const notifications = users?.map(user => ({
-    user_id: user.id,
-    title,
-    message,
-    type: 'info' as const,
-  })) || [];
+  if (error) {
+    console.error('Error deleting user:', error);
+    throw error;
+  }
+  return data as UserProfile;
+};
 
-  const { error } = await supabase
-    .from('notifications')
-    .insert(notifications);
+export const updateUserRole = async (userId: string, role: string): Promise<UserProfile> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ role: role })
+    .eq('id', userId)
+    .select()
+    .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error updating user role:', error);
+    throw error;
+  }
+  return data as UserProfile;
+};
+
+export const getSystemStats = async () => {
+  // Placeholder for system stats. In a real application, this would fetch data from the database.
+  // For example, it might query the 'profiles' table for total users, 'transactions' for revenue, etc.
+  return {
+    totalUsers: 1234,
+    totalRevenue: 56789.01,
+    newSignups: 42,
+    activeSubscriptions: 789,
+  };
 };

@@ -1,368 +1,124 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   FlatList,
+  TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import {
-  Plus,
-  BookOpen,
-  CircleCheck as CheckCircle,
-  Clock,
-  CircleAlert as AlertCircle,
-} from 'lucide-react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { useFocusEffect } from 'expo-router';
+import { Plus, BookCopy } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
 import { getJournalEntries } from '@/services/accountingService';
 import { JournalEntry } from '@/types/accounting';
 import ScreenContainer from '@/components/ScreenContainer';
-import Card from '@/components/common/Card';
-import JournalEntryModal from '@/components/forms/JournalEntryModal';
+import JournalEntryModal from '@/components/forms/JournalEntryModal'; // We will create this next
 
 export default function JournalScreen() {
-  const { colors, isDark } = useTheme();
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const { colors } = useTheme();
+  const { user } = useAuth();
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [isModalVisible, setModalVisible] = useState(false);
 
-  const styles = createStyles(colors);
-
-  useEffect(() => {
-    loadJournalEntries();
-  }, []);
-
-  const loadJournalEntries = async () => {
+  const fetchEntries = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
     try {
-      const entries = await getJournalEntries();
-      setJournalEntries(entries);
+      // Assuming we're fetching for the logged-in user.
+      // In a CPA context, a client ID would be passed here.
+      const data = await getJournalEntries(user.id);
+      setEntries(data);
     } catch (error) {
-      console.error('Failed to load journal entries:', error);
+      console.error('Failed to fetch journal entries:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const handleEntryAdded = () => {
-    setShowModal(false);
-    loadJournalEntries();
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'posted':
-        return <CheckCircle size={16} color={colors.success} />;
-      case 'draft':
-        return <Clock size={16} color={colors.warning} />;
-      case 'reversed':
-        return <AlertCircle size={16} color={colors.error} />;
-      default:
-        return <Clock size={16} color={colors.textSecondary} />;
-    }
-  };
-
-  const renderJournalEntry = ({
-    item,
-    index,
-  }: {
-    item: JournalEntry;
-    index: number;
-  }) => (
-    <Animated.View entering={FadeInUp.delay(index * 100).springify()}>
-      <Card style={styles.entryCard}>
-        <View style={styles.entryHeader}>
-          <View style={styles.entryInfo}>
-            <Text style={styles.entryReference}>{item.reference}</Text>
-            <Text style={styles.entryDate}>
-              {new Date(item.date).toLocaleDateString()}
-            </Text>
-          </View>
-          <View style={styles.statusContainer}>
-            {getStatusIcon(item.status)}
-            <Text
-              style={[
-                styles.statusText,
-                {
-                  color:
-                    item.status === 'posted'
-                      ? colors.success
-                      : item.status === 'draft'
-                      ? colors.warning
-                      : colors.error,
-                },
-              ]}
-            >
-              {item.status.toUpperCase()}
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.entryDescription}>{item.description}</Text>
-
-        <View style={styles.entryAmounts}>
-          <View style={styles.amountColumn}>
-            <Text style={styles.amountLabel}>Total Debit</Text>
-            <Text style={[styles.amountValue, { color: colors.text }]}>
-              ${item.totalDebit.toLocaleString()}
-            </Text>
-          </View>
-          <View style={styles.amountColumn}>
-            <Text style={styles.amountLabel}>Total Credit</Text>
-            <Text style={[styles.amountValue, { color: colors.text }]}>
-              ${item.totalCredit.toLocaleString()}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.entryLines}>
-          {item.entries.slice(0, 2).map((line) => (
-            <View key={line.id} style={styles.entryLine}>
-              <Text style={styles.accountName}>
-                {line.accountCode} - {line.accountName}
-              </Text>
-              <View style={styles.lineAmounts}>
-                <Text style={styles.lineAmount}>
-                  {line.debitAmount > 0
-                    ? `$${line.debitAmount.toLocaleString()}`
-                    : '—'}
-                </Text>
-                <Text style={styles.lineAmount}>
-                  {line.creditAmount > 0
-                    ? `$${line.creditAmount.toLocaleString()}`
-                    : '—'}
-                </Text>
-              </View>
-            </View>
-          ))}
-          {item.entries.length > 2 && (
-            <Text style={styles.moreLines}>
-              +{item.entries.length - 2} more lines
-            </Text>
-          )}
-        </View>
-      </Card>
-    </Animated.View>
+  useFocusEffect(
+    useCallback(() => {
+      fetchEntries();
+    }, [fetchEntries])
   );
 
-  if (loading) {
-    return (
-      <ScreenContainer>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading journal entries...</Text>
-        </View>
-      </ScreenContainer>
-    );
-  }
+  const renderEntryItem = ({ item }: { item: JournalEntry }) => (
+    <View style={[styles.entryCard, { backgroundColor: colors.surface }]}>
+      <View style={styles.entryHeader}>
+        <Text style={[styles.entryDate, { color: colors.text }]}>{new Date(item.date).toLocaleDateString()}</Text>
+        <Text style={[styles.entryStatus, { color: colors.primary }]}>{item.status}</Text>
+      </View>
+      <Text style={[styles.entryDescription, { color: colors.textSecondary }]}>{item.description}</Text>
+      <View style={styles.lineItemsContainer}>
+        {item.entries.map((line, index) => (
+          <View key={index} style={styles.lineItem}>
+            <Text style={[styles.accountName, { color: colors.text }]}>{line.accountName}</Text>
+            <Text style={[styles.lineAmount, { color: colors.text }]}>${line.debitAmount > 0 ? line.debitAmount.toFixed(2) : ''}</Text>
+            <Text style={[styles.lineAmount, { color: colors.text }]}>${line.creditAmount > 0 ? line.creditAmount.toFixed(2) : ''}</Text>
+          </View>
+        ))}
+      </View>
+       <View style={styles.entryFooter}>
+         <Text style={[styles.totalAmount, { color: colors.text }]}>${item.totalDebit.toFixed(2)}</Text>
+         <Text style={[styles.totalAmount, { color: colors.text }]}>${item.totalCredit.toFixed(2)}</Text>
+       </View>
+    </View>
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-
+    <ScreenContainer>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <BookOpen size={28} color={colors.primary} />
-          <Text style={styles.headerTitle}>General Journal</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowModal(true)}
-        >
-          <Plus size={24} color={colors.surface} />
+        <Text style={[styles.title, { color: colors.text }]}>General Journal</Text>
+        <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
+          <Plus color={colors.primary} size={28} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-          <FlatList
-            data={journalEntries}
-            renderItem={renderJournalEntry}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            ListEmptyComponent={
-              <Card style={styles.emptyState}>
-                <BookOpen size={48} color={colors.textSecondary} />
-                <Text style={styles.emptyTitle}>No Journal Entries</Text>
-                <Text style={styles.emptyDescription}>
-                  Start by creating your first journal entry to record
-                  transactions.
-                </Text>
-              </Card>
-            }
-          />
-        </View>
-      </ScrollView>
+      {loading ? (
+        <ActivityIndicator style={{ flex: 1 }} color={colors.primary} size="large" />
+      ) : (
+        <FlatList
+          data={entries}
+          renderItem={renderEntryItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+                <BookCopy size={64} color={colors.textSecondary} />
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No journal entries found.</Text>
+            </View>
+          }
+        />
+      )}
 
       <JournalEntryModal
-        visible={showModal}
-        onClose={() => setShowModal(false)}
-        onSuccess={handleEntryAdded}
+        visible={isModalVisible}
+        onClose={() => setModalVisible(false)}
+        onSuccess={fetchEntries}
+        clientId={user!.id} // Pass the current user's ID
       />
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
 
-const createStyles = (colors: any) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    addButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    scrollView: {
-      flex: 1,
-    },
-    content: {
-      padding: 20,
-      paddingBottom: 100,
-    },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 16,
-    },
-    loadingText: {
-      fontSize: 16,
-      color: colors.textSecondary,
-    },
-    entryCard: {
-      marginBottom: 16,
-    },
-    entryHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    entryInfo: {
-      flex: 1,
-    },
-    entryReference: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    entryDate: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-    statusContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    statusText: {
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    entryDescription: {
-      fontSize: 16,
-      color: colors.text,
-      marginBottom: 16,
-    },
-    entryAmounts: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      marginBottom: 16,
-      paddingVertical: 12,
-      backgroundColor: colors.surfaceVariant,
-      borderRadius: 8,
-    },
-    amountColumn: {
-      alignItems: 'center',
-    },
-    amountLabel: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      marginBottom: 4,
-    },
-    amountValue: {
-      fontSize: 18,
-      fontWeight: '700',
-    },
-    entryLines: {
-      gap: 8,
-    },
-    entryLine: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 4,
-    },
-    accountName: {
-      fontSize: 14,
-      color: colors.text,
-      flex: 1,
-    },
-    lineAmounts: {
-      flexDirection: 'row',
-      gap: 20,
-      minWidth: 120,
-    },
-    lineAmount: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      textAlign: 'right',
-      minWidth: 50,
-    },
-    moreLines: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      fontStyle: 'italic',
-      textAlign: 'center',
-      marginTop: 8,
-    },
-    emptyState: {
-      alignItems: 'center',
-      padding: 40,
-      gap: 16,
-    },
-    emptyTitle: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    emptyDescription: {
-      fontSize: 16,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 24,
-    },
-  });
+const styles = StyleSheet.create({
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 10 },
+    title: { fontSize: 32, fontWeight: 'bold' },
+    addButton: { padding: 8 },
+    list: { paddingHorizontal: 16, paddingBottom: 50 },
+    entryCard: { borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#333' },
+    entryHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+    entryDate: { fontSize: 16, fontWeight: 'bold' },
+    entryStatus: { fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' },
+    entryDescription: { fontSize: 14, marginBottom: 12 },
+    lineItemsContainer: { borderTopWidth: 1, borderTopColor: '#333', paddingTop: 8 },
+    lineItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+    accountName: { flex: 2, fontSize: 14 },
+    lineAmount: { flex: 1, textAlign: 'right', fontSize: 14, fontFamily: 'monospace' },
+    entryFooter: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#333', paddingTop: 8, marginTop: 8 },
+    totalAmount: { flex: 1, textAlign: 'right', fontSize: 14, fontWeight: 'bold', fontFamily: 'monospace' },
+    emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100, gap: 16 },
+    emptyText: { fontSize: 16 },
+});

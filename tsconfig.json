@@ -2,12 +2,14 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "module": "esnext",
     "paths": {
       "@/*": [
         "./src/*"
       ]
-    },
-    "module": "es2020"
+    }
   },
   "include": [
     "**/*.ts",

@@ -20,11 +20,12 @@ export default function DashboardScreen() {
       contentContainerStyle={styles.container}
     >
       <DashboardHeader
-        username={user?.displayName || 'User'}
-        avatarUrl={user?.avatarUrl || ''}
+        userName={user?.display_name || 'User'}
+        avatarUrl={user?.avatar_url || ''}
         onPressProfile={() => router.push('/(tabs)/profile')}
-        onPressSettings={() => {}}
-      />
+        onPressSettings={() => { } } onPressMessages={function (): void {
+          throw new Error('Function not implemented.');
+        } }      />
 
       <MetricsGrid />
       <ChartSection />

@@ -1,139 +1,73 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  Alert,
-} from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ChevronRight, Bell, Shield, Palette, LogOut, Info } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import ScreenContainer from '@/components/ScreenContainer';
-import Button from '@/components/common/Button';
-import {
-  User,
-  Bell,
-  Shield,
-  LogOut,
-  ChevronRight,
-  Moon,
-  Sun,
-  Key,
-} from 'lucide-react-native';
 
-const SettingItem = ({
-  icon: Icon,
-  label,
-  onPress,
-  colors,
-  isDestructive = false,
-}: any) => (
-  <TouchableOpacity style={styles.itemContainer} onPress={onPress}>
-    <View style={styles.itemLeft}>
-      <Icon color={isDestructive ? colors.error : colors.primary} size={22} />
-      <Text
-        style={[
-          styles.itemLabel,
-          { color: isDestructive ? colors.error : colors.text },
-        ]}
-      >
-        {label}
-      </Text>
-    </View>
-    <ChevronRight color={colors.textSecondary} size={20} />
+const SettingsListItem = ({ icon: Icon, text, onPress, rightContent, colors }: any) => (
+  <TouchableOpacity style={[styles.listItem, { backgroundColor: colors.surface, borderBottomColor: colors.background }]} onPress={onPress}>
+    <Icon color={colors.textSecondary} size={22} />
+    <Text style={[styles.listItemText, { color: colors.text }]}>{text}</Text>
+    {rightContent ? rightContent : <ChevronRight color={colors.textSecondary} size={22} />}
   </TouchableOpacity>
 );
 
 export default function SettingsScreen() {
-  const { colors, isDark, setTheme } = useTheme();
+  const { colors, isDark, toggleTheme } = useTheme();
   const { signOut } = useAuth();
   const router = useRouter();
 
-  const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: signOut },
-    ]);
-  };
+  type AppRoute = "/(tabs)/settings" | "/(tabs)/profile/security";
+
+  interface MenuItem {
+    icon: any;
+    text: string;
+    path: AppRoute;
+  }
+
+  const menuItems: MenuItem[] = [
+    { icon: Bell, text: 'Notifications', path: '/(tabs)/settings' }, // Placeholder path, ideally should go to a notifications settings page
+    { icon: Shield, text: 'Security & Privacy', path: '/(tabs)/profile/security' },
+    { icon: Info, text: 'About NorthFinance', path: '/(tabs)/settings' }, // Placeholder path, ideally should go to an about page
+  ];
 
   return (
     <ScreenContainer>
-      <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Settings
-        </Text>
-
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          Account
-        </Text>
-        <View
-          style={[styles.sectionContainer, { backgroundColor: colors.surface }]}
-        >
-          <SettingItem
-            icon={User}
-            label="Profile"
-            onPress={() => router.push('/profile')}
-            colors={colors}
-          />
-          <SettingItem
-            icon={Bell}
-            label="Notifications"
-            onPress={() => {}}
-            colors={colors}
-          />
-          <SettingItem
-            icon={Shield}
-            label="Security"
-            onPress={() => router.push('/security' as any)}
-            colors={colors}
-          />
-          <SettingItem
-            icon={Key}
-            label="API Key Management"
-            onPress={() => router.push('/profile/api-keys' as any)}
-            colors={colors}
-          />
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+      </View>
+      <ScrollView>
+        <View style={styles.menuSection}>
+          <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>PREFERENCES</Text>
+          {menuItems.map((item) => (
+            <SettingsListItem key={item.text} icon={item.icon} text={item.text} onPress={() => router.push(item.path)} colors={colors} />
+          ))}
+           <SettingsListItem
+              icon={Palette}
+              text="Dark Mode"
+              onPress={toggleTheme}
+              rightContent={
+                <Switch
+                    trackColor={{ false: '#767577', true: colors.primary }}
+                    thumbColor={isDark ? colors.surface : '#f4f3f4'}
+                    onValueChange={toggleTheme}
+                    value={isDark}
+                />
+              }
+              colors={colors}
+            />
         </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          Appearance
-        </Text>
-        <View
-          style={[
-            styles.sectionContainer,
-            styles.toggleContainer,
-            { backgroundColor: colors.surface },
-          ]}
-        >
-          <View style={styles.itemLeft}>
-            {isDark ? (
-              <Moon color={colors.primary} size={22} />
-            ) : (
-              <Sun color={colors.primary} size={22} />
-            )}
-            <Text style={[styles.itemLabel, { color: colors.text }]}>
-              Dark Mode
-            </Text>
-          </View>
-          <Switch
-            value={isDark}
-            onValueChange={() => setTheme(isDark ? 'light' : 'dark')}
-            trackColor={{ false: colors.surfaceVariant, true: colors.primary }}
-            thumbColor={colors.surface}
-          />
-        </View>
-
-        <View style={{ marginTop: 24 }}>
-          <Button
-            title="Log Out"
-            onPress={handleLogout}
-            variant="outline"
-            icon={LogOut}
-          />
+        <View style={styles.menuSection}>
+            <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>ACCOUNT</Text>
+            <SettingsListItem 
+                icon={LogOut} 
+                text="Sign Out" 
+                onPress={signOut}
+                colors={colors} 
+            />
         </View>
       </ScrollView>
     </ScreenContainer>
@@ -141,37 +75,22 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 16 },
-  headerTitle: {
-    fontFamily: 'Inter-Bold',
-    fontSize: 28,
-    marginBottom: 24,
-    fontWeight: 'bold',
-  },
-  sectionTitle: {
-    fontFamily: 'Inter-Bold',
-    fontSize: 14,
-    marginBottom: 8,
-    marginLeft: 8,
-    textTransform: 'uppercase',
-  },
-  sectionContainer: { borderRadius: 16, marginBottom: 24, overflow: 'hidden' },
-  itemContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(128, 128, 128, 0.1)',
-  },
-  toggleContainer: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  itemLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  itemLabel: { fontFamily: 'Inter-Bold', fontSize: 16, fontWeight: '500' },
+    header: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 10 },
+    title: { fontSize: 32, fontWeight: 'bold' },
+    menuSection: { marginHorizontal: 16, marginTop: 24 },
+    sectionTitle: { fontSize: 12, fontWeight: 'bold', paddingLeft: 16, marginBottom: 8 },
+    listItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 18,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        marginBottom: 2, // Creates a subtle separation
+        borderBottomWidth: 1,
+    },
+    listItemText: {
+        flex: 1,
+        fontSize: 16,
+        marginLeft: 16,
+    },
 });

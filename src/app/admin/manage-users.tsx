@@ -1,222 +1,140 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Image,
-  Modal,
-} from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
-import { User, UserRole } from '@/context/AuthContext';
-import { fetchAllUsers, updateUserRole } from '@/services/adminService';
-import { Shield, ChevronDown, X } from 'lucide-react-native';
+import ScreenContainer from '@/components/ScreenContainer';
+import { Search, Edit, UserX, Trash2 } from 'lucide-react-native';
+import { getAllUsers, updateUserStatus, deleteUser } from '@/services/adminService';
+import { UserProfile } from '@/types';
+import EditUserModal from '@/components/admin/EditUserModal';
 
-const ManageUsersScreen = () => {
-  const { colors } = useTheme();
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [newRole, setNewRole] = useState<UserRole>('Member');
+export default function ManageUsersScreen() {
+    const { colors } = useTheme();
+    const [users, setUsers] = useState<UserProfile[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isEditModalVisible, setEditModalVisible] = useState(false);
+    const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
-  useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        const fetchedUsers = await fetchAllUsers();
-        setUsers(fetchedUsers);
-      } catch (error) {
-        console.error('Failed to fetch users:', error);
-      } finally {
-        setIsLoading(false);
-      }
+    const fetchUsers = async () => {
+        !loading && setLoading(true);
+        try {
+            const data = await getAllUsers();
+            setUsers(data);
+        } catch (error) {
+            Alert.alert("Error", "Failed to fetch users.");
+        } finally {
+            setLoading(false);
+        }
     };
-    loadUsers();
-  }, []);
 
-  const openRoleModal = (user: User) => {
-    setSelectedUser(user);
-    setNewRole(user.role);
-    setIsModalVisible(true);
-  };
+    useFocusEffect(useCallback(() => {
+        fetchUsers();
+    }, []));
 
-  const handleRoleChange = async () => {
-    if (!selectedUser) return;
-    try {
-      const updatedUser = await updateUserRole(selectedUser.id, newRole);
-      // Update the user in the local state
-      setUsers((currentUsers) =>
-        currentUsers.map((u) => (u.id === updatedUser.id ? updatedUser : u))
-      );
-    } catch (error) {
-      console.error('Failed to update user role:', error);
-      // Here you might show an error toast to the admin
-    } finally {
-      setIsModalVisible(false);
-      setSelectedUser(null);
-    }
-  };
+    const openEditModal = (user: UserProfile) => {
+        setSelectedUser(user);
+        setEditModalVisible(true);
+    };
 
-  const UserItem = ({ user }: { user: User }) => (
-    <View style={[styles.userItem, { backgroundColor: colors.surface }]}>
-      <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
-      <View style={styles.userInfo}>
-        <Text style={[styles.userName, { color: colors.text }]}>
-          {user.displayName}
-        </Text>
-        <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
-          {user.email}
-        </Text>
-      </View>
-      <TouchableOpacity
-        onPress={() => openRoleModal(user)}
-        style={styles.roleButton}
-      >
-        <Shield color={colors.primary} size={16} />
-        <Text style={[styles.roleText, { color: colors.primary }]}>
-          {user.role}
-        </Text>
-        <ChevronDown color={colors.textSecondary} size={16} />
-      </TouchableOpacity>
-    </View>
-  );
+    const handleDeactivate = (user: UserProfile) => {
+        Alert.alert(
+            "Confirm Deactivation (Ban)",
+            `Are you sure you want to ban ${user.email}? They will lose all access.`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Deactivate",
+                    onPress: async () => {
+                        await updateUserStatus(user.id, 'Inactive');
+                        fetchUsers();
+                    },
+                    style: "destructive",
+                },
+            ]
+        );
+    };
+    
+    const handleDelete = (user: UserProfile) => {
+        Alert.alert(
+            "Confirm Deletion",
+            `Are you sure you want to permanently delete ${user.email}? This action cannot be undone.`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    onPress: async () => {
+                        await deleteUser(user.id);
+                        fetchUsers();
+                    },
+                    style: "destructive",
+                },
+            ]
+        );
+    };
 
-  if (isLoading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <FlatList
-        data={users}
-        renderItem={({ item }) => <UserItem user={item} />}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-      />
-
-      {/* Role Change Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isModalVisible}
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[styles.modalContent, { backgroundColor: colors.surface }]}
-          >
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setIsModalVisible(false)}
-            >
-              <X color={colors.textSecondary} size={24} />
-            </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Change Role for
-            </Text>
-            <Text style={[styles.modalUser, { color: colors.textSecondary }]}>
-              {selectedUser?.displayName}
-            </Text>
-
-            <Picker
-              selectedValue={newRole}
-              onValueChange={(itemValue) => setNewRole(itemValue)}
-              style={{ width: '100%', color: colors.text }} // Basic styling
-            >
-              <Picker.Item label="Member" value="Member" />
-              <Picker.Item label="Premium Member" value="Premium Member" />
-              <Picker.Item
-                label="Professional Accountant"
-                value="Professional Accountant"
-              />
-              <Picker.Item label="Support" value="Support" />
-              <Picker.Item label="Administrator" value="Administrator" />
-            </Picker>
-
-            <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: colors.primary }]}
-              onPress={handleRoleChange}
-            >
-              <Text style={styles.saveButtonText}>Save Changes</Text>
-            </TouchableOpacity>
-          </View>
+    const renderUser = ({ item }: { item: UserProfile }) => (
+        <View style={[styles.userRow, { backgroundColor: colors.surface }]}>
+            <View style={styles.userInfo}>
+                <Text style={[styles.userEmail, { color: colors.text }]}>{item.email}</Text>
+                <Text style={{ color: colors.textSecondary }}>{item.role}</Text>
+            </View>
+            <View style={styles.userStatus}>
+                <View style={[styles.statusBadge, { backgroundColor: item.status === 'Active' ? '#1DB95420' : '#FF450020' }]}>
+                    <Text style={{ color: item.status === 'Active' ? '#1DB954' : '#FF4500' }}>{item.status}</Text>
+                </View>
+            </View>
+            <View style={styles.userActions}>
+                <TouchableOpacity onPress={() => openEditModal(item)} style={styles.actionButton}>
+                    <Edit color={colors.textSecondary} size={20} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDeactivate(item)} style={styles.actionButton} disabled={item.status === 'Inactive'}>
+                    <UserX color={item.status === 'Inactive' ? '#555' : 'orange'} size={20} />
+                </TouchableOpacity>
+                 <TouchableOpacity onPress={() => handleDelete(item)} style={styles.actionButton}>
+                    <Trash2 color={'#FF4500'} size={20} />
+                </TouchableOpacity>
+            </View>
         </View>
-      </Modal>
-    </View>
-  );
-};
+    );
 
-// Add extensive styling
+    const filteredUsers = users.filter(user => user.email.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return (
+        <ScreenContainer>
+            <View style={styles.searchContainer}>
+                <Search color={colors.textSecondary} size={20} style={styles.searchIcon} />
+                <TextInput style={[styles.searchInput, { backgroundColor: colors.surface, color: colors.text }]} placeholder="Search users..." placeholderTextColor={colors.textSecondary} value={searchQuery} onChangeText={setSearchQuery} />
+            </View>
+
+            {loading ? <ActivityIndicator size="large" color={colors.primary} /> : (
+                <FlatList
+                    data={filteredUsers}
+                    renderItem={renderUser}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={styles.listContainer}
+                />
+            )}
+            <EditUserModal 
+                visible={isEditModalVisible}
+                onClose={() => setEditModalVisible(false)}
+                user={selectedUser}
+                onUserUpdate={fetchUsers}
+            />
+        </ScreenContainer>
+    );
+}
+
 const styles = StyleSheet.create({
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContainer: { padding: 16 },
-  userItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    elevation: 1,
-  },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
-  userInfo: { flex: 1 },
-  userName: { fontFamily: 'Inter-Bold', fontSize: 16 },
-  userEmail: { fontFamily: 'Inter-Regular', fontSize: 14 },
-  roleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-  },
-  roleText: { fontFamily: 'Inter-Bold', fontSize: 12 },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    padding: 24,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    alignItems: 'center',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: 'Inter-Bold',
-    marginBottom: 4,
-  },
-  modalUser: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    marginBottom: 20,
-  },
-  saveButton: {
-    width: '100%',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-  },
+    searchContainer: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+    searchIcon: { position: 'absolute', left: 32, zIndex: 1 },
+    searchInput: { flex: 1, height: 44, borderRadius: 22, paddingLeft: 40, paddingRight: 16, fontSize: 16 },
+    listContainer: { paddingHorizontal: 16 },
+    userRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 12, marginBottom: 10 },
+    userInfo: { flex: 4 },
+    userEmail: { fontSize: 16, fontWeight: '500' },
+    userStatus: { flex: 2, alignItems: 'center' },
+    statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12 },
+    userActions: { flex: 2, flexDirection: 'row', justifyContent: 'flex-end' },
+    actionButton: { padding: 6, marginLeft: 8 },
 });
-
-export default ManageUsersScreen;

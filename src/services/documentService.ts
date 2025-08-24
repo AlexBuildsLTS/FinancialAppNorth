@@ -1,102 +1,112 @@
 import { supabase } from '@/lib/supabase';
-import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
+import * as FileSystem from 'expo-file-system';
+import { Profile } from '@/types';
 
-export interface DocumentRecord {
+export interface ScannedDocument {
   id: string;
   user_id: string;
   file_name: string;
-  storage_path: string;
-  extracted_text?: string;
-  processed_data?: any;
-  status: 'uploaded' | 'processing' | 'processed' | 'error';
-  file_size_mb: number;
+  file_path: string; // Path in Supabase storage
   mime_type: string;
+  file_size: number;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  extracted_text?: string;
   created_at: string;
 }
 
-export const uploadDocument = async (
-  userId: string,
-  fileName: string,
-  base64Data: string,
-  mimeType: string = 'image/jpeg'
-): Promise<DocumentRecord> => {
-  const filePath = `${userId}/${Date.now()}-${fileName}`;
-  const fileSize = (base64Data.length * 3) / 4 / (1024 * 1024); // Approximate size in MB
-
-  // Check user's storage limit
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('storage_limit_mb')
-    .eq('id', userId)
-    .single();
-
-  if (profile && fileSize > profile.storage_limit_mb) {
-    throw new Error(`File size exceeds your ${profile.storage_limit_mb}MB limit`);
-  }
-
-  // Upload to storage
+/**
+ * Uploads a document (from a base64 string) to Supabase Storage and creates a record in the database.
+ * @param fileBase64 - The base64 encoded string of the file.
+ * @param fileName - The desired name for the file.
+ * @param userId - The ID of the user uploading the file.
+ */
+export const uploadDocument = async (fileBase64: string, fileName: string, userId: string): Promise<ScannedDocument> => {
+  const filePath = `${userId}/${fileName}_${Date.now()}`;
+  
+  // Upload to Supabase Storage
   const { error: uploadError } = await supabase.storage
     .from('documents')
-    .upload(filePath, decode(base64Data), {
-      contentType: mimeType,
+    .upload(filePath, decode(fileBase64), {
+      contentType: 'image/jpeg', // Assuming JPEG, can be made dynamic
     });
 
-  if (uploadError) throw uploadError;
+  if (uploadError) {
+    console.error('Error uploading file:', uploadError);
+    throw uploadError;
+  }
 
-  // Create database record
-  const { data, error } = await supabase
+  // Get file metadata to store in the database
+  const { data: fileData } = await supabase.storage.from('documents').getPublicUrl(filePath);
+    if(!fileData || !fileData.publicUrl){
+         console.error('Error getting file public URL: No public URL returned');
+        throw new Error('Could not get public URL for the uploaded file.');
+    }
+
+
+  // Create a record in the 'documents' table
+  const { data: dbRecord, error: dbError } = await supabase
     .from('documents')
     .insert({
       user_id: userId,
       file_name: fileName,
-      storage_path: filePath,
-      status: 'uploaded',
-      file_size_mb: fileSize,
-      mime_type: mimeType,
+      file_path: filePath,
+      mime_type: 'image/jpeg',
+      file_size: fileData?.publicUrl.length, // This is an approximation
+      status: 'pending', // OCR processing will be triggered by this status
     })
     .select()
     .single();
 
-  if (error) throw error;
+  if (dbError) {
+    console.error('Error creating document record:', dbError);
+    throw dbError;
+  }
 
-  // Trigger processing
-  await supabase.functions.invoke('process-document', {
-    body: { record: data },
-  });
-
-  return data;
+  return dbRecord as ScannedDocument;
 };
 
-export const fetchUserDocuments = async (): Promise<DocumentRecord[]> => {
+/**
+ * Fetches all document records for a specific user.
+ * @param userId - The ID of the user.
+ */
+export const getUserDocuments = async (userId: string): Promise<ScannedDocument[]> => {
   const { data, error } = await supabase
     .from('documents')
     .select('*')
+    .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
-  return data || [];
+  if (error) {
+    console.error('Error fetching documents:', error);
+    throw error;
+  }
+  return data;
 };
 
-export const deleteDocument = async (documentId: string, storagePath: string): Promise<void> => {
-  // Delete from storage
-  await supabase.storage
+/**
+ * Deletes a document from Supabase Storage and its corresponding record from the database.
+ * @param document - The document object to be deleted.
+ */
+export const deleteDocument = async (document: ScannedDocument): Promise<void> => {
+  // Delete from storage first
+  const { error: storageError } = await supabase.storage
     .from('documents')
-    .remove([storagePath]);
+    .remove([document.file_path]);
 
-  // Delete from database
-  const { error } = await supabase
+  if (storageError) {
+    console.error('Error deleting file from storage:', storageError);
+    throw storageError;
+  }
+
+  // Then delete the database record
+  const { error: dbError } = await supabase
     .from('documents')
     .delete()
-    .eq('id', documentId);
+    .eq('id', document.id);
 
-  if (error) throw error;
-};
-
-export const getDocumentUrl = (storagePath: string): string => {
-  const { data } = supabase.storage
-    .from('documents')
-    .getPublicUrl(storagePath);
-  
-  return data.publicUrl;
+  if (dbError) {
+    console.error('Error deleting document record:', dbError);
+    throw dbError;
+  }
 };

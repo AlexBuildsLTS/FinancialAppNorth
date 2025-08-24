@@ -1,655 +1,137 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-} from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert } from 'react-native';
+import { Plus, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import {
-  createJournalEntry,
-  getChartOfAccounts,
-} from '@/services/accountingService';
-import { ChartOfAccounts, JournalEntryLine } from '@/types/accounting';
+import { createJournalEntry, getChartOfAccounts } from '@/services/accountingService';
+import { JournalEntryLine, ChartOfAccounts } from '@/types/accounting';
 import Button from '@/components/common/Button';
-import { Plus, Trash2, Calculator } from 'lucide-react-native';
+import Modal from '@/components/common/Modal';
+import { Picker } from '@react-native-picker/picker';
 
 interface JournalEntryModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  clientId: string;
 }
 
-export default function JournalEntryModal({
-  visible,
-  onClose,
-  onSuccess,
-}: JournalEntryModalProps) {
+export default function JournalEntryModal({ visible, onClose, onSuccess, clientId }: JournalEntryModalProps) {
   const { colors } = useTheme();
-  const [accounts, setAccounts] = useState<ChartOfAccounts[]>([]);
-  const [reference, setReference] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
-  const [entries, setEntries] = useState<Omit<JournalEntryLine, 'id'>[]>([
-    {
-      accountId: '',
-      accountName: '',
-      accountCode: '',
-      description: '',
-      debitAmount: 0,
-      creditAmount: 0,
-    },
-    {
-      accountId: '',
-      accountName: '',
-      accountCode: '',
-      description: '',
-      debitAmount: 0,
-      creditAmount: 0,
-    },
-  ]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lines, setLines] = useState<Partial<JournalEntryLine>[]>([{}, {}]);
+  const [accounts, setAccounts] = useState<ChartOfAccounts[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [totalDebit, setTotalDebit] = useState(0);
+  const [totalCredit, setTotalCredit] = useState(0);
 
   useEffect(() => {
     if (visible) {
-      loadAccounts();
-      generateReference();
+      getChartOfAccounts(clientId).then(setAccounts).catch(console.error);
     }
-  }, [visible]);
+  }, [visible, clientId]);
+  
+  useEffect(() => {
+      const debits = lines.reduce((sum, line) => sum + (Number(line.debitAmount) || 0), 0);
+      const credits = lines.reduce((sum, line) => sum + (Number(line.creditAmount) || 0), 0);
+      setTotalDebit(debits);
+      setTotalCredit(credits);
+  }, [lines]);
 
-  const loadAccounts = async () => {
-    try {
-      const accountsData = await getChartOfAccounts();
-      setAccounts(accountsData.filter((acc) => acc.isActive));
-    } catch (error) {
-      console.error('Failed to load accounts:', error);
-    }
-  };
-
-  const generateReference = () => {
-    const now = new Date();
-    const ref = `JE-${now.getFullYear()}${(now.getMonth() + 1)
-      .toString()
-      .padStart(2, '0')}${now
-      .getDate()
-      .toString()
-      .padStart(2, '0')}-${Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, '0')}`;
-    setReference(ref);
-  };
-
-  const addEntryLine = () => {
-    setEntries([
-      ...entries,
-      {
-        accountId: '',
-        accountName: '',
-        accountCode: '',
-        description: '',
-        debitAmount: 0,
-        creditAmount: 0,
-      },
-    ]);
-  };
-
-  const removeEntryLine = (index: number) => {
-    if (entries.length > 2) {
-      setEntries(entries.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateEntry = (index: number, field: string, value: any) => {
-    const updatedEntries = [...entries];
-
+  const updateLine = (index: number, field: keyof JournalEntryLine, value: any) => {
+    const newLines = [...lines];
     if (field === 'accountId') {
-      const selectedAccount = accounts.find((acc) => acc.id === value);
-      if (selectedAccount) {
-        updatedEntries[index] = {
-          ...updatedEntries[index],
-          accountId: value,
-          accountName: selectedAccount.name,
-          accountCode: selectedAccount.code,
-        };
-      }
+        const selectedAccount = accounts.find(a => a.id === value);
+        newLines[index].accountId = value;
+        newLines[index].accountName = selectedAccount?.name;
+        newLines[index].accountCode = selectedAccount?.code;
     } else {
-      updatedEntries[index] = { ...updatedEntries[index], [field]: value };
+        newLines[index][field] = value;
     }
-
-    setEntries(updatedEntries);
+    setLines(newLines);
   };
+  
+  const addLine = () => setLines([...lines, {}]);
+  const removeLine = (index: number) => setLines(lines.filter((_, i) => i !== index));
 
-  const getTotalDebits = () =>
-    entries.reduce((sum, entry) => sum + (entry.debitAmount || 0), 0);
-  const getTotalCredits = () =>
-    entries.reduce((sum, entry) => sum + (entry.creditAmount || 0), 0);
-  const isBalanced = () =>
-    Math.abs(getTotalDebits() - getTotalCredits()) < 0.01;
-
-  const handleSave = async () => {
-    if (!reference || !description) {
-      Alert.alert(
-        'Missing Fields',
-        'Please fill in Reference and Description.'
-      );
-      return;
+  const handleSubmit = async () => {
+    if (!description || lines.some(l => !l.accountId || (!l.debitAmount && !l.creditAmount))) {
+        return Alert.alert('Validation Error', 'Please provide a description and fill all transaction lines.');
     }
-
-    if (!isBalanced()) {
-      Alert.alert('Unbalanced Entry', 'Total debits must equal total credits.');
-      return;
+    if (totalDebit !== totalCredit || totalDebit === 0) {
+        return Alert.alert('Validation Error', 'Total debits must equal total credits and cannot be zero.');
     }
-
-    const validEntries = entries.filter(
-      (entry) =>
-        entry.accountId && (entry.debitAmount > 0 || entry.creditAmount > 0)
-    );
-
-    if (validEntries.length < 2) {
-      Alert.alert('Invalid Entry', 'At least two account lines are required.');
-      return;
-    }
-
-    setIsSubmitting(true);
+    
+    setLoading(true);
     try {
-      await createJournalEntry({
-        date,
-        reference,
-        description,
-        clientId: 'cli1', // In real app, get from context
-        entries: validEntries.map((entry, index) => ({
-          ...entry,
-          id: `line_${index}`,
-        })),
-        totalDebit: getTotalDebits(),
-        totalCredit: getTotalCredits(),
-        status: 'posted',
-        createdBy: 'user1',
-      });
-
-      onSuccess();
-      resetForm();
+        await createJournalEntry({
+            clientId,
+            date: new Date().toISOString(),
+            description,
+            entries: lines as JournalEntryLine[],
+            totalDebit,
+            totalCredit,
+            status: 'posted',
+            createdBy: clientId, // In a real scenario, this would be the logged-in CPA's ID
+        });
+        onSuccess();
+        onClose();
     } catch (error) {
-      Alert.alert('Error', 'Failed to create journal entry.');
+        Alert.alert('Error', 'Failed to create journal entry.');
     } finally {
-      setIsSubmitting(false);
+        setLoading(false);
     }
-  };
-
-  const resetForm = () => {
-    setReference('');
-    setDate(new Date().toISOString().split('T')[0]);
-    setDescription('');
-    setEntries([
-      {
-        accountId: '',
-        accountName: '',
-        accountCode: '',
-        description: '',
-        debitAmount: 0,
-        creditAmount: 0,
-      },
-      {
-        accountId: '',
-        accountName: '',
-        accountCode: '',
-        description: '',
-        debitAmount: 0,
-        creditAmount: 0,
-      },
-    ]);
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-    >
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: colors.surface,
-              borderBottomColor: colors.border,
-            },
-          ]}
-        >
-          <TouchableOpacity onPress={onClose}>
-            <Text style={[styles.cancelButton, { color: colors.primary }]}>
-              Cancel
-            </Text>
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            New Journal Entry
-          </Text>
-          <TouchableOpacity onPress={handleSave} disabled={isSubmitting}>
-            <Text style={[styles.saveButton, { color: colors.primary }]}>
-              {isSubmitting ? 'Saving...' : 'Save'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Entry Details
-            </Text>
-
-            <View style={styles.row}>
-              <View style={styles.halfWidth}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>
-                  Reference
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: colors.text,
-                      borderColor: colors.border,
-                      backgroundColor: colors.surface,
-                    },
-                  ]}
-                  value={reference}
-                  onChangeText={setReference}
-                  placeholder="JE-001"
-                  placeholderTextColor={colors.textSecondary}
-                />
-              </View>
-              <View style={styles.halfWidth}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>
-                  Date
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: colors.text,
-                      borderColor: colors.border,
-                      backgroundColor: colors.surface,
-                    },
-                  ]}
-                  value={date}
-                  onChangeText={setDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textSecondary}
-                />
-              </View>
-            </View>
-
-            <Text style={[styles.label, { color: colors.textSecondary }]}>
-              Description
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                styles.textArea,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: colors.surface,
-                },
-              ]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Describe the transaction..."
-              placeholderTextColor={colors.textSecondary}
-              multiline
-              numberOfLines={3}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Account Lines
-              </Text>
-              <TouchableOpacity
-                onPress={addEntryLine}
-                style={styles.addLineButton}
-              >
-                <Plus size={20} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-
-            {entries.map((entry, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.entryLine,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <View style={styles.entryHeader}>
-                  <Text
-                    style={[styles.lineNumber, { color: colors.textSecondary }]}
-                  >
-                    Line {index + 1}
-                  </Text>
-                  {entries.length > 2 && (
-                    <TouchableOpacity onPress={() => removeEntryLine(index)}>
-                      <Trash2 size={16} color={colors.error} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <Text style={[styles.label, { color: colors.textSecondary }]}>
-                  Account
-                </Text>
-                <View
-                  style={[
-                    styles.pickerContainer,
-                    { borderColor: colors.border },
-                  ]}
-                >
-                  <Picker
-                    selectedValue={entry.accountId}
-                    onValueChange={(value) =>
-                      updateEntry(index, 'accountId', value)
-                    }
-                    style={[styles.picker, { color: colors.text }]}
-                  >
-                    <Picker.Item label="Select Account..." value="" />
-                    {accounts.map((account) => (
-                      <Picker.Item
-                        key={account.id}
-                        label={`${account.code} - ${account.name}`}
-                        value={account.id}
-                      />
-                    ))}
-                  </Picker>
-                </View>
-
-                <Text style={[styles.label, { color: colors.textSecondary }]}>
-                  Description
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: colors.text,
-                      borderColor: colors.border,
-                      backgroundColor: colors.background,
-                    },
-                  ]}
-                  value={entry.description}
-                  onChangeText={(value) =>
-                    updateEntry(index, 'description', value)
-                  }
-                  placeholder="Line description..."
-                  placeholderTextColor={colors.textSecondary}
-                />
-
-                <View style={styles.row}>
-                  <View style={styles.halfWidth}>
-                    <Text
-                      style={[styles.label, { color: colors.textSecondary }]}
-                    >
-                      Debit
-                    </Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        {
-                          color: colors.text,
-                          borderColor: colors.border,
-                          backgroundColor: colors.background,
-                        },
-                      ]}
-                      value={
-                        entry.debitAmount > 0
-                          ? entry.debitAmount.toString()
-                          : ''
-                      }
-                      onChangeText={(value) =>
-                        updateEntry(
-                          index,
-                          'debitAmount',
-                          parseFloat(value) || 0
-                        )
-                      }
-                      placeholder="0.00"
-                      placeholderTextColor={colors.textSecondary}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                  <View style={styles.halfWidth}>
-                    <Text
-                      style={[styles.label, { color: colors.textSecondary }]}
-                    >
-                      Credit
-                    </Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        {
-                          color: colors.text,
-                          borderColor: colors.border,
-                          backgroundColor: colors.background,
-                        },
-                      ]}
-                      value={
-                        entry.creditAmount > 0
-                          ? entry.creditAmount.toString()
-                          : ''
-                      }
-                      onChangeText={(value) =>
-                        updateEntry(
-                          index,
-                          'creditAmount',
-                          parseFloat(value) || 0
-                        )
-                      }
-                      placeholder="0.00"
-                      placeholderTextColor={colors.textSecondary}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-
-          <View
-            style={[
-              styles.totalsSection,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <View style={styles.totalsHeader}>
-              <Calculator size={20} color={colors.primary} />
-              <Text style={[styles.totalsTitle, { color: colors.text }]}>
-                Entry Totals
-              </Text>
-            </View>
-            <View style={styles.totalsRow}>
-              <Text
-                style={[styles.totalsLabel, { color: colors.textSecondary }]}
-              >
-                Total Debits:
-              </Text>
-              <Text style={[styles.totalsValue, { color: colors.text }]}>
-                ${getTotalDebits().toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.totalsRow}>
-              <Text
-                style={[styles.totalsLabel, { color: colors.textSecondary }]}
-              >
-                Total Credits:
-              </Text>
-              <Text style={[styles.totalsValue, { color: colors.text }]}>
-                ${getTotalCredits().toFixed(2)}
-              </Text>
-            </View>
-            <View style={[styles.totalsRow, styles.balanceRow]}>
-              <Text
-                style={[
-                  styles.totalsLabel,
-                  { color: colors.text, fontWeight: 'bold' },
-                ]}
-              >
-                Balance:
-              </Text>
-              <Text
-                style={[
-                  styles.totalsValue,
-                  {
-                    color: isBalanced() ? colors.success : colors.error,
-                    fontWeight: 'bold',
-                  },
-                ]}
-              >
-                {isBalanced()
-                  ? 'BALANCED'
-                  : `OFF BY $${Math.abs(
-                      getTotalDebits() - getTotalCredits()
-                    ).toFixed(2)}`}
-              </Text>
-            </View>
-          </View>
-        </ScrollView>
+    <Modal visible={visible} onClose={onClose} title="Create Journal Entry">
+      <TextInput style={[styles.input, { backgroundColor: colors.surface }]} placeholder="Entry Description" value={description} onChangeText={setDescription} />
+      
+      <View style={styles.tableHeader}>
+          <Text style={[styles.headerText, { flex: 3 }]}>Account</Text>
+          <Text style={[styles.headerText, { flex: 2, textAlign: 'right' }]}>Debit</Text>
+          <Text style={[styles.headerText, { flex: 2, textAlign: 'right' }]}>Credit</Text>
+          <View style={{ width: 30 }} />
       </View>
+
+      <FlatList
+        data={lines}
+        keyExtractor={(_, index) => index.toString()}
+        renderItem={({ item, index }) => (
+          <View style={styles.lineItem}>
+              <Picker selectedValue={item.accountId} onValueChange={(val) => updateLine(index, 'accountId', val)} style={[styles.picker, { flex: 3 }]}>
+                  {accounts.map(acc => <Picker.Item key={acc.id} label={`${acc.code} - ${acc.name}`} value={acc.id} />)}
+              </Picker>
+              <TextInput style={[styles.lineInput, { flex: 2 }]} placeholder="0.00" keyboardType="numeric" value={item.debitAmount?.toString()} onChangeText={(val) => updateLine(index, 'debitAmount', val)} />
+              <TextInput style={[styles.lineInput, { flex: 2 }]} placeholder="0.00" keyboardType="numeric" value={item.creditAmount?.toString()} onChangeText={(val) => updateLine(index, 'creditAmount', val)} />
+              <TouchableOpacity onPress={() => removeLine(index)} style={{ width: 30, alignItems: 'center' }}>
+                  <Trash2 color={colors.error} size={18} />
+              </TouchableOpacity>
+          </View>
+        )}
+      />
+      
+      <TouchableOpacity onPress={addLine} style={styles.addLineButton}><Plus size={16} color={colors.primary} /><Text style={{ color: colors.primary }}>Add Line</Text></TouchableOpacity>
+      
+      <View style={styles.totalsRow}>
+          <Text style={styles.totalText}>Totals</Text>
+          <Text style={styles.totalAmount}>${totalDebit.toFixed(2)}</Text>
+          <Text style={styles.totalAmount}>${totalCredit.toFixed(2)}</Text>
+      </View>
+      
+      <Button title="Post Entry" onPress={handleSubmit} isLoading={loading} disabled={totalDebit !== totalCredit || totalDebit === 0} />
     </Modal>
   );
 }
-
+// Extensive styling for a professional look
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  cancelButton: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  saveButton: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  addLineButton: {
-    padding: 8,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  halfWidth: {
-    flex: 1,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    height: 48,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-    paddingTop: 12,
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  picker: {
-    height: 48,
-  },
-  entryLine: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  entryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  lineNumber: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  totalsSection: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  totalsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  totalsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  totalsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  balanceRow: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(128, 128, 128, 0.2)',
-    paddingTop: 8,
-    marginTop: 8,
-  },
-  totalsLabel: {
-    fontSize: 14,
-  },
-  totalsValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+    input: { height: 50, borderRadius: 8, paddingHorizontal: 16, marginBottom: 16, fontSize: 16, borderWidth: 1, borderColor: '#444' },
+    tableHeader: { flexDirection: 'row', paddingHorizontal: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#444' },
+    headerText: { fontWeight: 'bold', color: '#8892B0' },
+    lineItem: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 4 },
+    picker: { height: 40, borderWidth: 1, borderColor: '#444', borderRadius: 8 },
+    lineInput: { height: 40, borderWidth: 1, borderColor: '#444', borderRadius: 8, paddingHorizontal: 8, textAlign: 'right', fontFamily: 'monospace' },
+    addLineButton: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', padding: 10, marginVertical: 8 },
+    totalsRow: { flexDirection: 'row', justifyContent: 'flex-end', borderTopWidth: 2, borderTopColor: '#444', paddingTop: 8, marginTop: 8, paddingHorizontal: 38 },
+    totalText: { flex: 3, fontWeight: 'bold', fontSize: 16 },
+    totalAmount: { flex: 2, textAlign: 'right', fontWeight: 'bold', fontSize: 16, fontFamily: 'monospace' },
 });

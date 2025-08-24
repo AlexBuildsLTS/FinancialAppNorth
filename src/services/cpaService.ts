@@ -1,72 +1,111 @@
 import { supabase } from '@/lib/supabase';
-import { Profile } from '@/types'; // We'll add this to types next
+import { UserProfile, Transaction, Client as TypesClient } from '@/types';
 
-// Fetches all clients assigned to the currently logged-in CPA
-export const fetchAssignedClients = async (): Promise<Profile[]> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error("No user is logged in.");
-  }
+// Represents a client assigned to a CPA
+export interface Client extends UserProfile {
+  last_activity: string; // Could be a timestamp of last login or transaction
+}
 
-  // This query joins the client_assignments table with the profiles table
-  // to get the full profile details for each assigned client.
-  const { data, error } = await supabase
-    .from('client_assignments')
-    .select(`
-      status,
-      client:profiles!client_assignments_client_id_fkey (
-        id,
-        display_name,
-        avatar_url,
-        email,
-        role
-      )
-    `)
-    .eq('cpa_id', user.id);
-
-  if (error) {
-    console.error("Error fetching assigned clients:", error);
-    throw error;
-  }
-
-  // The query returns a nested structure, so we flatten it for easier use in the app
-  const clients = (data || []).map(item => ({
-    ...item.client,
-    assignment_status: item.status
-  }));
-
-  return clients as unknown as Profile[];
+// Mapping function to convert cpaService Client to types/index.ts Client
+export const mapCpaClientToTypesClient = (cpaClient: Client): TypesClient => {
+  return {
+    id: cpaClient.id,
+    name: cpaClient.display_name,
+    email: cpaClient.email,
+    status: cpaClient.status as 'active' | 'inactive', // Type assertion to match expected type
+    companyName: cpaClient.display_name, // Using display name as company name
+    avatarUrl: cpaClient.avatar_url || `https://i.pravatar.cc/150?u=${cpaClient.id}`,
+    netWorth: 0, // Default value, could be updated if this data is available
+    uncategorized: 0, // Default value, could be updated if this data is available
+    };
 };
 
-export const requestClientAccess = async (clientEmail: string): Promise<void> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("No user is logged in.");
-
-  // Find client by email
-  const { data: client, error: clientError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', clientEmail)
-    .single();
-
-  if (clientError || !client) {
-    throw new Error('Client not found with that email address.');
-  }
-
-  // Create assignment request
+/**
+ * Sends a request for client access to a specific email address.
+ * This assumes a 'client_access_requests' table exists.
+ * @param email The email address of the client to request access for.
+ */
+export const requestClientAccess = async (email: string): Promise<void> => {
   const { error } = await supabase
-    .from('client_assignments')
-    .insert({
-      cpa_id: user.id,
-      client_id: client.id,
-      status: 'pending',
-      assigned_by: user.id,
-    });
+    .from('client_access_requests')
+    .insert([{ email, status: 'pending' }]); // Assuming 'status' defaults to 'pending'
 
   if (error) {
-    if (error.code === '23505') { // Unique constraint violation
-      throw new Error('You already have a request pending for this client.');
-    }
+    console.error('Error sending client access request:', error);
     throw error;
   }
+};
+
+// Represents the full financial overview for a single client
+export interface ClientDashboardData {
+  profile: UserProfile;
+  totalBalance: number;
+  totalIncome: number;
+  totalExpenses: number;
+  recentTransactions: Transaction[];
+}
+
+/**
+ * Fetches a list of all clients assigned to a specific CPA.
+ * This assumes a 'cpa_client_assignments' table exists linking professionals to their clients.
+ * @param cpaId The UUID of the Professional (CPA) user.
+ */
+export const getAssignedClients = async (cpaId: string): Promise<TypesClient[]> => {
+  const { data, error } = await supabase
+    .from('client_assignments')
+    .select('client:profiles(*)')
+    .eq('cpa_id', cpaId);
+
+  if (error) {
+    console.error('Error fetching assigned clients:', error);
+    throw error;
+  }
+
+  // Map the data to the Client type
+  return data.map(item => {
+    const clientWithActivity: any = {
+      ...item.client,
+      last_activity: '2025-08-24T10:00:00Z', // Placeholder activity
+    };
+    
+    return mapCpaClientToTypesClient(clientWithActivity as Client);
+  });
+};
+
+/**
+ * Fetches all necessary data for a single client's dashboard view.
+ * This is the secure data fetch for when a CPA enters a client's workspace.
+ * @param clientId The UUID of the client being viewed.
+ */
+export const getClientDashboardData = async (clientId: string): Promise<ClientDashboardData> => {
+    // 1. Fetch Client Profile
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', clientId)
+        .single();
+    
+    if (profileError) throw profileError;
+
+    // 2. Fetch Client Transactions
+    const { data: transactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', clientId)
+        .order('date', { ascending: false });
+
+    if (transactionsError) throw transactionsError;
+
+    // 3. Calculate Financials
+    const totalIncome = transactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0;
+    const totalExpenses = transactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0;
+    const totalBalance = totalIncome - totalExpenses;
+    
+    return {
+        profile,
+        totalBalance,
+        totalIncome,
+        totalExpenses,
+        recentTransactions: transactions?.slice(0, 5) || [],
+    };
 };

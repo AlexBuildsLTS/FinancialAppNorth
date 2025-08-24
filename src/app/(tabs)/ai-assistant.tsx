@@ -1,19 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { fetchUserChannels } from '@/services/chatService';
+import { getConversations } from '@/services/chatService';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
+import { Conversation } from '@/types'; // Assuming Conversation type is available
 
-const ChannelItem = ({ channel, currentUser, onPress }: any) => {
+interface ChannelItemProps {
+  channel: Conversation;
+  currentUser: { id: string } | null;
+  onPress: () => void;
+}
+
+const ChannelItem = ({ channel, currentUser, onPress }: ChannelItemProps) => {
   const { colors } = useTheme();
-  // Find the other participant in the channel
-  const otherParticipant = channel.participants.find(
-    (p: any) => p.profiles.id !== currentUser?.id
-  )?.profiles;
-
-  const displayName = otherParticipant?.display_name || 'Chat';
-  const avatarUrl = otherParticipant?.avatar_url || 'https://i.pravatar.cc/150';
+  // In the current chatService, the 'name' and 'avatar' are already processed for the other participant.
+  // So we can directly use channel.name and channel.avatar.
+  const displayName = channel.name || 'Chat';
+  const avatarUrl = channel.avatar || 'https://i.pravatar.cc/150';
 
   return (
     <TouchableOpacity onPress={onPress} style={[styles.itemContainer, { borderBottomColor: colors.border }]}>
@@ -21,7 +25,7 @@ const ChannelItem = ({ channel, currentUser, onPress }: any) => {
       <View style={styles.textContainer}>
         <Text style={[styles.channelName, { color: colors.text }]}>{displayName}</Text>
         <Text style={[styles.lastMessage, { color: colors.textSecondary }]} numberOfLines={1}>
-          No new messages
+          {channel.lastMessage || 'No new messages'}
         </Text>
       </View>
     </TouchableOpacity>
@@ -31,15 +35,17 @@ const ChannelItem = ({ channel, currentUser, onPress }: any) => {
 export default function MessagesScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const [channels, setChannels] = useState<any[]>([]);
+  const [channels, setChannels] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const loadChannels = async () => {
       try {
-        const data = await fetchUserChannels();
-        setChannels(data);
+        if (user?.id) {
+          const data = await getConversations(user.id);
+          setChannels(data);
+        }
       } catch (error) {
         console.error("Failed to load channels", error);
       } finally {
@@ -52,7 +58,7 @@ export default function MessagesScreen() {
     }
   }, [user]);
   
-  const handleChannelPress = (channelId: number) => {
+  const handleChannelPress = (channelId: string) => { // channelId should be string based on Conversation type
       router.push(`/chat/${channelId}` as any);
   };
 

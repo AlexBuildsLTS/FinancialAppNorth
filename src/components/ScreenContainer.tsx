@@ -1,33 +1,27 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 
 interface ScreenContainerProps {
   children: React.ReactNode;
+  style?: object;
 }
 
-/**
- * A responsive container for screens that respects safe areas and applies
- * the current theme's background color. It ensures content is displayed
- * correctly across different devices.
- */
-const ScreenContainer: React.FC<ScreenContainerProps> = ({ children }) => {
-  const { colors } = useTheme();
+export default function ScreenContainer({ children, style }: ScreenContainerProps) {
+  const { colors, isDark } = useTheme();
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      {children}
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <View style={[styles.container, { backgroundColor: colors.background, padding: 8 }, style]}>
+        {children}
+      </View>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
 });
-
-export default ScreenContainer;

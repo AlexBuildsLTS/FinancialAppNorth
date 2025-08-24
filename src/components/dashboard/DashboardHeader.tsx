@@ -1,97 +1,71 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native'; // Added TouchableOpacity
-import { Bell, User, Settings } from 'lucide-react-native'; // Added User and Settings icons
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useTheme } from '../../context/ThemeProvider';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Bell, MessageCircle, Settings, User } from 'lucide-react-native';
+import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
+import NotificationDropdown from '@/components/common/NotificationDropdown';
+import { DashboardHeaderProps } from '@/types';
 
-interface DashboardHeaderProps {
-  username: string;
-  avatarUrl: string;
-  onPressProfile: () => void; // New prop for profile button press
-  onPressSettings: () => void; // New prop for settings button press
-}
-
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({
-  username,
+export default function DashboardHeader({
+  userName,
   avatarUrl,
   onPressProfile,
+  onPressMessages,
   onPressSettings,
-}) => {
+}: DashboardHeaderProps) {
   const { colors } = useTheme();
+  const { user } = useAuth();
+  const router = useRouter();
 
   return (
-    <Animated.View entering={FadeInDown.duration(500)} style={styles.container}>
-      <View style={styles.userInfo}>
-        <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-        <View>
-          <Text style={[styles.greeting, { color: colors.textSecondary }]}>
-            Welcome back,
-          </Text>
-          <Text style={[styles.username, { color: colors.text }]}>
-            {username}
-          </Text>
-        </View>
+    <View style={styles.container}>
+      <View>
+        <Text style={[styles.greeting, { color: colors.textSecondary }]}>
+          Welcome back,
+        </Text>
+        <Text style={[styles.userName, { color: colors.text }]}>
+          {userName || 'User'}
+        </Text>
       </View>
-      <View style={styles.rightIcons}>
-        {/* New container for right-aligned icons */}
-        <TouchableOpacity
-          onPress={() => {
-            /* Handle notifications */
-          }}
-          style={[styles.iconButton, { backgroundColor: colors.surface }]}
-        >
-          <Bell color={colors.text} size={24} />
+      <View style={styles.iconsContainer}>
+        <NotificationDropdown />
+        <TouchableOpacity onPress={onPressMessages} style={styles.iconButton}>
+          <MessageCircle color={colors.textSecondary} size={24} />
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onPressSettings}
-          style={[styles.iconButton, { backgroundColor: colors.surface }]}
-        >
-          <Settings color={colors.text} size={24} />
+        <TouchableOpacity onPress={() => router.push('/(tabs)/settings')} style={styles.iconButton}>
+          <Settings color={colors.textSecondary} size={24} />
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onPressProfile}
-          style={[styles.iconButton, { backgroundColor: colors.surface }]}
-        >
-          <User color={colors.text} size={24} />
+        <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={styles.iconButton}>
+          <User color={colors.textSecondary} size={24} />
         </TouchableOpacity>
       </View>
-    </Animated.View>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingTop: 20, // Extra padding for status bar area
   },
   greeting: {
-    fontSize: 14,
+    fontSize: 16,
   },
-  username: {
-    fontSize: 18,
+  userName: {
+    fontSize: 24,
     fontWeight: 'bold',
   },
-  rightIcons: {
-    // Styles for the new container
+  iconsContainer: {
     flexDirection: 'row',
-    gap: 8, // Space between icons
+    alignItems: 'center',
   },
   iconButton: {
-    // Styles for individual icon buttons
-    padding: 12,
-    borderRadius: 25,
+    marginLeft: 16,
+    padding: 4,
   },
 });
-
-export default DashboardHeader;

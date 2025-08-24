@@ -1,14 +1,17 @@
+import React from 'react';
 import { Link, Stack } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
+import { useTheme } from '@/context/ThemeProvider';
 
 export default function NotFoundScreen() {
+  const { colors } = useTheme();
   return (
     <>
       <Stack.Screen options={{ title: 'Oops!' }} />
-      <View style={styles.container}>
-        <Text style={styles.text}>This screen doesn't exist.</Text>
-        <Link href="/" style={styles.link}>
-          <Text>Go to home screen!</Text>
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <Text style={[styles.title, {color: colors.text}]}>Screen Not Found</Text>
+        <Link href="/(tabs)" style={styles.link}>
+          <Text style={[styles.linkText, {color: colors.primary}]}>Go to home screen</Text>
         </Link>
       </View>
     </>
@@ -16,18 +19,8 @@ export default function NotFoundScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  text: {
-    fontSize: 20,
-    fontWeight: 600,
-  },
-  link: {
-    marginTop: 15,
-    paddingVertical: 15,
-  },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  title: { fontSize: 20, fontWeight: 'bold' },
+  link: { marginTop: 15, paddingVertical: 15 },
+  linkText: { fontSize: 14 },
 });

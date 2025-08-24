@@ -218,11 +218,11 @@ export async function getClients(): Promise<Client[]> {
   }
 
   return (data || []).map(item => ({
-    id: item.client.id,
-    name: item.client.display_name,
-    companyName: item.client.display_name, // Using display name as company name
-    email: item.client.email,
-    avatarUrl: item.client.avatar_url || `https://i.pravatar.cc/150?u=${item.client.id}`,
+    id: item.client?.[0]?.id || '', // Safely access id, provide default empty string
+    name: item.client?.[0]?.display_name || '', // Safely access display_name, provide default empty string
+    companyName: item.client?.[0]?.display_name || '', // Using display name as company name, provide default empty string
+    email: item.client?.[0]?.email || '', // Safely access email, provide default empty string
+    avatarUrl: item.client?.[0]?.avatar_url || `https://i.pravatar.cc/150?u=${item.client?.[0]?.id || ''}`, // Safely access avatar_url, provide default empty string
     status: item.status,
     netWorth: 0, // This would be calculated from actual financial data
     uncategorized: 0, // This would be calculated from uncategorized transactions

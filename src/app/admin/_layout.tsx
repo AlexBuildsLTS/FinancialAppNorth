@@ -1,65 +1,38 @@
-import React, { useEffect } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import React from 'react';
+import { Tabs, Redirect } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { LayoutDashboard, Users } from 'lucide-react-native';
 
-// This component will protect the admin routes
-const AdminLayout = () => {
+export default function AdminTabLayout() {
   const { user, initialized } = useAuth();
   const { colors } = useTheme();
-  const router = useRouter();
 
-  useEffect(() => {
-    // If the user data has loaded and the user is not an admin, redirect them.
-    if (initialized && user?.role !== 'Administrator') {
-      // You can redirect them to the main dashboard or a 'not found' page.
-      router.replace('/(tabs)');
-    }
-  }, [user, initialized, router]);
+  if (!initialized) return null;
+  if (user?.role !== 'Administrator') return <Redirect href="/(tabs)" />;
 
-  // While checking the user's role, show a loading indicator.
-  if (!initialized || user?.role !== 'Administrator') {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: colors.background,
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.text }}>
-          Verifying access...
-        </Text>
-      </View>
-    );
-  }
-
-  // If the user is an administrator, render the admin screens.
   return (
-    <Stack>
-      <Stack.Screen
+    <Tabs screenOptions={{
+      tabBarActiveTintColor: colors.primary,
+      tabBarInactiveTintColor: colors.textSecondary,
+      tabBarStyle: { backgroundColor: colors.surface },
+      headerStyle: { backgroundColor: colors.surface },
+      headerTintColor: colors.text,
+    }}>
+      <Tabs.Screen
         name="index"
         options={{
-          title: 'Admin Dashboard',
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontFamily: 'Inter-Bold' },
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} />,
         }}
       />
-      <Stack.Screen
+      <Tabs.Screen
         name="manage-users"
         options={{
-          title: 'Manage Users',
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontFamily: 'Inter-Bold' },
+          title: 'User Management',
+          tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
       />
-    </Stack>
+    </Tabs>
   );
-};
-
-export default AdminLayout;
+}

@@ -1,178 +1,36 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import React from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { useAuth } from '@/context/AuthContext';
-import { Stack } from 'expo-router';
-import { supabase } from '@/lib/supabase';
-import * as FileSystem from 'expo-file-system';
-import { decode } from 'base64-arraybuffer';
+import ScreenContainer from '@/components/ScreenContainer';
 
-const ProcessDocumentScreen = () => {
+export default function ProcessDocumentScreen() {
   const { colors } = useTheme();
-  const { imageUri } = useLocalSearchParams<{ imageUri: string }>();
-  const { user } = useAuth();
-  const router = useRouter();
-  const [documentName, setDocumentName] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const handleProcess = async () => {
-    if (!imageUri || !user) {
-      Alert.alert('Error', 'Image or user is missing.');
-      return;
-    }
-    if (!documentName.trim()) {
-      Alert.alert('Missing Name', 'Please give this document a name.');
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      const fileName = `${documentName.replace(/\s+/g, '-')}-${Date.now()}.jpg`;
-      const filePath = `${user.id}/${fileName}`;
-      const contentType = 'image/jpeg';
-
-      // Step 1: Upload the image
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, decode(base64), { contentType });
-      if (uploadError) throw uploadError;
-
-      // Step 2: Create a record in the database
-      const { data: documentRecord, error: insertError } = await supabase
-        .from('documents')
-        .insert({
-          user_id: user.id,
-          file_name: documentName,
-          storage_path: filePath,
-          status: 'uploaded',
-        })
-        .select()
-        .single();
-      if (insertError) throw insertError;
-
-      // Step 3: Call the Edge Function to start processing
-      const { error: functionError } = await supabase.functions.invoke(
-        'process-document',
-        {
-          body: { record: documentRecord },
-        }
-      );
-      if (functionError) throw functionError;
-
-      Alert.alert(
-        'Processing Started',
-        `"${documentName}" was uploaded and is now being processed by our AI.`,
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
-    } catch (error: any) {
-      console.error('Error processing document:', error);
-      Alert.alert('Error', error.message || 'An unexpected error occurred.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <Stack.Screen
-        options={{ title: 'Review Document', presentation: 'modal' }}
-      />
-      <ScrollView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={{ flexGrow: 1 }}
-      >
-        <Image
-          source={{ uri: imageUri }}
-          style={styles.imagePreview}
-          resizeMode="contain"
-        />
-        <View style={styles.form}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Document Name
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.surface,
-                color: colors.text,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="e.g., Invoice from Acme Corp"
-            placeholderTextColor={colors.textSecondary}
-            value={documentName}
-            onChangeText={setDocumentName}
-          />
-          <TouchableOpacity
-            style={[
-              styles.processButton,
-              {
-                backgroundColor: isProcessing
-                  ? colors.textSecondary
-                  : colors.primary,
-              },
-            ]}
-            onPress={handleProcess}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.processButtonText}>Upload & Process</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    <ScreenContainer style={styles.container}>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={[styles.title, { color: colors.text }]}>
+        Processing Document
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        Please wait while we extract the information...
+      </Text>
+    </ScreenContainer>
   );
-};
+}
 
-// Styles remain the same...
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  imagePreview: { width: '100%', height: 300, backgroundColor: '#000' },
-  form: { padding: 24, flex: 1 },
-  label: { fontSize: 16, fontFamily: 'Inter-Bold', marginBottom: 8 },
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    marginBottom: 24,
-  },
-  processButton: {
-    height: 50,
-    borderRadius: 8,
+  container: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 20,
   },
-  processButtonText: {
-    color: '#FFFFFF',
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  subtitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Bold',
   },
 });
-
-export default ProcessDocumentScreen;

@@ -1,199 +1,117 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import { KeyRound, Check, X } from 'lucide-react-native';
+import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
-import { CheckCircle, AlertTriangle, KeyRound } from 'lucide-react-native';
+import { useToast } from '@/context/ToastProvider';
+import { saveApiKeys, getApiKeys, testApiKeyConnection } from '@/services/settingsService';
+import ScreenContainer from '@/components/ScreenContainer';
+import Button from '@/components/common/Button';
 
-const ApiKeysScreen = () => {
-  const { colors } = useTheme();
-  const { user, updateUser } = useAuth();
-  const [openAIKey, setOpenAIKey] = useState(user?.apiKeys?.openai || '');
-  const [geminiKey, setGeminiKey] = useState(user?.apiKeys?.gemini || '');
-  const [claudeKey, setClaudeKey] = useState(user?.apiKeys?.claude || '');
-  const [isTesting, setIsTesting] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<{
-    [key: string]: 'success' | 'error' | null;
-  }>({});
+type Provider = 'openai' | 'gemini' | 'claude';
+type TestStatus = 'untested' | 'testing' | 'success' | 'failure';
 
-  const handleSaveKeys = () => {
-    updateUser({
-      apiKeys: {
-        openai: openAIKey,
-        gemini: geminiKey,
-        claude: claudeKey,
-      },
-    });
-    Alert.alert('Success', 'Your API keys have been saved.');
-  };
-
-  // Mock API key test function
-  const handleTestKey = async (provider: 'openai' | 'gemini' | 'claude') => {
-    setIsTesting(provider);
-    setTestResult({ ...testResult, [provider]: null });
-
-    // Simulate a network request
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // In a real app, you'd make an actual API call.
-    // Here, we'll just check if the key is not empty for a mock success.
-    let success = false;
-    if (provider === 'openai' && openAIKey.length > 5) success = true;
-    if (provider === 'gemini' && geminiKey.length > 5) success = true;
-    if (provider === 'claude' && claudeKey.length > 5) success = true;
-
-    setTestResult({ ...testResult, [provider]: success ? 'success' : 'error' });
-    setIsTesting(null);
-  };
-
-  const ApiKeyInput = ({ label, value, onChangeText, provider }: any) => (
-    <View style={styles.inputContainer}>
-      <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
-      <View style={styles.inputRow}>
-        <KeyRound
-          color={colors.textSecondary}
-          size={20}
-          style={styles.keyIcon}
-        />
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-          placeholder={`Enter your ${label} key`}
-          placeholderTextColor={colors.textSecondary}
-          value={value}
-          onChangeText={onChangeText}
-          secureTextEntry
-        />
-        <TouchableOpacity
-          style={[
-            styles.testButton,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-          onPress={() => handleTestKey(provider)}
-          disabled={!!isTesting}
-        >
-          {isTesting === provider ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Text style={[styles.testButtonText, { color: colors.primary }]}>
-              Test
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
-      {testResult[provider] === 'success' && (
-        <View style={styles.resultContainer}>
-          <CheckCircle color={colors.success} size={16} />
-          <Text style={[styles.resultText, { color: colors.success }]}>
-            Connection successful!
-          </Text>
+const ApiKeyInput = ({ provider, value, onChange, onTest, testStatus }: any) => {
+    const { colors } = useTheme();
+    return (
+        <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>{provider.toUpperCase()} API Key</Text>
+            <View style={styles.inputContainer}>
+                <TextInput
+                    style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+                    placeholder={`Enter your ${provider} key`}
+                    placeholderTextColor={colors.textSecondary}
+                    value={value}
+                    onChangeText={onChange}
+                    secureTextEntry
+                />
+                <Button title="Test" onPress={onTest} size="small" variant="outline" style={{ height: 50 }} />
+                <View style={styles.statusIcon}>
+                    {testStatus === 'testing' && <ActivityIndicator size="small" />}
+                    {testStatus === 'success' && <Check color={colors.success} />}
+                    {testStatus === 'failure' && <X color={colors.error} />}
+                </View>
+            </View>
         </View>
-      )}
-      {testResult[provider] === 'error' && (
-        <View style={styles.resultContainer}>
-          <AlertTriangle color={colors.error} size={16} />
-          <Text style={[styles.resultText, { color: colors.error }]}>
-            Connection failed. Please check your key.
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-
-  return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <View style={styles.form}>
-        <ApiKeyInput
-          label="OpenAI"
-          value={openAIKey}
-          onChangeText={setOpenAIKey}
-          provider="openai"
-        />
-        <ApiKeyInput
-          label="Google Gemini"
-          value={geminiKey}
-          onChangeText={setGeminiKey}
-          provider="gemini"
-        />
-        <ApiKeyInput
-          label="Anthropic Claude"
-          value={claudeKey}
-          onChangeText={setClaudeKey}
-          provider="claude"
-        />
-      </View>
-      <TouchableOpacity
-        style={[styles.saveButton, { backgroundColor: colors.primary }]}
-        onPress={handleSaveKeys}
-      >
-        <Text style={styles.saveButtonText}>Save All Keys</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
+    );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  form: { padding: 24 },
-  inputContainer: { marginBottom: 24 },
-  label: { fontSize: 16, fontFamily: 'Inter-Bold', marginBottom: 8 },
-  inputRow: { flexDirection: 'row', alignItems: 'center' },
-  keyIcon: { position: 'absolute', left: 12, zIndex: 1 },
-  input: {
-    flex: 1,
-    height: 50,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingLeft: 40, // Space for the icon
-    paddingRight: 16,
-    fontSize: 14,
-  },
-  testButton: {
-    marginLeft: 8,
-    height: 50,
-    width: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  testButtonText: { fontFamily: 'Inter-Bold' },
-  resultContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 6,
-  },
-  resultText: { fontFamily: 'Inter-Regular', fontSize: 12 },
-  saveButton: {
-    marginHorizontal: 24,
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-  },
-});
+export default function ApiKeysScreen() {
+    const { colors } = useTheme();
+    const { user } = useAuth();
+    const { showToast } = useToast();
+    const [keys, setKeys] = useState({ openai_key: '', gemini_key: '', claude_key: '' });
+    const [testStatuses, setTestStatuses] = useState<Record<Provider, TestStatus>>({ openai: 'untested', gemini: 'untested', claude: 'untested' });
+    const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
 
-export default ApiKeysScreen;
+    const fetchKeys = useCallback(async () => {
+        if (!user) return;
+        setFetching(true);
+        try {
+            const savedKeys = await getApiKeys(user.id);
+            setKeys({
+                openai_key: savedKeys.openai_key || '',
+                gemini_key: savedKeys.gemini_key || '',
+                claude_key: savedKeys.claude_key || '',
+            });
+        } catch (error) {
+            showToast('Failed to load saved API keys.', 'error');
+        } finally {
+            setFetching(false);
+        }
+    }, [user, showToast]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchKeys();
+        }, [fetchKeys])
+    );
+
+    const handleTest = async (provider: Provider) => {
+        const key = keys[`${provider}_key` as keyof typeof keys];
+        setTestStatuses(prev => ({ ...prev, [provider]: 'testing' }));
+        const success = await testApiKeyConnection(provider, key);
+        setTestStatuses(prev => ({ ...prev, [provider]: success ? 'success' : 'failure' }));
+        showToast(success ? `${provider.toUpperCase()} connection successful!` : `${provider.toUpperCase()} connection failed.`, success ? 'success' : 'error');
+    };
+
+    const handleSave = async () => {
+        if (!user) return;
+        setLoading(true);
+        try {
+            await saveApiKeys(user.id, keys);
+            showToast('API keys saved successfully!', 'success');
+        } catch (error) {
+            showToast('Failed to save API keys.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    if (fetching) {
+        return <ScreenContainer style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></ScreenContainer>
+    }
+
+    return (
+        <ScreenContainer>
+            <ScrollView contentContainerStyle={styles.container}>
+                <ApiKeyInput provider="openai" value={keys.openai_key} onChange={(text: string) => setKeys({...keys, openai_key: text})} onTest={() => handleTest('openai')} testStatus={testStatuses.openai} />
+                <ApiKeyInput provider="gemini" value={keys.gemini_key} onChange={(text: string) => setKeys({...keys, gemini_key: text})} onTest={() => handleTest('gemini')} testStatus={testStatuses.gemini} />
+                <ApiKeyInput provider="claude" value={keys.claude_key} onChange={(text: string) => setKeys({...keys, claude_key: text})} onTest={() => handleTest('claude')} testStatus={testStatuses.claude} />
+                <Button title="Save Keys" onPress={handleSave} isLoading={loading} style={{ marginTop: 24 }} />
+            </ScrollView>
+        </ScreenContainer>
+    );
+}
+
+const styles = StyleSheet.create({
+    centered: { justifyContent: 'center', alignItems: 'center', flex: 1 },
+    container: { padding: 24 },
+    inputGroup: { marginBottom: 20 },
+    label: { fontSize: 14, fontWeight: '500', marginBottom: 8 },
+    inputContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    input: { flex: 1, height: 50, borderRadius: 12, paddingHorizontal: 16, fontSize: 16, borderWidth: 1 },
+    statusIcon: { width: 30, alignItems: 'center' },
+});

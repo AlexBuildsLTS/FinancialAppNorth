@@ -2,306 +2,181 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
-  Modal,
   Alert,
-  ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { createTransaction } from '@/services/realTransactionService';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { Picker } from '@react-native-picker/picker';
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
+import { addTransaction } from '@/services/transactionService'; // Change to addTransaction
 import { Transaction } from '@/types';
+import Button from '@/components/common/Button';
+import Modal from '@/components/common/Modal'; // Using the polished base modal
 
-export interface AddTransactionModalProps {
+interface AddTransactionModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: (newTransaction: Transaction) => void;
-  clientId: string;
+  clientId: string | null; // Can be null for personal transactions
 }
 
-const AddTransactionModal = ({
+export default function AddTransactionModal({
   visible,
   onClose,
   onSuccess,
   clientId,
-}: AddTransactionModalProps) => {
+}: AddTransactionModalProps) {
   const { colors } = useTheme();
+  const { user } = useAuth(); // Use the useAuth hook
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('Groceries');
-  const [description, setDescription] = useState('');
-  const [date, setDate] = useState(new Date());
+  const [category, setCategory] = useState('');
   const [type, setType] = useState<'income' | 'expense'>('expense');
-  const [accountId, setAccountId] = useState('1'); // Default account ID
-  const [tags, setTags] = useState('');
-  const [location, setLocation] = useState('');
-  const [isDatePickerVisible, setDatePickerVisibility] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSaveTransaction = async () => {
+  const handleSubmit = async () => {
     if (!title || !amount || !category) {
-      Alert.alert(
-        'Missing Information',
-        'Please fill out all required fields.'
-      );
+      Alert.alert('Error', 'Please fill out all fields.');
       return;
     }
-
     const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount)) {
-      Alert.alert(
-        'Invalid Amount',
-        'Please enter a valid number for the amount.'
-      );
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      Alert.alert('Error', 'Please enter a valid positive amount.');
       return;
     }
 
     setLoading(true);
     try {
-      const transactionData: Omit<Transaction, "id"> = {
-        accountId,
+      if (!user) {
+        Alert.alert('Error', 'User not authenticated.');
+        setLoading(false);
+        return;
+      }
+
+      const newTransactionData: Omit<Transaction, 'id' | 'created_at' | 'status' | 'user_id'> = {
         title,
-        description,
-        category,
         amount: numericAmount,
-        date: date.toISOString().split('T')[0], // Format as YYYY-MM-DD
-        time: new Date().toISOString().split('T')[1].split('.')[0], // Format as HH:mm:ss
+        category,
         type,
-        status: 'completed',
-        clientId: clientId,
-        tags: tags ? tags.split(',').map(tag => tag.trim()) : [], // Convert comma-separated string to array
-        location,
+        clientId: clientId || '', // Ensure clientId is always present, even if empty string
+        // Default or derive as needed for other properties that are not omitted
+        accountId: '', 
+        description: '', 
+        date: new Date().toISOString().split('T')[0], 
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+        tags: [], 
+        location: '', 
       };
 
-      // createTransaction expects Omit<Transaction, "id">, so we pass the relevant fields
-      const newTransaction = await createTransaction(transactionData);
-
-      onSuccess(newTransaction); // Signal to the dashboard that a new transaction was added
-      onClose(); // Close the modal
-      // Reset form for next time
+      const addedTransaction = await addTransaction({ // Change to addTransaction
+        ...newTransactionData,
+        user_id: user.id, // Add user_id
+        accountId: '', // Default or derive as needed
+        description: '', // Default or derive as needed
+        date: new Date().toISOString().split('T')[0], // Current date
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), // Current time
+        tags: [], // Default tags
+        location: '', // Default location
+      });
+      
+      Alert.alert('Success', 'Transaction added successfully.');
+      onSuccess(addedTransaction); // Pass the new transaction to the callback
+      onClose();
+      // Clear form
       setTitle('');
       setAmount('');
-      setDescription('');
-      setAccountId('1');
-      setTags('');
-      setLocation('');
+      setCategory('');
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Failed to save the transaction. Please try again.');
+      Alert.alert('Error', 'Failed to add transaction.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View
-          style={[styles.modalContent, { backgroundColor: colors.surface }]}
-        >
-          <Text style={[styles.modalTitle, { color: colors.text }]}>
-            Add New Transaction
-          </Text>
-
-          <TextInput
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-            placeholder="Title (e.g., Coffee)"
-            placeholderTextColor={colors.textSecondary}
-            value={title}
-            onChangeText={setTitle}
-          />
-
-          <TextInput
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-            placeholder="Description"
-            placeholderTextColor={colors.textSecondary}
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={3}
-          />
-
-          <TextInput
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-            placeholder="Amount"
-            placeholderTextColor={colors.textSecondary}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-          />
-
-          <TextInput
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-            placeholder="Account ID"
-            placeholderTextColor={colors.textSecondary}
-            value={accountId}
-            onChangeText={setAccountId}
-          />
-
-          <TextInput
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-            placeholder="Tags (comma-separated)"
-            placeholderTextColor={colors.textSecondary}
-            value={tags}
-            onChangeText={setTags}
-          />
-
-          <TextInput
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-            placeholder="Location"
-            placeholderTextColor={colors.textSecondary}
-            value={location}
-            onChangeText={setLocation}
-          />
-
+    <Modal visible={visible} onClose={onClose} title="Add New Transaction">
+      <View style={styles.container}>
+        <View style={styles.typeSelector}>
           <TouchableOpacity
-            style={[styles.input, styles.datePickerButton]}
-            onPress={() => setDatePickerVisibility(true)}
+            style={[styles.typeButton, type === 'expense' && styles.activeTypeButton, { backgroundColor: type === 'expense' ? colors.primary : colors.surface }]}
+            onPress={() => setType('expense')}
           >
-            <Text style={{ color: colors.text }}>{date.toDateString()}</Text>
+            <Text style={[styles.typeButtonText, { color: type === 'expense' ? 'white' : colors.text }]}>Expense</Text>
           </TouchableOpacity>
-          <DateTimePickerModal
-            isVisible={isDatePickerVisible}
-            mode="date"
-            onConfirm={(selectedDate) => {
-              setDate(selectedDate);
-              setDatePickerVisibility(false);
-            }}
-            onCancel={() => setDatePickerVisibility(false)}
-          />
-
-          <View
-            style={[
-              styles.pickerContainer,
-              {
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-          >
-            <Picker
-              selectedValue={type}
-              onValueChange={(itemValue) => setType(itemValue)}
-              style={{ color: colors.text }}
-            >
-              <Picker.Item label="Expense" value="expense" />
-              <Picker.Item label="Income" value="income" />
-            </Picker>
-          </View>
-
           <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSaveTransaction}
-            disabled={loading}
+            style={[styles.typeButton, type === 'income' && styles.activeTypeButton, { backgroundColor: type === 'income' ? colors.success : colors.surface }]}
+            onPress={() => setType('income')}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.saveButtonText}>Save Transaction</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={onClose}
-            disabled={loading}
-          >
-            <Text style={{ color: colors.textSecondary }}>Cancel</Text>
+            <Text style={[styles.typeButtonText, { color: type === 'income' ? 'white' : colors.text }]}>Income</Text>
           </TouchableOpacity>
         </View>
+
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          placeholder="Title (e.g., Groceries)"
+          placeholderTextColor={colors.textSecondary}
+          value={title}
+          onChangeText={setTitle}
+        />
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          placeholder="Amount"
+          placeholderTextColor={colors.textSecondary}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+        />
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          placeholder="Category (e.g., Food)"
+          placeholderTextColor={colors.textSecondary}
+          value={category}
+          onChangeText={setCategory}
+        />
+
+        <Button
+          title="Add Transaction"
+          onPress={handleSubmit}
+          isLoading={loading}
+          style={{ marginTop: 16 }}
+        />
       </View>
     </Modal>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  container: {
+    padding: 8,
   },
-  modalContent: {
-    padding: 24,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontFamily: 'Inter-Bold',
+  typeSelector: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+    overflow: 'hidden',
     marginBottom: 20,
-    textAlign: 'center',
+  },
+  typeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  activeTypeButton: {
+    // Active styles are now applied directly
+  },
+  typeButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   input: {
     height: 50,
-    borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
     marginBottom: 16,
-    justifyContent: 'center',
+    borderWidth: 1,
   },
-  datePickerButton: { justifyContent: 'center' },
-  pickerContainer: { borderWidth: 1, borderRadius: 8, marginBottom: 16 },
-  saveButton: {
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  saveButtonText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-Bold' },
-  cancelButton: { marginTop: 16, alignItems: 'center' },
 });
-
-export default AddTransactionModal;

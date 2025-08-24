@@ -1,63 +1,44 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { ChevronRight, KeyRound, Lock } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { Lock, ChevronRight } from 'lucide-react-native';
+import ScreenContainer from '@/components/ScreenContainer';
+import { Text } from 'react-native';
 
-const SecurityScreen = () => {
-  const { colors } = useTheme();
-  const router = useRouter();
 
-  const menuItems = [
-    {
-      icon: Lock,
-      label: 'Change Password',
-      onPress: () => router.push('/profile/security/change-password'),
-    },
-    // Future security options like 2FA can be added here
-  ];
+const SecurityListItem = ({ icon: Icon, text, onPress, colors }: any) => (
+  <TouchableOpacity style={[styles.listItem, { backgroundColor: colors.surface, borderBottomColor: colors.border }]} onPress={onPress}>
+    <Icon color={colors.textSecondary} size={22} />
+    <Text style={[styles.listItemText, { color: colors.text }]}>{text}</Text>
+    <ChevronRight color={colors.textSecondary} size={22} />
+  </TouchableOpacity>
+);
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.menu}>
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.menuItem, { borderBottomColor: colors.border }]}
-            onPress={item.onPress}
-          >
-            <item.icon color={colors.textSecondary} size={22} />
-            <Text style={[styles.menuLabel, { color: colors.text }]}>
-              {item.label}
-            </Text>
-            <ChevronRight color={colors.textSecondary} size={22} />
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-};
+
+export default function SecurityScreen() {
+    const { colors } = useTheme();
+    const router = useRouter();
+
+    const menuItems = [
+        { icon: KeyRound, text: 'Change Password', path: '/profile/security/change-password' },
+        { icon: Lock, text: 'Two-Factor Authentication', path: '/profile/security' }, // Placeholder
+    ];
+    return (
+        <ScreenContainer>
+            <ScrollView>
+                 <View style={styles.menuSection}>
+                    {menuItems.map((item) => (
+                        <SecurityListItem key={item.text} icon={item.icon} text={item.text} onPress={() => router.push(item.path as any)} colors={colors} />
+                    ))}
+                </View>
+            </ScrollView>
+        </ScreenContainer>
+    )
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 16,
-  },
-  menu: {
-    marginHorizontal: 16,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-  },
-  menuLabel: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    marginLeft: 16,
-  },
+    menuSection: { marginHorizontal: 16, marginTop: 20, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#333' },
+    listItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 18, paddingHorizontal: 16, borderBottomWidth: 1 },
+    listItemText: { flex: 1, fontSize: 16, marginLeft: 16, fontWeight: '500' },
 });
-
-export default SecurityScreen;

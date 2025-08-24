@@ -1,110 +1,64 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-} from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, Alert } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
+import { useToast } from '@/context/ToastProvider';
+import { updateUserPassword } from '@/services/userService';
+import ScreenContainer from '@/components/ScreenContainer';
+import Button from '@/components/common/Button';
 
-const ChangePasswordScreen = () => {
-  const { colors } = useTheme();
+export default function ChangePasswordScreen() {
+    const { colors } = useTheme();
+    const { showToast } = useToast();
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.form}>
-        <Text style={[styles.label, { color: colors.text }]}>
-          Current Password
-        </Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-          placeholder="Enter your current password"
-          placeholderTextColor={colors.textSecondary}
-          secureTextEntry
-        />
+    const handleUpdatePassword = async () => {
+        if (!newPassword || newPassword.length < 8) {
+            return Alert.alert('Error', 'Password must be at least 8 characters long.');
+        }
+        if (newPassword !== confirmPassword) {
+            return Alert.alert('Error', 'Passwords do not match.');
+        }
 
-        <Text style={[styles.label, { color: colors.text }]}>New Password</Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-          placeholder="Enter your new password"
-          placeholderTextColor={colors.textSecondary}
-          secureTextEntry
-        />
+        setLoading(true);
+        try {
+            await updateUserPassword(newPassword);
+            showToast('Password updated successfully!', 'success');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error: any) {
+            showToast(error.message || 'Failed to update password.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        <Text style={[styles.label, { color: colors.text }]}>
-          Confirm New Password
-        </Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-          placeholder="Confirm your new password"
-          placeholderTextColor={colors.textSecondary}
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.primary }]}
-        >
-          <Text style={styles.buttonText}>Update Password</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
+    return (
+        <ScreenContainer>
+            <View style={styles.container}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>New Password</Text>
+                <TextInput
+                    style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry
+                />
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Confirm New Password</Text>
+                <TextInput
+                    style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                />
+                <Button title="Update Password" onPress={handleUpdatePassword} isLoading={loading} style={{ marginTop: 24 }} />
+            </View>
+        </ScreenContainer>
+    );
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  form: {
-    padding: 24,
-  },
-  label: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
-  },
-  button: {
-    marginTop: 32,
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-  },
+    container: { padding: 24, flex: 1 },
+    label: { fontSize: 14, fontWeight: '500', marginBottom: 8 },
+    input: { height: 50, borderRadius: 12, paddingHorizontal: 16, fontSize: 16, borderWidth: 1, marginBottom: 16 },
 });
-
-export default ChangePasswordScreen;

@@ -242,7 +242,7 @@ export default function SupportScreen() {
             <Text style={[styles.backButton, { color: colors.primary }]}>← Back</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>{selectedTicket.title}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedTicket.status) }]}>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedTicket.status), minWidth: 80, alignItems: 'center' }]}>
             <Text style={styles.statusText}>{selectedTicket.status}</Text>
           </View>
         </View>
@@ -472,7 +472,8 @@ const styles = StyleSheet.create({
   priorityBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   badgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
-  ticketDate: { fontSize: 12, marginBottom: 8 },
+  statusText: { color: '#FFFFFF', fontSize: 10, fontWeight: '600', textTransform: 'uppercase' }, // Added statusText style
+  ticketDate: { fontSize: 12, marginBottom: 8 }, 
   lastMessage: { fontSize: 14 },
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '700' },
