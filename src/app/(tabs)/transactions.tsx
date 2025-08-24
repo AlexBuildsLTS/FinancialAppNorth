@@ -10,7 +10,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Search, Filter, Plus, Download, ShoppingBag, Car, Wallet as Home, Coffee, Briefcase } from 'lucide-react-native';
+import {
+  Search,
+  Filter,
+  Plus,
+  Download,
+  ShoppingBag,
+  Car,
+  Wallet as Home,
+  Coffee,
+  Briefcase,
+} from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
 import AddTransactionModal from '@/components/forms/AddTransactionModal';
@@ -39,7 +49,7 @@ export default function TransactionsScreen() {
       time: '2:30 PM',
       type: 'expense',
       status: 'completed',
-      clientId: ''
+      clientId: '',
     },
     {
       id: '2',
@@ -52,7 +62,7 @@ export default function TransactionsScreen() {
       time: '9:00 AM',
       type: 'income',
       status: 'completed',
-      clientId: ''
+      clientId: '',
     },
     {
       id: '3',
@@ -65,7 +75,7 @@ export default function TransactionsScreen() {
       time: '6:45 PM',
       type: 'expense',
       status: 'completed',
-      clientId: ''
+      clientId: '',
     },
     {
       id: '4',
@@ -78,7 +88,7 @@ export default function TransactionsScreen() {
       time: '8:15 AM',
       type: 'expense',
       status: 'pending',
-      clientId: ''
+      clientId: '',
     },
     {
       id: '5',
@@ -91,7 +101,7 @@ export default function TransactionsScreen() {
       time: '12:00 PM',
       type: 'expense',
       status: 'completed',
-      clientId: ''
+      clientId: '',
     },
   ];
 
@@ -126,7 +136,7 @@ export default function TransactionsScreen() {
   });
 
   const handleTransactionAdded = (newTransaction: Transaction) => {
-    setTransactions(prev => [newTransaction, ...prev]);
+    setTransactions((prev) => [newTransaction, ...prev]);
   };
 
   const renderTransaction = (transaction: Transaction, index: number) => {
@@ -164,9 +174,15 @@ export default function TransactionsScreen() {
 
           <View style={styles.transactionRight}>
             <Text style={[styles.transactionAmount, { color: amountColor }]}>
-              {isIncome ? '+' : ''}${Math.abs(transaction.amount).toLocaleString()}
+              {isIncome ? '+' : ''}$
+              {Math.abs(transaction.amount).toLocaleString()}
             </Text>
-            <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: `${statusColor}20` },
+              ]}
+            >
               <Text style={[styles.statusText, { color: statusColor }]}>
                 {transaction.status}
               </Text>
@@ -187,8 +203,8 @@ export default function TransactionsScreen() {
           <TouchableOpacity style={styles.headerButton} activeOpacity={0.7}>
             <Download size={20} color={colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.addButton} 
+          <TouchableOpacity
+            style={styles.addButton}
             activeOpacity={0.7}
             onPress={() => setShowAddModal(true)}
           >

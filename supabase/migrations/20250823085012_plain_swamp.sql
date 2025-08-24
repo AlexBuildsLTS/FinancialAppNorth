@@ -261,7 +261,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 -- Create channels table for messaging
 CREATE TABLE IF NOT EXISTS channels (
   id serial PRIMARY KEY,
-  name text UNIQUE,
+  name text,
   description text,
   is_private boolean DEFAULT false,
   created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -347,18 +347,6 @@ CREATE POLICY "CPAs can view assigned client profiles"
     EXISTS (
       SELECT 1 FROM client_assignments ca
       WHERE ca.cpa_id = auth.uid() AND ca.client_id = id AND ca.status = 'active'
-    )
-  );
-
-CREATE POLICY "Chat participants can view each other's profiles"
-  ON profiles FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1
-      FROM channel_participants cp1
-      JOIN channel_participants cp2 ON cp1.channel_id = cp2.channel_id
-      WHERE cp1.user_id = auth.uid() AND cp2.user_id = id
     )
   );
 
@@ -561,7 +549,6 @@ CREATE POLICY "Admins can view all audit trails"
 -- Create function to handle new user signup
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS trigger AS $$
-DECLARE general_channel_id int;
 BEGIN
   INSERT INTO public.profiles (id, display_name, avatar_url, role, email)
   VALUES (
@@ -586,15 +573,6 @@ BEGIN
     (new.id, '4000', 'Revenue', 'revenue', 'credit'),
     (new.id, '5000', 'Expenses', 'expense', 'debit');
   
-  -- Find the 'General Discussion' channel id
-  SELECT id INTO general_channel_id FROM public.channels WHERE name = 'General Discussion' LIMIT 1;
-
-  -- If the channel exists, add the new user as a participant
-  IF general_channel_id IS NOT NULL THEN
-    INSERT INTO public.channel_participants (channel_id, user_id)
-    VALUES (general_channel_id, new.id);
-  END IF;
-
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -645,7 +623,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_channel_created ON messages(channel_id, 
 -- Insert sample data for testing
 INSERT INTO channels (name, description, created_by) VALUES
   ('General Discussion', 'General chat for all users', (SELECT id FROM auth.users LIMIT 1))
-ON CONFLICT (name) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Create storage buckets
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

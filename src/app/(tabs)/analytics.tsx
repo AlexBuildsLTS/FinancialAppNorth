@@ -56,7 +56,13 @@ export default function AnalyticsScreen() {
     { x: 'Other', y: 8, amount: 400 },
   ];
 
-  const pieColors = [colors.primary, colors.success, colors.warning, '#8b5cf6', colors.error];
+  const pieColors = [
+    colors.primary,
+    colors.success,
+    colors.warning,
+    '#8b5cf6',
+    colors.error,
+  ];
   const periods = ['1M', '3M', '6M', '1Y'];
   const styles = createStyles(colors, width);
 
@@ -139,7 +145,11 @@ export default function AnalyticsScreen() {
         >
           <Text style={styles.chartTitle}>Income vs Expenses</Text>
           <Text style={styles.chartSubtitle}>Monthly comparison</Text>
-          <VictoryChart domainPadding={{ x: 20 }} height={250} width={width - 40}>
+          <VictoryChart
+            domainPadding={{ x: 20 }}
+            height={250}
+            width={width - 40}
+          >
             <VictoryAxis
               tickValues={incomeVsExpenseData.map((d) => d.x)}
               style={{
@@ -250,9 +260,9 @@ const createStyles = (colors: any, screenWidth: number) =>
       paddingHorizontal: 20,
       paddingTop: 20,
     },
-    periodSelector: { 
-      flexDirection: 'row', 
-      gap: 8, 
+    periodSelector: {
+      flexDirection: 'row',
+      gap: 8,
       marginBottom: 20,
       flexWrap: 'wrap',
     },
@@ -273,9 +283,9 @@ const createStyles = (colors: any, screenWidth: number) =>
     activePeriodButtonText: {
       color: colors.surface,
     },
-    summaryGrid: { 
-      flexDirection: 'row', 
-      gap: 12, 
+    summaryGrid: {
+      flexDirection: 'row',
+      gap: 12,
       marginBottom: 20,
       flexWrap: 'wrap',
     },

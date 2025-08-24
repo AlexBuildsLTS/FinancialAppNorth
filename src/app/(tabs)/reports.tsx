@@ -40,33 +40,72 @@ interface ReportCardData {
 
 // Mock data for export demonstration
 const mockTransactions: Transaction[] = [
-    {
-      id: '1', date: '2025-08-15', description: 'Monthly Salary', amount: 5000, type: 'income', category: 'Salary',
-      accountId: 'acc1', title: 'Salary', time: '09:00 AM', status: 'completed',
-      clientId: 'client1',
-    },
-    {
-      id: '2', date: '2025-08-15', description: 'Groceries', amount: -75.50, type: 'expense', category: 'Food',
-      accountId: 'acc1', title: 'Groceries', time: '03:00 PM', status: 'completed',
-      clientId: 'client1',
-    },
-    {
-      id: '3', date: '2025-08-16', description: 'Stock Dividend', amount: 120, type: 'income', category: 'Investments',
-      accountId: 'acc2', title: 'Dividend', time: '10:00 AM', status: 'completed',
-      clientId: 'client1',
-    },
-    {
-      id: '4', date: '2025-08-17', description: 'Gasoline', amount: -50.00, type: 'expense', category: 'Transport',
-      accountId: 'acc1', title: 'Gas', time: '05:00 PM', status: 'completed',
-      clientId: 'client1',
-    },
-    {
-      id: '5', date: '2025-08-18', description: 'Dinner with friends', amount: -120.00, type: 'expense', category: 'Social',
-      accountId: 'acc1', title: 'Dinner', time: '08:00 PM', status: 'completed',
-      clientId: 'client1',
-    },
+  {
+    id: '1',
+    date: '2025-08-15',
+    description: 'Monthly Salary',
+    amount: 5000,
+    type: 'income',
+    category: 'Salary',
+    accountId: 'acc1',
+    title: 'Salary',
+    time: '09:00 AM',
+    status: 'completed',
+    clientId: 'client1',
+  },
+  {
+    id: '2',
+    date: '2025-08-15',
+    description: 'Groceries',
+    amount: -75.5,
+    type: 'expense',
+    category: 'Food',
+    accountId: 'acc1',
+    title: 'Groceries',
+    time: '03:00 PM',
+    status: 'completed',
+    clientId: 'client1',
+  },
+  {
+    id: '3',
+    date: '2025-08-16',
+    description: 'Stock Dividend',
+    amount: 120,
+    type: 'income',
+    category: 'Investments',
+    accountId: 'acc2',
+    title: 'Dividend',
+    time: '10:00 AM',
+    status: 'completed',
+    clientId: 'client1',
+  },
+  {
+    id: '4',
+    date: '2025-08-17',
+    description: 'Gasoline',
+    amount: -50.0,
+    type: 'expense',
+    category: 'Transport',
+    accountId: 'acc1',
+    title: 'Gas',
+    time: '05:00 PM',
+    status: 'completed',
+    clientId: 'client1',
+  },
+  {
+    id: '5',
+    date: '2025-08-18',
+    description: 'Dinner with friends',
+    amount: -120.0,
+    type: 'expense',
+    category: 'Social',
+    accountId: 'acc1',
+    title: 'Dinner',
+    time: '08:00 PM',
+    status: 'completed',
+    clientId: 'client1',
+  },
 ];
-
 
 export default function ReportsScreen() {
   const { colors, isDark } = useTheme();
@@ -111,22 +150,27 @@ export default function ReportsScreen() {
 
   const timePeriods = ['Today', 'This Week', 'This Month', 'This Year'];
 
-  const handleGenerateReport = async (reportType: 'profit_loss' | 'balance_sheet' | 'cash_flow') => {
+  const handleGenerateReport = async (
+    reportType: 'profit_loss' | 'balance_sheet' | 'cash_flow'
+  ) => {
     setIsGenerating(true);
     try {
       const periodStart = '2025-01-01';
       const periodEnd = '2025-12-31';
-      
+
       const statement = await generateFinancialStatement(
         reportType,
         'cli1', // In real app, get from context
         periodStart,
         periodEnd
       );
-      
+
       // Export the generated statement
       const exportData = formatStatementForExport(statement);
-      exportToXLSX(exportData, `${reportType}_${selectedPeriod.replace(' ', '_')}`);
+      exportToXLSX(
+        exportData,
+        `${reportType}_${selectedPeriod.replace(' ', '_')}`
+      );
     } catch (error) {
       console.error('Failed to generate report:', error);
     } finally {
@@ -138,11 +182,17 @@ export default function ReportsScreen() {
     if (statement.type === 'profit_loss') {
       return [
         { Section: 'REVENUE' },
-        ...statement.data.revenues.map((rev: any) => ({ Account: rev.name, Amount: rev.balance })),
+        ...statement.data.revenues.map((rev: any) => ({
+          Account: rev.name,
+          Amount: rev.balance,
+        })),
         { Section: 'Total Revenue', Amount: statement.data.totalRevenue },
         { Section: '' },
         { Section: 'EXPENSES' },
-        ...statement.data.expenses.map((exp: any) => ({ Account: exp.name, Amount: exp.balance })),
+        ...statement.data.expenses.map((exp: any) => ({
+          Account: exp.name,
+          Amount: exp.balance,
+        })),
         { Section: 'Total Expenses', Amount: statement.data.totalExpenses },
         { Section: '' },
         { Section: 'NET INCOME', Amount: statement.data.netIncome },
@@ -184,17 +234,20 @@ export default function ReportsScreen() {
           ))}
         </View>
 
-        <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.exportSection}>
-            <Text style={styles.exportTitle}>Export Data</Text>
-            <Text style={styles.exportSubtitle}>
-                Generate and download financial statements for the selected period.
-            </Text>
-            <Button
-                title={isGenerating ? 'Generating...' : `Generate P&L Report`}
-                onPress={() => handleGenerateReport('profit_loss')}
-                icon={Download}
-                isLoading={isGenerating}
-            />
+        <Animated.View
+          entering={FadeInUp.duration(500).delay(200)}
+          style={styles.exportSection}
+        >
+          <Text style={styles.exportTitle}>Export Data</Text>
+          <Text style={styles.exportSubtitle}>
+            Generate and download financial statements for the selected period.
+          </Text>
+          <Button
+            title={isGenerating ? 'Generating...' : `Generate P&L Report`}
+            onPress={() => handleGenerateReport('profit_loss')}
+            icon={Download}
+            isLoading={isGenerating}
+          />
         </Animated.View>
 
         <View style={styles.reportList}>
@@ -203,11 +256,12 @@ export default function ReportsScreen() {
               key={report.id}
               entering={FadeInUp.duration(500).delay(300 + index * 100)}
             >
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.reportCard}
                 onPress={() => {
                   if (report.id === '1') handleGenerateReport('profit_loss');
-                  else if (report.id === '2') handleGenerateReport('balance_sheet');
+                  else if (report.id === '2')
+                    handleGenerateReport('balance_sheet');
                   else if (report.id === '3') handleGenerateReport('cash_flow');
                 }}
               >
@@ -216,9 +270,13 @@ export default function ReportsScreen() {
                 </View>
                 <View style={styles.reportInfo}>
                   <Text style={styles.reportTitle}>{report.title}</Text>
-                  <Text style={styles.reportDescription}>{report.description}</Text>
+                  <Text style={styles.reportDescription}>
+                    {report.description}
+                  </Text>
                   <View style={styles.reportFooter}>
-                     <Text style={styles.lastGenerated}>Last generated: {report.lastGenerated}</Text>
+                    <Text style={styles.lastGenerated}>
+                      Last generated: {report.lastGenerated}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -275,23 +333,23 @@ const createStyles = (colors: any, screenWidth: number) =>
       color: '#FFFFFF',
     },
     exportSection: {
-        backgroundColor: colors.surface,
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: colors.border,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 24,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     exportTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.text,
-        marginBottom: 4,
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 4,
     },
     exportSubtitle: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        marginBottom: 16,
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 16,
     },
     reportList: {
       gap: 16,
@@ -337,4 +395,4 @@ const createStyles = (colors: any, screenWidth: number) =>
       fontSize: 12,
       color: colors.textSecondary,
     },
-});
+  });

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { useTheme } from "@/context/ThemeProvider";
+import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions'; // Import the hook
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import MetricsGrid from "@/components/dashboard/MetricsGrid";
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import MetricsGrid from '@/components/dashboard/MetricsGrid';
 import { ChartSection } from '@/components/dashboard/ChartSection';
-import QuickActions from "@/components/dashboard/QuickActions";
+import QuickActions from '@/components/dashboard/QuickActions';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
 import AddTransactionModal from '@/components/forms/AddTransactionModal';
 import { useRouter } from 'expo-router';
@@ -36,18 +36,19 @@ export default function DashboardScreen() {
           onPressProfile={() => router.push('/(tabs)/profile')}
           onPressSettings={() => {}}
         />
-        
+
         <MetricsGrid />
         <ChartSection />
         <QuickActions onAddTransaction={() => setIsModalVisible(true)} />
         <RecentTransactions />
-
       </ScrollView>
 
       <AddTransactionModal
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
-        onSuccess={onTransactionAdded} clientId={''}      />
+        onSuccess={onTransactionAdded}
+        clientId={''}
+      />
     </>
   );
 }

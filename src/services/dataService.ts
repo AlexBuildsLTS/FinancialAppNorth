@@ -1,52 +1,271 @@
+import { supabase } from '@/lib/supabase';
 import { Transaction, Account, Budget, Goal, Investment, Client, FixedAsset, Liability } from '@/types';
 
-// --- MOCK DATA ARRAYS ---
-export const mockAccounts: Account[] = [
-  { id: '1', name: 'Primary Checking', type: 'checking', balance: 12450.75, currency: 'USD', lastUpdated: '2025-01-15T10:30:00Z' },
-  { id: '2', name: 'High Yield Savings', type: 'savings', balance: 45200.00, currency: 'USD', lastUpdated: '2025-01-15T10:30:00Z' },
-  { id: '3', name: 'Investment Portfolio', type: 'investment', balance: 87650.25, currency: 'USD', lastUpdated: '2025-01-15T10:30:00Z' },
-];
+// Real service functions using Supabase
+export async function getAccounts(): Promise<Account[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
 
-export let mockClients: Client[] = [ // Changed to let
-  { id: 'cli1', name: 'John Doe', companyName: 'Doe Construction', email: 'john.doe@construction.com', avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704d', status: 'active', netWorth: 1250000, uncategorized: 5, },
-  { id: 'cli2', name: 'Jane Smith', companyName: 'Smith & Co. Bakery', email: 'jane.smith@bakery.com', avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026705e', status: 'active', netWorth: 480000, uncategorized: 2, },
-  { id: 'cli3', name: 'Sam Wilson', companyName: 'Wilson Tech Solutions', email: 'sam.wilson@tech.com', avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026706f', status: 'pending', netWorth: 2300000, uncategorized: 12, },
-];
+  const { data, error } = await supabase
+    .from('accounts')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
 
-export let mockTransactions: Transaction[] = [
-  { id: '1', clientId: 'cli1', accountId: '1', title: 'Whole Foods Market', description: 'Weekly grocery shopping', category: 'Groceries', amount: -156.50, date: '2025-01-15', time: '14:30', type: 'expense', status: 'completed', tags: ['food', 'weekly'], location: 'Austin, TX', },
-  { id: '2', clientId: 'cli1', accountId: '1', title: 'Monthly Salary', description: 'Software Engineer Salary', category: 'Salary', amount: 5200.00, date: '2025-01-15', time: '09:00', type: 'income', status: 'completed', tags: ['salary', 'monthly'], },
-];
+  if (error) {
+    console.error('Error fetching accounts:', error);
+    return [];
+  }
 
-export const mockBudgets: Budget[] = [];
-export const mockGoals: Goal[] = [];
-export const mockInvestments: Investment[] = [];
-export const mockFixedAssets: FixedAsset[] = [];
-export const mockLiabilities: Liability[] = [];
+  return (data || []).map(account => ({
+    id: account.id,
+    name: account.name,
+    type: account.type,
+    balance: parseFloat(account.balance),
+    currency: account.currency,
+    lastUpdated: account.updated_at,
+  }));
+}
 
-// --- SERVICE FUNCTIONS ---
-export async function getAccounts(): Promise<Account[]> { return new Promise((r) => setTimeout(() => r(mockAccounts), 300)); }
-export async function getTransactions(clientId: string): Promise<Transaction[]> { return new Promise((r) => setTimeout(() => r(mockTransactions.filter(t => t.clientId === clientId)), 500)); }
-export async function getBudgets(): Promise<Budget[]> { return new Promise((r) => setTimeout(() => r(mockBudgets), 400)); }
-export async function getGoals(): Promise<Goal[]> { return new Promise((r) => setTimeout(() => r(mockGoals), 350)); }
-export async function getInvestments(): Promise<Investment[]> { return new Promise((r) => setTimeout(() => r(mockInvestments), 450)); }
-export async function createTransaction(transaction: Omit<Transaction, 'id'>): Promise<Transaction> { return new Promise((r) => { const newTx = { ...transaction, id: Date.now().toString() }; mockTransactions.unshift(newTx); r(newTx); }); }
-export async function updateBudget(budgetId: string, updates: Partial<Budget>): Promise<Budget> { return new Promise((resolve, reject) => { /* implementation */ }); }
-export async function getClients(): Promise<Client[]> { return new Promise((r) => setTimeout(() => r(mockClients), 500)); }
-export async function getClientById(id: string): Promise<Client | undefined> { return new Promise((r) => setTimeout(() => r(mockClients.find(c => c.id === id)), 300)); }
-export async function getBalanceSheetData(clientId: string): Promise<{ accounts: Account[], assets: FixedAsset[], liabilities: Liability[] }> { return new Promise((r) => { const d = { accounts: mockAccounts, assets: mockFixedAssets.filter(a => a.clientId === clientId), liabilities: mockLiabilities.filter(l => l.clientId === clientId) }; r(d); }); }
+export async function getTransactions(userId?: string): Promise<Transaction[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  const targetUserId = userId || user?.id;
+  if (!targetUserId) return [];
 
-// NEW FUNCTION to add a client
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('user_id', targetUserId)
+    .order('transaction_date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching transactions:', error);
+    return [];
+  }
+
+  return (data || []).map(tx => ({
+    id: tx.id,
+    clientId: tx.user_id,
+    accountId: tx.account_id,
+    title: tx.title,
+    description: tx.description,
+    category: tx.category,
+    amount: parseFloat(tx.amount),
+    date: tx.transaction_date,
+    time: tx.transaction_time,
+    type: tx.type,
+    status: tx.status,
+    tags: tx.tags,
+    location: tx.location,
+  }));
+}
+
+export async function getBudgets(): Promise<Budget[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('budgets')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching budgets:', error);
+    return [];
+  }
+
+  return (data || []).map(budget => ({
+    id: budget.id,
+    category: budget.category,
+    allocated: parseFloat(budget.allocated_amount),
+    spent: parseFloat(budget.spent_amount),
+    period: budget.period,
+    startDate: budget.start_date,
+    endDate: budget.end_date,
+  }));
+}
+
+export async function getGoals(): Promise<Goal[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('goals')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching goals:', error);
+    return [];
+  }
+
+  return (data || []).map(goal => ({
+    id: goal.id,
+    title: goal.title,
+    description: goal.description,
+    targetAmount: parseFloat(goal.target_amount),
+    currentAmount: parseFloat(goal.current_amount),
+    targetDate: goal.target_date,
+    category: goal.category,
+    priority: goal.priority,
+  }));
+}
+
+export async function getInvestments(): Promise<Investment[]> {
+  // This would be implemented when investment tracking is added
+  return [];
+}
+
+export async function createTransaction(transaction: Omit<Transaction, 'id'>): Promise<Transaction> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .insert({
+      user_id: user.id,
+      account_id: transaction.accountId,
+      title: transaction.title,
+      description: transaction.description,
+      category: transaction.category,
+      amount: transaction.amount,
+      transaction_date: transaction.date,
+      transaction_time: transaction.time,
+      type: transaction.type,
+      status: transaction.status,
+      tags: transaction.tags,
+      location: transaction.location,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return {
+    id: data.id,
+    clientId: data.user_id,
+    accountId: data.account_id,
+    title: data.title,
+    description: data.description,
+    category: data.category,
+    amount: parseFloat(data.amount),
+    date: data.transaction_date,
+    time: data.transaction_time,
+    type: data.type,
+    status: data.status,
+    tags: data.tags,
+    location: data.location,
+  };
+}
+
+export async function updateBudget(budgetId: string, updates: Partial<Budget>): Promise<Budget> {
+  const { data, error } = await supabase
+    .from('budgets')
+    .update({
+      category: updates.category,
+      allocated_amount: updates.allocated,
+      spent_amount: updates.spent,
+      period: updates.period,
+      start_date: updates.startDate,
+      end_date: updates.endDate,
+    })
+    .eq('id', budgetId)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return {
+    id: data.id,
+    category: data.category,
+    allocated: parseFloat(data.allocated_amount),
+    spent: parseFloat(data.spent_amount),
+    period: data.period,
+    startDate: data.start_date,
+    endDate: data.end_date,
+  };
+}
+
+// Client management functions (for CPAs)
+export async function getClients(): Promise<Client[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  // Get assigned clients for CPAs
+  const { data, error } = await supabase
+    .from('client_assignments')
+    .select(`
+      status,
+      client:profiles!client_assignments_client_id_fkey (
+        id,
+        display_name,
+        avatar_url,
+        email,
+        role
+      )
+    `)
+    .eq('cpa_id', user.id)
+    .eq('status', 'active');
+
+  if (error) {
+    console.error('Error fetching clients:', error);
+    return [];
+  }
+
+  return (data || []).map(item => ({
+    id: item.client.id,
+    name: item.client.display_name,
+    companyName: item.client.display_name, // Using display name as company name
+    email: item.client.email,
+    avatarUrl: item.client.avatar_url || `https://i.pravatar.cc/150?u=${item.client.id}`,
+    status: item.status,
+    netWorth: 0, // This would be calculated from actual financial data
+    uncategorized: 0, // This would be calculated from uncategorized transactions
+  }));
+}
+
+export async function getClientById(id: string): Promise<Client | undefined> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching client:', error);
+    return undefined;
+  }
+
+  return {
+    id: data.id,
+    name: data.display_name,
+    companyName: data.display_name,
+    email: data.email,
+    avatarUrl: data.avatar_url || `https://i.pravatar.cc/150?u=${data.id}`,
+    status: 'active',
+    netWorth: 0,
+    uncategorized: 0,
+  };
+}
+
+export async function getBalanceSheetData(clientId: string): Promise<{ accounts: Account[], assets: FixedAsset[], liabilities: Liability[] }> {
+  const accounts = await getAccounts();
+  // For now, return empty arrays for assets and liabilities
+  // These would be implemented when the full accounting system is built
+  return {
+    accounts,
+    assets: [],
+    liabilities: [],
+  };
+}
+
 export async function createClient(clientData: Omit<Client, 'id'|'avatarUrl'>): Promise<Client> {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const newClient: Client = {
-                ...clientData,
-                id: `cli_${Date.now()}`,
-                avatarUrl: `https://i.pravatar.cc/150?u=${Date.now()}`,
-            };
-            mockClients.unshift(newClient);
-            resolve(newClient);
-        }, 300);
-    });
+  // This would typically be handled through user registration
+  // For now, return a mock implementation
+  throw new Error('Client creation should be handled through user registration');
 }

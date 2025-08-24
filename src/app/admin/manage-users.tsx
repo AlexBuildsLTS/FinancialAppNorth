@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Image,
+  Modal,
+} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '@/context/ThemeProvider';
 import { User, UserRole } from '@/context/AuthContext';
@@ -20,7 +29,7 @@ const ManageUsersScreen = () => {
         const fetchedUsers = await fetchAllUsers();
         setUsers(fetchedUsers);
       } catch (error) {
-        console.error("Failed to fetch users:", error);
+        console.error('Failed to fetch users:', error);
       } finally {
         setIsLoading(false);
       }
@@ -39,11 +48,11 @@ const ManageUsersScreen = () => {
     try {
       const updatedUser = await updateUserRole(selectedUser.id, newRole);
       // Update the user in the local state
-      setUsers(currentUsers =>
-        currentUsers.map(u => (u.id === updatedUser.id ? updatedUser : u))
+      setUsers((currentUsers) =>
+        currentUsers.map((u) => (u.id === updatedUser.id ? updatedUser : u))
       );
     } catch (error) {
-      console.error("Failed to update user role:", error);
+      console.error('Failed to update user role:', error);
       // Here you might show an error toast to the admin
     } finally {
       setIsModalVisible(false);
@@ -55,12 +64,21 @@ const ManageUsersScreen = () => {
     <View style={[styles.userItem, { backgroundColor: colors.surface }]}>
       <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
       <View style={styles.userInfo}>
-        <Text style={[styles.userName, { color: colors.text }]}>{user.displayName}</Text>
-        <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{user.email}</Text>
+        <Text style={[styles.userName, { color: colors.text }]}>
+          {user.displayName}
+        </Text>
+        <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
+          {user.email}
+        </Text>
       </View>
-      <TouchableOpacity onPress={() => openRoleModal(user)} style={styles.roleButton}>
+      <TouchableOpacity
+        onPress={() => openRoleModal(user)}
+        style={styles.roleButton}
+      >
         <Shield color={colors.primary} size={16} />
-        <Text style={[styles.roleText, { color: colors.primary }]}>{user.role}</Text>
+        <Text style={[styles.roleText, { color: colors.primary }]}>
+          {user.role}
+        </Text>
         <ChevronDown color={colors.textSecondary} size={16} />
       </TouchableOpacity>
     </View>
@@ -79,10 +97,10 @@ const ManageUsersScreen = () => {
       <FlatList
         data={users}
         renderItem={({ item }) => <UserItem user={item} />}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
       />
-      
+
       {/* Role Change Modal */}
       <Modal
         animationType="slide"
@@ -91,13 +109,22 @@ const ManageUsersScreen = () => {
         onRequestClose={() => setIsModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
-                <X color={colors.textSecondary} size={24} />
+          <View
+            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+          >
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setIsModalVisible(false)}
+            >
+              <X color={colors.textSecondary} size={24} />
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Change Role for</Text>
-            <Text style={[styles.modalUser, { color: colors.textSecondary }]}>{selectedUser?.displayName}</Text>
-            
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Change Role for
+            </Text>
+            <Text style={[styles.modalUser, { color: colors.textSecondary }]}>
+              {selectedUser?.displayName}
+            </Text>
+
             <Picker
               selectedValue={newRole}
               onValueChange={(itemValue) => setNewRole(itemValue)}
@@ -105,12 +132,18 @@ const ManageUsersScreen = () => {
             >
               <Picker.Item label="Member" value="Member" />
               <Picker.Item label="Premium Member" value="Premium Member" />
-              <Picker.Item label="Professional Accountant" value="Professional Accountant" />
+              <Picker.Item
+                label="Professional Accountant"
+                value="Professional Accountant"
+              />
               <Picker.Item label="Support" value="Support" />
               <Picker.Item label="Administrator" value="Administrator" />
             </Picker>
-            
-            <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleRoleChange}>
+
+            <TouchableOpacity
+              style={[styles.saveButton, { backgroundColor: colors.primary }]}
+              onPress={handleRoleChange}
+            >
               <Text style={styles.saveButtonText}>Save Changes</Text>
             </TouchableOpacity>
           </View>

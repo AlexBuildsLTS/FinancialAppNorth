@@ -1,5 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 
 const ChangePasswordScreen = () => {
@@ -8,9 +14,18 @@ const ChangePasswordScreen = () => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.form}>
-        <Text style={[styles.label, { color: colors.text }]}>Current Password</Text>
+        <Text style={[styles.label, { color: colors.text }]}>
+          Current Password
+        </Text>
         <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.surface,
+              color: colors.text,
+              borderColor: colors.border,
+            },
+          ]}
           placeholder="Enter your current password"
           placeholderTextColor={colors.textSecondary}
           secureTextEntry
@@ -18,21 +33,39 @@ const ChangePasswordScreen = () => {
 
         <Text style={[styles.label, { color: colors.text }]}>New Password</Text>
         <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.surface,
+              color: colors.text,
+              borderColor: colors.border,
+            },
+          ]}
           placeholder="Enter your new password"
           placeholderTextColor={colors.textSecondary}
           secureTextEntry
         />
 
-        <Text style={[styles.label, { color: colors.text }]}>Confirm New Password</Text>
+        <Text style={[styles.label, { color: colors.text }]}>
+          Confirm New Password
+        </Text>
         <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.surface,
+              color: colors.text,
+              borderColor: colors.border,
+            },
+          ]}
           placeholder="Confirm your new password"
           placeholderTextColor={colors.textSecondary}
           secureTextEntry
         />
 
-        <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]}>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.primary }]}
+        >
           <Text style={styles.buttonText}>Update Password</Text>
         </TouchableOpacity>
       </View>

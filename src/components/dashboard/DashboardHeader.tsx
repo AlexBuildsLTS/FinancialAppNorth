@@ -2,16 +2,21 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native'; // Added TouchableOpacity
 import { Bell, User, Settings } from 'lucide-react-native'; // Added User and Settings icons
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useTheme } from '@/context/ThemeProvider';
+import { useTheme } from '../../context/ThemeProvider';
 
 interface DashboardHeaderProps {
-  displayName: string;
+  username: string;
   avatarUrl: string;
-  onPressProfile: () => void;
-  onPressSettings: () => void;
+  onPressProfile: () => void; // New prop for profile button press
+  onPressSettings: () => void; // New prop for settings button press
 }
 
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({ displayName, avatarUrl, onPressProfile, onPressSettings }) => {
+const DashboardHeader: React.FC<DashboardHeaderProps> = ({
+  username,
+  avatarUrl,
+  onPressProfile,
+  onPressSettings,
+}) => {
   const { colors } = useTheme();
 
   return (
@@ -22,17 +27,31 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ displayName, avatarUr
           <Text style={[styles.greeting, { color: colors.textSecondary }]}>
             Welcome back,
           </Text>
-          <Text style={[styles.displayName, { color: colors.text }]}>{displayName}</Text>
+          <Text style={[styles.username, { color: colors.text }]}>
+            {username}
+          </Text>
         </View>
       </View>
-      <View style={styles.rightIcons}> {/* New container for right-aligned icons */}
-        <TouchableOpacity onPress={() => { /* Handle notifications */ }} style={[styles.iconButton, { backgroundColor: colors.surface }]}>
+      <View style={styles.rightIcons}>
+        {/* New container for right-aligned icons */}
+        <TouchableOpacity
+          onPress={() => {
+            /* Handle notifications */
+          }}
+          style={[styles.iconButton, { backgroundColor: colors.surface }]}
+        >
           <Bell color={colors.text} size={24} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={onPressSettings} style={[styles.iconButton, { backgroundColor: colors.surface }]}>
+        <TouchableOpacity
+          onPress={onPressSettings}
+          style={[styles.iconButton, { backgroundColor: colors.surface }]}
+        >
           <Settings color={colors.text} size={24} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={onPressProfile} style={[styles.iconButton, { backgroundColor: colors.surface }]}>
+        <TouchableOpacity
+          onPress={onPressProfile}
+          style={[styles.iconButton, { backgroundColor: colors.surface }]}
+        >
           <User color={colors.text} size={24} />
         </TouchableOpacity>
       </View>
@@ -59,15 +78,17 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 14,
   },
-  displayName: {
+  username: {
     fontSize: 18,
     fontWeight: 'bold',
   },
-  rightIcons: { // Styles for the new container
+  rightIcons: {
+    // Styles for the new container
     flexDirection: 'row',
     gap: 8, // Space between icons
   },
-  iconButton: { // Styles for individual icon buttons
+  iconButton: {
+    // Styles for individual icon buttons
     padding: 12,
     borderRadius: 25,
   },

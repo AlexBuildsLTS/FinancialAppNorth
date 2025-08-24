@@ -1,19 +1,36 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import { Users, BarChart3, Bell, ShieldCheck } from 'lucide-react-native';
 
 // A reusable component for dashboard items
-const AdminDashboardItem = ({ icon: Icon, title, description, onPress, colors }: any) => (
-  <TouchableOpacity onPress={onPress} style={[styles.itemContainer, { backgroundColor: colors.surface }]}>
+const AdminDashboardItem = ({
+  icon: Icon,
+  title,
+  description,
+  onPress,
+  colors,
+}: any) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[styles.itemContainer, { backgroundColor: colors.surface }]}
+  >
     <View style={[styles.iconContainer, { backgroundColor: colors.primary }]}>
       <Icon color="#FFFFFF" size={24} />
     </View>
     <View style={styles.textContainer}>
       <Text style={[styles.itemTitle, { color: colors.text }]}>{title}</Text>
-      <Text style={[styles.itemDescription, { color: colors.textSecondary }]}>{description}</Text>
+      <Text style={[styles.itemDescription, { color: colors.textSecondary }]}>
+        {description}
+      </Text>
     </View>
   </TouchableOpacity>
 );
@@ -34,26 +51,36 @@ const AdminDashboardScreen = () => {
       icon: BarChart3,
       title: 'System Analytics',
       description: 'View application-wide usage statistics.',
-      onPress: () => { /* Placeholder for future screen */ },
+      onPress: () => {
+        /* Placeholder for future screen */
+      },
     },
     {
       icon: Bell,
       title: 'Global Messaging',
       description: 'Send notifications to user groups.',
-      onPress: () => { /* Placeholder for future screen */ },
+      onPress: () => {
+        /* Placeholder for future screen */
+      },
     },
     {
       icon: ShieldCheck,
       title: 'Auditing & Compliance',
       description: 'Access system logs and compliance reports.',
-      onPress: () => { /* Placeholder for future screen */ },
+      onPress: () => {
+        /* Placeholder for future screen */
+      },
     },
   ];
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Admin Panel</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Admin Panel
+        </Text>
         <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
           Welcome, {user?.displayName || 'Administrator'}.
         </Text>

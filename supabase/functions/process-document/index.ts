@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,25 +16,23 @@ Deno.serve(async (req) => {
 
   try {
     const { record: document } = await req.json();
-    if (!document) throw new Error('Document record is missing.');
+    if (!document) throw new Error("Document record is missing.");
 
     const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+      Deno.env.get("EXPO_PUBLIC_SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-
-    if (!Deno.env.get('SUPABASE_URL') || !Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
-      throw new Error('Supabase environment variables are not set.');
-    }
 
     // Update status to processing
     await supabaseAdmin
-      .from('documents')
-      .update({ status: 'processing' })
-      .eq('id', document.id);
+      .from("documents")
+      .update({ status: "processing" })
+      .eq("id", document.id);
 
     // Simulate OCR text extraction
-    const extractedText = `Invoice from ${document.file_name.replace(/\.[^/.]+$/, "")}
+    const extractedText = `Invoice from ${
+      document.file_name.replace(/\.[^/.]+$/, "")
+    }
 Date: ${new Date().toLocaleDateString()}
 Amount: $${(Math.random() * 1000 + 100).toFixed(2)}
 Vendor: Sample Vendor Inc.
@@ -42,52 +40,56 @@ Description: Professional services rendered`;
 
     // Update with extracted text
     await supabaseAdmin
-      .from('documents')
+      .from("documents")
       .update({ extracted_text: extractedText })
-      .eq('id', document.id);
+      .eq("id", document.id);
 
     // Simulate AI processing
     const processedData = {
       vendor: "Sample Vendor Inc.",
       amount: (Math.random() * 1000 + 100).toFixed(2),
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       category: "Professional Services",
-      confidence: 0.95
+      confidence: 0.95,
     };
 
     // Update with processed data
     await supabaseAdmin
-      .from('documents')
-      .update({ 
-        status: 'processed', 
-        processed_data: processedData 
+      .from("documents")
+      .update({
+        status: "processed",
+        processed_data: processedData,
       })
-      .eq('id', document.id);
+      .eq("id", document.id);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         message: `Successfully processed document ${document.id}`,
-        data: processedData 
-      }), {
-      headers: { 
-        'Content-Type': 'application/json',
-        ...corsHeaders
+        data: processedData,
+      }),
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+        status: 200,
       },
-      status: 200,
-    });
+    );
   } catch (error) {
-    console.error('Document processing error:', error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error("Document processing error:", error);
+
+    // Handle the error properly by checking its type
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     return new Response(
-      JSON.stringify({ error: errorMessage, details: errorStack }), {
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
+      JSON.stringify({ error: errorMessage }),
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+        status: 400,
       },
-      status: 500, // Internal Server Error for unexpected issues
-    });
+    );
   }
 });

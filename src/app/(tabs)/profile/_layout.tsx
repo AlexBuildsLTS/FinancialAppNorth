@@ -37,7 +37,7 @@ export default function ProfileLayout() {
           headerShown: false,
         }}
       />
-       <Stack.Screen
+      <Stack.Screen
         name="api-keys"
         options={{
           title: 'API Key Management',

@@ -16,7 +16,7 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { Picker } from '@react-native-picker/picker';
 import { Transaction } from '@/types';
 
-interface AddTransactionModalProps {
+export interface AddTransactionModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: (newTransaction: Transaction) => void;
@@ -33,10 +33,14 @@ const AddTransactionModal = ({
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Groceries');
+  const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date());
   const [type, setType] = useState<'income' | 'expense'>('expense');
-  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [accountId, setAccountId] = useState('1'); // Default account ID
+  const [tags, setTags] = useState('');
+  const [location, setLocation] = useState('');
+  const [isDatePickerVisible, setDatePickerVisibility] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const handleSaveTransaction = async () => {
     if (!title || !amount || !category) {
@@ -58,27 +62,33 @@ const AddTransactionModal = ({
 
     setLoading(true);
     try {
-      const newTransaction = await createTransaction({
-        accountId: '1', // Default account ID
+      const transactionData: Omit<Transaction, "id"> = {
+        accountId,
         title,
-        description: '', // Default description
+        description,
         category,
         amount: numericAmount,
         date: date.toISOString().split('T')[0], // Format as YYYY-MM-DD
-        time: new Date().toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        }), // Add time
+        time: new Date().toISOString().split('T')[1].split('.')[0], // Format as HH:mm:ss
         type,
         status: 'completed',
         clientId: clientId,
-      });
+        tags: tags ? tags.split(',').map(tag => tag.trim()) : [], // Convert comma-separated string to array
+        location,
+      };
+
+      // createTransaction expects Omit<Transaction, "id">, so we pass the relevant fields
+      const newTransaction = await createTransaction(transactionData);
 
       onSuccess(newTransaction); // Signal to the dashboard that a new transaction was added
       onClose(); // Close the modal
       // Reset form for next time
       setTitle('');
       setAmount('');
+      setDescription('');
+      setAccountId('1');
+      setTags('');
+      setLocation('');
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Failed to save the transaction. Please try again.');
@@ -126,11 +136,73 @@ const AddTransactionModal = ({
                 backgroundColor: colors.background,
               },
             ]}
+            placeholder="Description"
+            placeholderTextColor={colors.textSecondary}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={3}
+          />
+
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.background,
+              },
+            ]}
             placeholder="Amount"
             placeholderTextColor={colors.textSecondary}
             value={amount}
             onChangeText={setAmount}
             keyboardType="numeric"
+          />
+
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.background,
+              },
+            ]}
+            placeholder="Account ID"
+            placeholderTextColor={colors.textSecondary}
+            value={accountId}
+            onChangeText={setAccountId}
+          />
+
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.background,
+              },
+            ]}
+            placeholder="Tags (comma-separated)"
+            placeholderTextColor={colors.textSecondary}
+            value={tags}
+            onChangeText={setTags}
+          />
+
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.background,
+              },
+            ]}
+            placeholder="Location"
+            placeholderTextColor={colors.textSecondary}
+            value={location}
+            onChangeText={setLocation}
           />
 
           <TouchableOpacity

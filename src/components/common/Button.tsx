@@ -1,5 +1,13 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, Platform } from 'react-native';
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ViewStyle,
+  TextStyle,
+  Platform,
+} from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { LucideIcon } from 'lucide-react-native';
 
@@ -50,11 +58,11 @@ export default function Button({
       },
       web: {
         boxShadow: `0 4px 14px ${colors.primary}50`,
-      }
+      },
     }),
   };
 
-  const buttonStyles: ViewStyle[] = [ styles.buttonBase, styles[size] ];
+  const buttonStyles: ViewStyle[] = [styles.buttonBase, styles[size]];
   if (variant === 'solid') {
     buttonStyles.push({ backgroundColor: colors.primary });
     if (!isDark) buttonStyles.push(lightShadowStyle);
@@ -64,20 +72,33 @@ export default function Button({
   if (isDisabled) buttonStyles.push(styles.disabled);
   if (style) buttonStyles.push(style);
 
-  const textStyles: TextStyle[] = [ styles.textBase, styles[`text_${size}`] ];
+  const textStyles: TextStyle[] = [styles.textBase, styles[`text_${size}`]];
   if (variant === 'solid') textStyles.push({ color: colors.primaryContrast });
-  else if (variant === 'ghost') textStyles.push({ color: colors.textSecondary });
+  else if (variant === 'ghost')
+    textStyles.push({ color: colors.textSecondary });
   else textStyles.push({ color: colors.primary });
 
   const iconColor = textStyles[textStyles.length - 1].color;
 
   return (
-    <TouchableOpacity onPress={onPress} style={buttonStyles} disabled={isDisabled}>
+    <TouchableOpacity
+      onPress={onPress}
+      style={buttonStyles}
+      disabled={isDisabled}
+    >
       {isLoading ? (
-        <ActivityIndicator color={variant === 'solid' ? colors.primaryContrast : colors.primary} />
+        <ActivityIndicator
+          color={variant === 'solid' ? colors.primaryContrast : colors.primary}
+        />
       ) : (
         <>
-          {Icon && <Icon color={iconColor} size={iconSizeMap[size]} style={styles.icon} />}
+          {Icon && (
+            <Icon
+              color={iconColor}
+              size={iconSizeMap[size]}
+              style={styles.icon}
+            />
+          )}
           <Text style={textStyles}>{title}</Text>
         </>
       )}
@@ -86,8 +107,18 @@ export default function Button({
 }
 
 const styles = StyleSheet.create({
-  buttonBase: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', borderRadius: 12, gap: 8 },
-  textBase: { fontFamily: 'Inter-Bold', fontWeight: '600', textAlign: 'center' },
+  buttonBase: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+    gap: 8,
+  },
+  textBase: {
+    fontFamily: 'Inter-Bold',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   disabled: { opacity: 0.6 },
   icon: {},
   small: { paddingVertical: 8, paddingHorizontal: 12 },

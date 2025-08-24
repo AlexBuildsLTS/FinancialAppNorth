@@ -14,7 +14,10 @@ export default function SecurityLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Security' }} />
-      <Stack.Screen name="change-password" options={{ title: 'Change Password' }} />
+      <Stack.Screen
+        name="change-password"
+        options={{ title: 'Change Password' }}
+      />
     </Stack>
   );
 }

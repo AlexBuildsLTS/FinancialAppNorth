@@ -1,5 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, ActivityIndicator, Linking } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ImageBackground,
+  ActivityIndicator,
+  Linking,
+} from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTheme } from '@/context/ThemeProvider';
 import { useRouter } from 'expo-router';
@@ -23,13 +31,13 @@ export default function CameraScreen() {
 
   const handleUsePhoto = () => {
     if (capturedImage) {
-        // Navigate to a new screen to process the document
-        router.push({
-            pathname: '/process-document' as any,
-            params: { imageUri: capturedImage }
-        });
-        // Reset for next time
-        setCapturedImage(null);
+      // Navigate to a new screen to process the document
+      router.push({
+        pathname: '/process-document' as any,
+        params: { imageUri: capturedImage },
+      });
+      // Reset for next time
+      setCapturedImage(null);
     }
   };
 
@@ -45,14 +53,27 @@ export default function CameraScreen() {
   if (!permission.granted) {
     // Camera permissions are not granted yet.
     return (
-      <View style={[styles.permissionContainer, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.permissionContainer,
+          { backgroundColor: colors.background },
+        ]}
+      >
         <AlertTriangle color={colors.textSecondary} size={48} />
-        <Text style={[styles.permissionText, { color: colors.text }]}>We need your permission to show the camera</Text>
-        <TouchableOpacity style={[styles.permissionButton, { backgroundColor: colors.primary }]} onPress={requestPermission}>
+        <Text style={[styles.permissionText, { color: colors.text }]}>
+          We need your permission to show the camera
+        </Text>
+        <TouchableOpacity
+          style={[styles.permissionButton, { backgroundColor: colors.primary }]}
+          onPress={requestPermission}
+        >
           <Text style={styles.permissionButtonText}>Grant Permission</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={{marginTop: 16}} onPress={() => Linking.openSettings()}>
-          <Text style={{color: colors.textSecondary}}>Open Settings</Text>
+        <TouchableOpacity
+          style={{ marginTop: 16 }}
+          onPress={() => Linking.openSettings()}
+        >
+          <Text style={{ color: colors.textSecondary }}>Open Settings</Text>
         </TouchableOpacity>
       </View>
     );
@@ -60,18 +81,27 @@ export default function CameraScreen() {
 
   if (capturedImage) {
     return (
-        <ImageBackground source={{ uri: capturedImage }} style={styles.previewContainer}>
-            <View style={styles.previewControls}>
-                <TouchableOpacity style={styles.controlButton} onPress={() => setCapturedImage(null)}>
-                    <RefreshCw color="#fff" size={32} />
-                    <Text style={styles.controlButtonText}>Retake</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.controlButton} onPress={handleUsePhoto}>
-                    <Check color="#fff" size={32} />
-                    <Text style={styles.controlButtonText}>Use Photo</Text>
-                </TouchableOpacity>
-            </View>
-        </ImageBackground>
+      <ImageBackground
+        source={{ uri: capturedImage }}
+        style={styles.previewContainer}
+      >
+        <View style={styles.previewControls}>
+          <TouchableOpacity
+            style={styles.controlButton}
+            onPress={() => setCapturedImage(null)}
+          >
+            <RefreshCw color="#fff" size={32} />
+            <Text style={styles.controlButtonText}>Retake</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.controlButton}
+            onPress={handleUsePhoto}
+          >
+            <Check color="#fff" size={32} />
+            <Text style={styles.controlButtonText}>Use Photo</Text>
+          </TouchableOpacity>
+        </View>
+      </ImageBackground>
     );
   }
 

@@ -3,7 +3,9 @@ import { Transaction } from '../types';
 
 // Function to get the current logged-in user's ID
 const getUserId = async (): Promise<string | null> => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   return user?.id || null;
 };
 
@@ -12,7 +14,7 @@ export const fetchTransactions = async (): Promise<Transaction[]> => {
   try {
     const userId = await getUserId();
     if (!userId) {
-      console.log("No user logged in, returning empty array.");
+      console.log('No user logged in, returning empty array.');
       return [];
     }
 
@@ -29,7 +31,7 @@ export const fetchTransactions = async (): Promise<Transaction[]> => {
 
     return data as Transaction[];
   } catch (error) {
-    console.error("An unexpected error occurred:", error);
+    console.error('An unexpected error occurred:', error);
     return [];
   }
 };

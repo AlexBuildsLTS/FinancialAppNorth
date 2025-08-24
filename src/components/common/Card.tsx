@@ -11,17 +11,19 @@ const Card = ({ children, style }: CardProps) => {
   const { colors, isDark } = useTheme();
 
   return (
-    <View style={[
-      styles.card,
-      { 
-        backgroundColor: colors.surface,
-        // Use a subtle border in dark mode, and shadow in light mode
-        borderColor: isDark ? colors.border : 'transparent',
-        borderWidth: isDark ? 1 : 0,
-      },
-      !isDark && styles.lightShadow, // Apply shadow only in light mode
-      style
-    ]}>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          // Use a subtle border in dark mode, and shadow in light mode
+          borderColor: isDark ? colors.border : 'transparent',
+          borderWidth: isDark ? 1 : 0,
+        },
+        !isDark && styles.lightShadow, // Apply shadow only in light mode
+        style,
+      ]}
+    >
       {children}
     </View>
   );
@@ -45,9 +47,9 @@ const styles = StyleSheet.create({
       },
       web: {
         boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
-      }
+      },
     }),
-  }
+  },
 });
 
 export default Card;

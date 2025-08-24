@@ -2,7 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { DollarSign, TrendingUp, TrendingDown, Target, LucideIcon } from 'lucide-react-native';
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Target,
+  LucideIcon,
+} from 'lucide-react-native';
 
 interface Metric {
   id: string;
@@ -72,10 +78,17 @@ export default function MetricsGrid() {
         style={styles.card}
       >
         <View style={styles.cardHeader}>
-          <View style={[styles.iconContainer, { backgroundColor: `${iconColor}20` }]}>
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: `${iconColor}20` },
+            ]}
+          >
             <IconComponent size={24} color={iconColor} />
           </View>
-          <View style={[styles.changeContainer, { backgroundColor: changeBgColor }]}>
+          <View
+            style={[styles.changeContainer, { backgroundColor: changeBgColor }]}
+          >
             <Text style={[styles.changeText, { color: changeTextColor }]}>
               {item.change}
             </Text>
@@ -99,7 +112,7 @@ export default function MetricsGrid() {
 
 const createStyles = (colors: any, screenWidth: number) => {
   const cardWidth = (screenWidth - 48) / 2; // Account for padding and gap
-  
+
   return StyleSheet.create({
     sectionTitle: {
       fontSize: 22,

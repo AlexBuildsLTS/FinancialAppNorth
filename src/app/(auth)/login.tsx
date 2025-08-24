@@ -21,7 +21,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  const { colors, theme, toggleTheme } = useTheme();
+  const { colors, theme, toggleTheme, isDark } = useTheme();
 
   const signIn = async () => {
     if (!email || !password) {
@@ -39,10 +39,10 @@ export default function LoginScreen() {
       <View style={styles.themeToggleContainer}>
         <FontAwesome name="sun-o" size={22} color={colors.text} />
         <Switch
-          value={theme === 'dark'}
+          value={isDark}
           onValueChange={toggleTheme}
           trackColor={{ false: '#767577', true: colors.primary }}
-          thumbColor={theme === 'dark' ? '#f4f3f4' : '#f4f3f4'}
+          thumbColor={isDark ? '#f4f3f4' : '#f4f3f4'}
         />
         <FontAwesome name="moon-o" size={22} color={colors.text} />
       </View>

@@ -5,7 +5,13 @@ import { useTheme } from '@/context/ThemeProvider';
 export default function ClientCashFlowLayout() {
   const { colors } = useTheme();
   return (
-    <Stack screenOptions={{ headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text, headerTitleStyle: { fontWeight: 'bold' } }}>
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
+        headerTitleStyle: { fontWeight: 'bold' },
+      }}
+    >
       <Stack.Screen name="[id]" options={{ headerShown: false }} />
     </Stack>
   );

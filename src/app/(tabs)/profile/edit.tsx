@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Image,
+} from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
 import { supabase } from '@/lib/supabase';
@@ -52,7 +61,7 @@ export default function EditProfileScreen() {
       const fileExt = asset.uri?.split('.').pop()?.toLowerCase() ?? 'jpg';
       const filePath = `${user.id}/${new Date().getTime()}.${fileExt}`;
       const contentType = `image/${fileExt}`;
-      
+
       try {
         const { error: uploadError } = await supabase.storage
           .from('avatars')
@@ -60,9 +69,9 @@ export default function EditProfileScreen() {
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('avatars').getPublicUrl(filePath);
 
         setAvatarUrl(publicUrl);
 
@@ -72,7 +81,6 @@ export default function EditProfileScreen() {
           .eq('id', user.id);
 
         if (updateError) throw updateError;
-        
       } catch (error: any) {
         Alert.alert('Upload Error', error.message);
       } finally {
@@ -84,16 +92,25 @@ export default function EditProfileScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <TouchableOpacity onPress={handlePickAvatar}>
-        <Image 
-          source={{ uri: avatarUrl || 'https://i.pravatar.cc/150' }} 
-          style={styles.avatar} 
+        <Image
+          source={{ uri: avatarUrl || 'https://i.pravatar.cc/150' }}
+          style={styles.avatar}
         />
-        <Text style={[styles.changeText, { color: colors.primary }]}>Change Photo</Text>
+        <Text style={[styles.changeText, { color: colors.primary }]}>
+          Change Photo
+        </Text>
       </TouchableOpacity>
 
       <Text style={[styles.label, { color: colors.text }]}>Display Name</Text>
       <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.surface,
+            color: colors.text,
+            borderColor: colors.border,
+          },
+        ]}
         value={displayName}
         onChangeText={setDisplayName}
       />
@@ -102,7 +119,11 @@ export default function EditProfileScreen() {
         onPress={handleUpdateProfile}
         disabled={loading}
       >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save Changes</Text>}
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Save Changes</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -111,9 +132,32 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, alignItems: 'center' },
   avatar: { width: 120, height: 120, borderRadius: 60, marginBottom: 8 },
-  changeText: { fontFamily: 'Inter-Bold', marginBottom: 32, textAlign: 'center' },
-  label: { width: '100%', fontSize: 16, fontFamily: 'Inter-Bold', marginBottom: 8 },
-  input: { width: '100%', height: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, fontSize: 16, marginBottom: 24 },
-  button: { width: '100%', height: 50, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  changeText: {
+    fontFamily: 'Inter-Bold',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  label: {
+    width: '100%',
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    marginBottom: 8,
+  },
+  input: {
+    width: '100%',
+    height: 50,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 24,
+  },
+  button: {
+    width: '100%',
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-Bold' },
 });

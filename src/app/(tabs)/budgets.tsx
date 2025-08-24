@@ -9,7 +9,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Plus, Target, CircleAlert as AlertCircle, CircleCheck as CheckCircle } from 'lucide-react-native';
+import {
+  Plus,
+  Target,
+  CircleAlert as AlertCircle,
+  CircleCheck as CheckCircle,
+} from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
 import { getBudgets, getGoals } from '@/services/dataService';
@@ -48,8 +53,11 @@ export default function BudgetsScreen() {
   const renderBudgetCard = (budget: Budget, index: number) => {
     const spentPercentage = (budget.spent / budget.allocated) * 100;
     const isOverBudget = spentPercentage > 100;
-    const progressColor = isOverBudget ? colors.error : 
-                         spentPercentage > 80 ? colors.warning : colors.success;
+    const progressColor = isOverBudget
+      ? colors.error
+      : spentPercentage > 80
+      ? colors.warning
+      : colors.success;
 
     return (
       <Animated.View
@@ -93,7 +101,8 @@ export default function BudgetsScreen() {
         </View>
 
         <Text style={styles.budgetPeriod}>
-          {budget.period.charAt(0).toUpperCase() + budget.period.slice(1)} budget
+          {budget.period.charAt(0).toUpperCase() + budget.period.slice(1)}{' '}
+          budget
         </Text>
       </Animated.View>
     );
@@ -103,7 +112,8 @@ export default function BudgetsScreen() {
     const progressPercentage = (goal.currentAmount / goal.targetAmount) * 100;
     const remainingAmount = goal.targetAmount - goal.currentAmount;
     const daysRemaining = Math.ceil(
-      (new Date(goal.targetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+      (new Date(goal.targetDate).getTime() - new Date().getTime()) /
+        (1000 * 60 * 60 * 24)
     );
 
     return (
@@ -117,18 +127,32 @@ export default function BudgetsScreen() {
             <Target size={20} color={colors.primary} />
             <Text style={styles.goalTitle}>{goal.title}</Text>
           </View>
-          <View style={[
-            styles.priorityBadge,
-            { backgroundColor: goal.priority === 'high' ? `${colors.error}20` : 
-                               goal.priority === 'medium' ? `${colors.warning}20` : 
-                               `${colors.success}20` }
-          ]}>
-            <Text style={[
-              styles.priorityText,
-              { color: goal.priority === 'high' ? colors.error : 
-                      goal.priority === 'medium' ? colors.warning : 
-                      colors.success }
-            ]}>
+          <View
+            style={[
+              styles.priorityBadge,
+              {
+                backgroundColor:
+                  goal.priority === 'high'
+                    ? `${colors.error}20`
+                    : goal.priority === 'medium'
+                    ? `${colors.warning}20`
+                    : `${colors.success}20`,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.priorityText,
+                {
+                  color:
+                    goal.priority === 'high'
+                      ? colors.error
+                      : goal.priority === 'medium'
+                      ? colors.warning
+                      : colors.success,
+                },
+              ]}
+            >
               {goal.priority}
             </Text>
           </View>
@@ -168,7 +192,9 @@ export default function BudgetsScreen() {
               ${remainingAmount.toLocaleString()} remaining
             </Text>
             <Text style={styles.daysRemaining}>
-              {daysRemaining > 0 ? `${daysRemaining} days left` : 'Goal reached!'}
+              {daysRemaining > 0
+                ? `${daysRemaining} days left`
+                : 'Goal reached!'}
             </Text>
           </View>
         </View>

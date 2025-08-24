@@ -8,7 +8,12 @@ export default function ClientLayout() {
   const { user, initialized } = useAuth(); // Use useAuth
 
   // Redirect if not initialized or not a professional/admin
-  if (initialized && !(user?.role === 'Professional Accountant' || user?.role === 'Administrator')) {
+  if (
+    initialized &&
+    !(
+      user?.role === 'Professional Accountant' || user?.role === 'Administrator'
+    )
+  ) {
     return <Redirect href="/(tabs)" />; // Corrected path to dashboard group
   }
 

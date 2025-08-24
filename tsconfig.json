@@ -5,8 +5,9 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ]
-    }
+      ],
+    },
+    "module": "esnext"
   },
   "include": [
     "**/*.ts",

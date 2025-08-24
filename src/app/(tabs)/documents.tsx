@@ -13,17 +13,7 @@ import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
-import {
-  FileText,
-  Camera,
-  Upload,
-  Download,
-  Trash2,
-  Eye,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-} from 'lucide-react-native';
+import { FileText, Camera, Upload, Download, Trash2, Eye, Clock, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';

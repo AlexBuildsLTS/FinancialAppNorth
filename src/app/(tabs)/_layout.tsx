@@ -1,25 +1,17 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { useTheme } from '../../context/ThemeProvider';
-import { useAuth } from '../../context/AuthContext';
-import { useNotifications } from '../../hooks/useNotifications';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
 import {
-  LayoutDashboard,
-  Briefcase,
-  ArrowRightLeft,
-  Landmark,
-  PiggyBank,
-  AreaChart,
-  Camera,
-  FilePieChart,
-  BookOpen,
-  User,
-  Bell,
-  MessageSquare,
-  FileText // Added for the new Documents tab
-} from 'lucide-react-native';
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Chrome as Home, Briefcase, CreditCard, Camera, FileText, MessageCircle, User } from 'lucide-react-native';
 
 interface TabBarIconProps {
   Icon: React.ComponentType<{ color: string; size: number }>;
@@ -27,54 +19,15 @@ interface TabBarIconProps {
   size: number;
 }
 
-const TabBarIcon: React.FC<TabBarIconProps> = React.memo(({ Icon, color, size }) => (
-  <Icon color={color} size={size} />
-));
-
-// This is the CORRECT Custom Header Component
-const CustomHeader = () => {
-  const { colors } = useTheme();
-  const { user } = useAuth();
-  const { unreadCount } = useNotifications();
-  const router = useRouter();
-  
-  return (
-    <View style={[headerStyles.container, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-      <View style={headerStyles.userInfo}>
-        <Image source={{ uri: user?.avatarUrl || '' }} style={headerStyles.avatar} />
-        <View>
-          <Text style={[headerStyles.greeting, { color: colors.textSecondary }]}>
-            Welcome back,
-          </Text>
-          <Text style={[headerStyles.username, { color: colors.text }]}>{user?.displayName || 'User'}</Text>
-        </View>
-      </View>
-      <View style={headerStyles.rightIcons}>
-        <TouchableOpacity onPress={() => { /* TODO: Navigate to Notifications screen */ }} style={headerStyles.iconButton}>
-          <Bell color={colors.text} size={24} />
-          {unreadCount > 0 && (
-            <View style={[headerStyles.badgeContainer, { backgroundColor: colors.error }]}>
-              <Text style={headerStyles.badgeText}>{unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-        {/* THIS IS THE FIX: This now correctly navigates to your messages screen */}
-        <TouchableOpacity onPress={() => router.push('/(tabs)/ai-assistant')} style={headerStyles.iconButton}>
-          <MessageSquare color={colors.text} size={24} />
-        </TouchableOpacity>
-        {/* THIS IS THE FIX: This now correctly navigates to your profile screen */}
-        <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={headerStyles.iconButton}>
-          <User color={colors.text} size={24} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
+const TabBarIcon: React.FC<TabBarIconProps> = React.memo(
+  ({ Icon, color, size }) => <Icon color={color} size={size} />
+);
 
 export default function TabLayout() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const isProfessional = user?.role === 'Professional Accountant' || user?.role === 'Administrator';
+  const isProfessional =
+    user?.role === 'Professional Accountant' || user?.role === 'Administrator';
 
   return (
     <Tabs
@@ -88,51 +41,69 @@ export default function TabLayout() {
           paddingBottom: Platform.OS === 'ios' ? 0 : 8,
           paddingTop: 8,
         },
-        header: () => <CustomHeader />, // Use the corrected CustomHeader
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color, size }) => <TabBarIcon Icon={LayoutDashboard} color={color} size={size} /> }} />
-      {isProfessional && <Tabs.Screen name="clients" options={{ title: 'Clients', tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Briefcase} color={color} size={size} /> }} />}
-      <Tabs.Screen name="transactions" options={{ title: 'Transactions', tabBarIcon: ({ color, size }) => <TabBarIcon Icon={ArrowRightLeft} color={color} size={size} /> }} />
-      <Tabs.Screen name="camera" options={{ title: 'Camera', tabBarIcon: ({ color, size }) => <TabBarIcon Icon={Camera} color={color} size={size} /> }} />
-      <Tabs.Screen name="documents" options={{ title: 'Documents', headerShown: false, tabBarIcon: ({ color, size }) => <TabBarIcon Icon={FileText} color={color} size={size} /> }} />
-      
-      {/* This screen is now correctly hidden from the tab bar but is used for the Messages icon in the header */}
-      <Tabs.Screen name="ai-assistant" options={{ href: null }} />
-      
-      {/* These screens are correctly hidden from the tab bar */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon Icon={Home} color={color} size={size} />
+          ),
+        }}
+      />
+      {isProfessional && (
+        <Tabs.Screen
+          name="clients"
+          options={{
+            title: 'Clients',
+            tabBarIcon: ({ color, size }) => (
+              <TabBarIcon Icon={Briefcase} color={color} size={size} />
+            ),
+          }}
+        />
+      )}
+      <Tabs.Screen
+        name="transactions"
+        options={{
+          title: 'Transactions',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon Icon={CreditCard} color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="camera"
+        options={{
+          title: 'Camera',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon Icon={Camera} color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="documents"
+        options={{
+          title: 'Documents',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon Icon={FileText} color={color} size={size} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="support"
+        options={{
+          title: 'Support',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon Icon={MessageCircle} color={color} size={size} />
+          ),
+        }}
+      />
+
       <Tabs.Screen name="profile" options={{ href: null }} />
-      <Tabs.Screen name="client" options={{ href: null }}/>
+      <Tabs.Screen name="client" options={{ href: null }} />
+      <Tabs.Screen name="ai-assistant" options={{ href: null }} />
     </Tabs>
   );
 }
-
-const headerStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-  },
-  userInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 40, height: 40, borderRadius: 20 },
-  greeting: { fontSize: 14 },
-  username: { fontSize: 18, fontWeight: 'bold' },
-  rightIcons: { flexDirection: 'row', gap: 8 },
-  iconButton: { padding: 8, borderRadius: 20, position: 'relative' },
-  badgeContainer: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 5,
-  },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
-});

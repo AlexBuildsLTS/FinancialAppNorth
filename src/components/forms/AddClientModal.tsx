@@ -11,7 +11,11 @@ interface AddClientModalProps {
   onSuccess: (newClient: Client) => void;
 }
 
-export default function AddClientModal({ visible, onClose, onSuccess }: AddClientModalProps) {
+export default function AddClientModal({
+  visible,
+  onClose,
+  onSuccess,
+}: AddClientModalProps) {
   const { colors } = useTheme();
   const [name, setName] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -41,7 +45,7 @@ export default function AddClientModal({ visible, onClose, onSuccess }: AddClien
       setIsSubmitting(false);
     }
   };
-  
+
   const resetForm = () => {
     setName('');
     setCompanyName('');
@@ -49,18 +53,77 @@ export default function AddClientModal({ visible, onClose, onSuccess }: AddClien
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Add New Client</Text>
-          
-          <TextInput placeholder="Full Name" value={name} onChangeText={setName} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} placeholderTextColor={colors.textSecondary}/>
-          <TextInput placeholder="Company Name" value={companyName} onChangeText={setCompanyName} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} placeholderTextColor={colors.textSecondary}/>
-          <TextInput placeholder="Email Address" value={email} onChangeText={setEmail} keyboardType="email-address" style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} placeholderTextColor={colors.textSecondary}/>
-          
+        <View
+          style={[styles.modalContent, { backgroundColor: colors.surface }]}
+        >
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
+            Add New Client
+          </Text>
+
+          <TextInput
+            placeholder="Full Name"
+            value={name}
+            onChangeText={setName}
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.background,
+              },
+            ]}
+            placeholderTextColor={colors.textSecondary}
+          />
+          <TextInput
+            placeholder="Company Name"
+            value={companyName}
+            onChangeText={setCompanyName}
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.background,
+              },
+            ]}
+            placeholderTextColor={colors.textSecondary}
+          />
+          <TextInput
+            placeholder="Email Address"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.background,
+              },
+            ]}
+            placeholderTextColor={colors.textSecondary}
+          />
+
           <View style={styles.buttonContainer}>
-            <Button title="Cancel" variant="outline" onPress={onClose} style={{ flex: 1 }} />
-            <Button title="Save Client" onPress={handleSave} style={{ flex: 1 }} isLoading={isSubmitting} />
+            <Button
+              title="Cancel"
+              variant="outline"
+              onPress={onClose}
+              style={{ flex: 1 }}
+            />
+            <Button
+              title="Save Client"
+              onPress={handleSave}
+              style={{ flex: 1 }}
+              isLoading={isSubmitting}
+            />
           </View>
         </View>
       </View>
@@ -69,9 +132,29 @@ export default function AddClientModal({ visible, onClose, onSuccess }: AddClien
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { padding: 24, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
-  input: { height: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, fontSize: 16 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    padding: 24,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  input: {
+    height: 50,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    fontSize: 16,
+  },
   buttonContainer: { flexDirection: 'row', gap: 16, marginTop: 16 },
 });

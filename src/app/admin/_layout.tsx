@@ -21,9 +21,18 @@ const AdminLayout = () => {
   // While checking the user's role, show a loading indicator.
   if (!initialized || user?.role !== 'Administrator') {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.background,
+        }}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.text }}>Verifying access...</Text>
+        <Text style={{ marginTop: 16, color: colors.text }}>
+          Verifying access...
+        </Text>
       </View>
     );
   }

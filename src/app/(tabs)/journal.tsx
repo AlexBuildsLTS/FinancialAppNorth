@@ -10,7 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Plus, BookOpen, CircleCheck as CheckCircle, Clock, CircleAlert as AlertCircle } from 'lucide-react-native';
+import {
+  Plus,
+  BookOpen,
+  CircleCheck as CheckCircle,
+  Clock,
+  CircleAlert as AlertCircle,
+} from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
 import { getJournalEntries } from '@/services/accountingService';
@@ -60,27 +66,44 @@ export default function JournalScreen() {
     }
   };
 
-  const renderJournalEntry = ({ item, index }: { item: JournalEntry; index: number }) => (
+  const renderJournalEntry = ({
+    item,
+    index,
+  }: {
+    item: JournalEntry;
+    index: number;
+  }) => (
     <Animated.View entering={FadeInUp.delay(index * 100).springify()}>
       <Card style={styles.entryCard}>
         <View style={styles.entryHeader}>
           <View style={styles.entryInfo}>
             <Text style={styles.entryReference}>{item.reference}</Text>
-            <Text style={styles.entryDate}>{new Date(item.date).toLocaleDateString()}</Text>
+            <Text style={styles.entryDate}>
+              {new Date(item.date).toLocaleDateString()}
+            </Text>
           </View>
           <View style={styles.statusContainer}>
             {getStatusIcon(item.status)}
-            <Text style={[styles.statusText, { 
-              color: item.status === 'posted' ? colors.success : 
-                     item.status === 'draft' ? colors.warning : colors.error 
-            }]}>
+            <Text
+              style={[
+                styles.statusText,
+                {
+                  color:
+                    item.status === 'posted'
+                      ? colors.success
+                      : item.status === 'draft'
+                      ? colors.warning
+                      : colors.error,
+                },
+              ]}
+            >
               {item.status.toUpperCase()}
             </Text>
           </View>
         </View>
-        
+
         <Text style={styles.entryDescription}>{item.description}</Text>
-        
+
         <View style={styles.entryAmounts}>
           <View style={styles.amountColumn}>
             <Text style={styles.amountLabel}>Total Debit</Text>
@@ -95,17 +118,23 @@ export default function JournalScreen() {
             </Text>
           </View>
         </View>
-        
+
         <View style={styles.entryLines}>
           {item.entries.slice(0, 2).map((line) => (
             <View key={line.id} style={styles.entryLine}>
-              <Text style={styles.accountName}>{line.accountCode} - {line.accountName}</Text>
+              <Text style={styles.accountName}>
+                {line.accountCode} - {line.accountName}
+              </Text>
               <View style={styles.lineAmounts}>
                 <Text style={styles.lineAmount}>
-                  {line.debitAmount > 0 ? `$${line.debitAmount.toLocaleString()}` : '—'}
+                  {line.debitAmount > 0
+                    ? `$${line.debitAmount.toLocaleString()}`
+                    : '—'}
                 </Text>
                 <Text style={styles.lineAmount}>
-                  {line.creditAmount > 0 ? `$${line.creditAmount.toLocaleString()}` : '—'}
+                  {line.creditAmount > 0
+                    ? `$${line.creditAmount.toLocaleString()}`
+                    : '—'}
                 </Text>
               </View>
             </View>
@@ -134,13 +163,13 @@ export default function JournalScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      
+
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <BookOpen size={28} color={colors.primary} />
           <Text style={styles.headerTitle}>General Journal</Text>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowModal(true)}
         >
@@ -148,7 +177,10 @@ export default function JournalScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.content}>
           <FlatList
             data={journalEntries}
@@ -160,7 +192,8 @@ export default function JournalScreen() {
                 <BookOpen size={48} color={colors.textSecondary} />
                 <Text style={styles.emptyTitle}>No Journal Entries</Text>
                 <Text style={styles.emptyDescription}>
-                  Start by creating your first journal entry to record transactions.
+                  Start by creating your first journal entry to record
+                  transactions.
                 </Text>
               </Card>
             }
