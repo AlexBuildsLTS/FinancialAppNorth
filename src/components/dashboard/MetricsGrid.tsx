@@ -1,73 +1,82 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import Card from '@/components/common/Card';
+import { useAuth } from '@/context/AuthContext';
+import { getDashboardMetrics, DashboardMetrics } from '@/services/analyticsService';
+import { Card } from '@/components/common';
 
-// Dummy data for display purposes
-const metrics = [
-  { title: 'Total Revenue', value: '$45,231.89', change: '+20.1%', Icon: DollarSign, changeType: 'positive' },
-  { title: 'Net Profit', value: '$12,890.50', change: '+15.2%', Icon: ArrowUpRight, changeType: 'positive' },
-  { title: 'Expenses', value: '$8,420.00', change: '+5.4%', Icon: ArrowDownRight, changeType: 'negative' },
-  { title: 'Cash Balance', value: '$50,123.45', change: '-2.1%', Icon: Wallet, changeType: 'negative' },
-];
+interface DashboardMetricItem {
+  title: string;
+  value: string;
+  change: number;
+  Icon: any;
+  changeType: 'positive' | 'negative';
+}
 
-const MetricCard = ({ metric }: any) => {
+const MetricCard = ({ title, value, change, Icon, changeType }: DashboardMetricItem) => {
     const { colors } = useTheme();
-    const isPositive = metric.changeType === 'positive';
+    const isPositive = changeType === 'positive';
     const changeColor = isPositive ? colors.success : colors.error;
 
     return (
-        <Card style={styles.metricCard}>
+        <Card style={styles.metricCard} padding={16}>
             <View style={styles.cardHeader}>
-                <Text style={[styles.metricTitle, { color: colors.textSecondary }]}>{metric.title}</Text>
-                <metric.Icon color={colors.textSecondary} size={20} />
+                <Text style={[styles.metricTitle, { color: colors.textSecondary }]}>{title}</Text>
+                <Icon color={colors.textSecondary} size={20} />
             </View>
-            <Text style={[styles.metricValue, { color: colors.text }]}>{metric.value}</Text>
-            <Text style={[styles.metricChange, { color: changeColor }]}>{metric.change} from last month</Text>
+            <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
+            <Text style={[styles.metricChange, { color: changeColor }]}>{change.toFixed(1)}% from last month</Text>
         </Card>
     );
 }
 
-export default function MetricsGrid() {
+export default function MetricsGrid({ userId }: { userId?: string }) {
+  const { user } = useAuth();
+  const { colors } = useTheme();
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const targetUserId = userId || user?.id;
+    if (targetUserId) {
+      setLoading(true);
+      getDashboardMetrics(targetUserId)
+        .then(setMetrics)
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
+  }, [user, userId]);
+
+  if (loading) {
+    return <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 40, height: 180 }}/>;
+  }
+
+  if (!metrics) {
+    return <View style={{height: 180, justifyContent: 'center'}}><Text style={{color: colors.textSecondary, textAlign: 'center'}}>Could not load metrics.</Text></View>;
+  }
+
+  const metricData: DashboardMetricItem[] = [
+    { title: 'Total Revenue', value: `$${metrics.totalRevenue.toLocaleString('en-US')}`, change: metrics.revenueChange, Icon: DollarSign, changeType: metrics.revenueChange >= 0 ? 'positive' : 'negative' },
+    { title: 'Net Profit', value: `$${metrics.netProfit.toLocaleString('en-US')}`, change: metrics.profitChange, Icon: ArrowUpRight, changeType: metrics.profitChange >= 0 ? 'positive' : 'negative' },
+    { title: 'Expenses', value: `$${metrics.expenses.toLocaleString('en-US')}`, change: -5.4, Icon: ArrowDownRight, changeType: 'negative' },
+    { title: 'Cash Balance', value: `$${metrics.cashBalance.toLocaleString('en-US')}`, change: 2.1, Icon: Wallet, changeType: 'positive' },
+  ];
+
   return (
     <View style={styles.container}>
-      {metrics.map((metric) => (
-        <MetricCard key={metric.title} metric={metric} />
+      {metricData.map((metric) => (
+        <MetricCard key={metric.title} {...metric} />
       ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginTop: 16,
-  },
-  metricCard: {
-    width: '48%',
-    marginBottom: 16,
-    padding: 20,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  metricTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  metricValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  metricChange: {
-    fontSize: 12,
-  },
+  container: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 16 },
+  metricCard: { width: '48%', marginBottom: 16 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  metricTitle: { fontSize: 14, fontWeight: '500', fontFamily: 'Inter-SemiBold' },
+  metricValue: { fontSize: 22, fontWeight: 'bold', fontFamily: 'Inter-Bold', marginBottom: 8 },
+  metricChange: { fontSize: 12, fontFamily: 'Inter-Regular' },
 });

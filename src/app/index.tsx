@@ -1,47 +1,57 @@
 import React from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View, Text } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
-import { useAuth } from '@/context/AuthContext';
+import ScreenContainer from '@/components/ScreenContainer';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import MetricsGrid from '@/components/dashboard/MetricsGrid';
-import { ChartSection } from '@/components/dashboard/ChartSection';
+import ChartSection from '@/components/dashboard/ChartSection';
 import QuickActions from '@/components/dashboard/QuickActions';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
-import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 
 export default function DashboardScreen() {
-  const { colors } = useTheme();
-  const { user } = useAuth();
-  const router = useRouter();
+    const router = useRouter();
+    const { user } = useAuth();
+    const { colors } = useTheme();
+    
+    const welcomeMessage = user?.display_name ? `Welcome back, ${user.display_name}!` : "Welcome back!";
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={styles.container}
-    >
-      <DashboardHeader
-        userName={user?.display_name || 'User'}
-        avatarUrl={user?.avatar_url || ''}
-        onPressProfile={() => router.push('/(tabs)/profile')}
-        onPressSettings={() => { } } onPressMessages={function (): void {
-          throw new Error('Function not implemented.');
-        } }      />
+    return (
+        <ScreenContainer>
+            <DashboardHeader
+                userName={user?.display_name || 'User'}
+                onPressProfile={() => router.push('/(tabs)/profile')}
+                onPressSettings={() => router.push('/(tabs)/settings')}
+                onPressMessages={() => router.push('/chat/1')}
+            />
+            <ScrollView contentContainerStyle={styles.container}>
+                {/* We will uncomment these one by one */}
+                
+                {/* <MetricsGrid /> */}
+                {/* <ChartSection /> */}
+                
+                {/* <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text> */}
+                {/* <QuickActions /> */}
 
-      <MetricsGrid />
-      <ChartSection />
-      <QuickActions
-        onAddTransaction={() => {
-          // We will implement this next
-          console.log('Add transaction pressed');
-        }}
-      />
-      <RecentTransactions />
-    </ScrollView>
-  );
+                {/* <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text> */}
+                {/* <RecentTransactions /> */}
+                
+                <View style={{ height: 40 }} />
+            </ScrollView>
+        </ScreenContainer>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-  },
+    container: {
+        paddingBottom: 16,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        marginTop: 24,
+        marginBottom: 8,
+        marginHorizontal: 16,
+    },
 });

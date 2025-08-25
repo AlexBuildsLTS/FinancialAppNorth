@@ -1,164 +1,108 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useTheme } from '@/context/ThemeProvider'; // Keep this as default export
-import { useAuth } from '@/context/AuthContext';
-import ScreenContainer from '@/components/ScreenContainer';
-import { Search, UserPlus, ChevronRight } from 'lucide-react-native';
+import { PlusCircle, User, ChevronRight } from 'lucide-react-native';
+import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext'; // Keep this line
 import { getAssignedClients } from '@/services/cpaService';
-import { Client } from '@/types'; // Assuming Client is added to types
+import { Profile } from '@/types';
+import ScreenContainer from '@/components/ScreenContainer';
+import Card from '@/components/common/Card';
+import AddClientModal from '@/components/forms/AddClientModal';
+
+const ClientListItem = ({ client, onPress }: { client: Profile, onPress: () => void }) => {
+    const { colors } = useTheme();
+    return (
+        <TouchableOpacity onPress={onPress}>
+            <Card style={styles.clientCard}>
+                <View style={styles.clientInfo}>
+                    <User color={colors.primary} size={24} />
+                    <Text style={[styles.clientName, { color: colors.text }]}>{client.display_name}</Text>
+                </View>
+                <ChevronRight color={colors.textSecondary} size={24} />
+            </Card>
+        </TouchableOpacity>
+    );
+};
 
 export default function ClientsScreen() {
-  const { colors } = useTheme();
-  const { user } = useAuth();
-  const router = useRouter();
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+    const { colors } = useTheme();
+    const { user } = useAuth();
+    const router = useRouter();
+    
+    const [clients, setClients] = useState<Profile[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const fetchClients = useCallback(async () => {
-    if (!user) return;
-    try {
-      setLoading(true); // Ensure loading is true before fetch
-      const data: Client[] = await getAssignedClients(user.id);
-      setClients(data);
-    } catch (error) {
-      console.error(error);
-      // Handle error display
-    } finally {
-      setLoading(false);
+    const fetchClients = useCallback(async () => {
+        if (user?.id) {
+            try {
+                setLoading(true);
+                const clientData = await getAssignedClients(user.id);
+                const profileData: Profile[] = clientData.map(client => ({
+                    id: client.id,
+                    display_name: client.name,
+                    avatar_url: client.avatarUrl,
+                    email: client.email,
+                    role: 'Customer',
+                }));
+                setClients(profileData);
+            } catch (error) {
+                console.error("Failed to fetch clients", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+    }, [user]);
+
+    useFocusEffect(useCallback(() => { fetchClients(); }, [fetchClients]));
+
+    if (loading) {
+        return <ScreenContainer style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></ScreenContainer>;
     }
-  }, [user]);
 
-  useFocusEffect(
-    useCallback(() => { fetchClients(); }, [fetchClients])
-  );
-
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const renderClientItem = ({ item }: { item: Client }) => (
-    <TouchableOpacity 
-      style={[styles.clientRow, { backgroundColor: colors.surface }]}
-      onPress={() => router.push(`/client-dashboard/${item.id}`)}
-    >
-      <Image source={{ uri: item.avatarUrl || `https://i.pravatar.cc/150?u=${item.id}` }} style={styles.avatar} />
-      <View style={styles.clientInfo}>
-        <Text style={[styles.clientName, { color: colors.text }]}>{item.name}</Text>
-        <Text style={[styles.clientEmail, { color: colors.textSecondary }]}>{item.email}</Text>
-      </View>
-      <ChevronRight color={colors.textSecondary} size={24} />
-    </TouchableOpacity>
-  );
-
-  return (
-    <ScreenContainer>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>My Clients</Text>
-        <TouchableOpacity style={styles.addButton}>
-          <UserPlus color={colors.primary} size={28} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.searchContainer}>
-        <Search color={colors.textSecondary} size={20} style={styles.searchIcon} />
-        <TextInput
-          style={[styles.searchInput, { backgroundColor: colors.surface, color: colors.text }]}
-          placeholder="Search clients..."
-          placeholderTextColor={colors.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {loading ? (
-        <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
-      ) : (
-        <FlatList
-          data={filteredClients}
-          renderItem={renderClientItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                    You have no clients assigned.
-                </Text>
+    return (
+        <ScreenContainer>
+            <View style={styles.header}>
+                <Text style={[styles.title, { color: colors.text }]}>My Clients</Text>
+                <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]} onPress={() => setIsModalVisible(true)}>
+                    <PlusCircle color={colors.primaryContrast} size={20} />
+                    <Text style={[styles.addButtonText, { color: colors.primaryContrast }]}>Add Client</Text>
+                </TouchableOpacity>
             </View>
-          }
-        />
-      )}
-    </ScreenContainer>
-  );
+            <FlatList
+                data={clients}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                    <ClientListItem 
+                        client={item} 
+                        onPress={() => router.push(`/client/${item.id}`)}
+                    />
+                )}
+                contentContainerStyle={styles.listContainer}
+                ListEmptyComponent={
+                    <View style={styles.centered}>
+                        <Text style={{color: colors.textSecondary}}>You have no clients assigned.</Text>
+                    </View>
+                }
+            />
+            <AddClientModal 
+                visible={isModalVisible} 
+                onClose={() => setIsModalVisible(false)}
+                onClientAdded={fetchClients} 
+            />
+        </ScreenContainer>
+    );
 }
 
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingTop: 20,
-    },
-    title: {
-        fontSize: 32,
-        fontWeight: 'bold',
-    },
-    addButton: {
-        padding: 8,
-    },
-    searchContainer: {
-        padding: 16,
-    },
-    searchIcon: {
-        position: 'absolute',
-        top: 32,
-        left: 32,
-        zIndex: 1,
-    },
-    searchInput: {
-        height: 50,
-        borderRadius: 25,
-        paddingLeft: 45,
-        paddingRight: 20,
-        fontSize: 16,
-    },
-    listContainer: {
-        paddingHorizontal: 16,
-    },
-    clientRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 12,
-    },
-    avatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        marginRight: 16,
-    },
-    clientInfo: {
-        flex: 1,
-    },
-    clientName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    clientEmail: {
-        fontSize: 14,
-        marginTop: 4,
-    },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 100,
-    },
-    emptyText: {
-        fontSize: 16,
-    },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 24 },
+    title: { fontSize: 32, fontWeight: 'bold' },
+    addButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 30, gap: 8 },
+    addButtonText: { fontSize: 16, fontWeight: 'bold' },
+    listContainer: { paddingHorizontal: 16 },
+    clientCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    clientInfo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    clientName: { fontSize: 18, fontWeight: '600' },
 });

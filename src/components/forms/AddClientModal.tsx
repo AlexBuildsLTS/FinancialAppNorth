@@ -1,61 +1,77 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert } from 'react-native';
+import Modal from '@/components/common/Modal';
+import Button from '@/components/common/Button';
 import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
 import { requestClientAccess } from '@/services/cpaService';
-import Modal from '@/components/common/Modal';
-import Button from '@/components/common/Button';
 
 interface AddClientModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onClientAdded: () => void;
 }
 
-export default function AddClientModal({ visible, onClose, onSuccess }: AddClientModalProps) {
-  const { colors } = useTheme();
-  const { showToast } = useToast();
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+export default function AddClientModal({ visible, onClose, onClientAdded }: AddClientModalProps) {
+    const { colors } = useTheme();
+    const { showToast } = useToast();
+    const [clientEmail, setClientEmail] = useState('');
+    const [loading, setLoading] = useState(false);
 
-  const handleSendRequest = async () => {
-    if (!email.includes('@')) {
-        return Alert.alert('Invalid Email', 'Please enter a valid client email address.');
-    }
-    setLoading(true);
-    try {
-        await requestClientAccess(email);
-        showToast('Access request sent!', 'success');
-        onSuccess();
-        onClose();
-        setEmail('');
-    } catch (error: any) {
-        showToast(error.message || 'Failed to send request.', 'error');
-    } finally {
-        setLoading(false);
-    }
-  };
+    const handleAddClient = async () => {
+        if (!clientEmail) {
+            Alert.alert('Error', 'Please enter a client email address.');
+            return;
+        }
+        setLoading(true);
+        try {
+            // This service function would send a request for client access to the specified email
+            await requestClientAccess(clientEmail); 
+            showToast('Client successfully assigned!', 'success');
+            onClientAdded(); // Refresh the client list
+            onClose(); // Close the modal
+        } catch (error: any) {
+            showToast(error.message || 'Failed to add client.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <Modal visible={visible} onClose={onClose} title="Request Client Access">
-      <View>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Client Email Address</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
-          placeholder="Enter the client's email"
-          placeholderTextColor={colors.textSecondary}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <Button title="Send Request" onPress={handleSendRequest} isLoading={loading} style={{ marginTop: 16 }} />
-      </View>
-    </Modal>
-  );
+    return (
+        <Modal visible={visible} onClose={onClose} title="Assign New Client">
+            <View>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Client's Email Address</Text>
+                <TextInput
+                    style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                    placeholder="client@example.com"
+                    placeholderTextColor={colors.textSecondary}
+                    value={clientEmail}
+                    onChangeText={setClientEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                />
+                <Button
+                    title="Assign Client"
+                    onPress={handleAddClient}
+                    isLoading={loading}
+                    style={{ marginTop: 16 }}
+                />
+            </View>
+        </Modal>
+    );
 }
 
 const styles = StyleSheet.create({
-  label: { fontSize: 14, fontWeight: '500', marginBottom: 8 },
-  input: { height: 50, borderRadius: 12, paddingHorizontal: 16, fontSize: 16, borderWidth: 1, marginBottom: 16 },
+    label: {
+        fontSize: 14,
+        fontWeight: '500',
+        marginBottom: 8,
+    },
+    input: {
+        height: 50,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        fontSize: 16,
+        borderWidth: 1,
+    },
 });

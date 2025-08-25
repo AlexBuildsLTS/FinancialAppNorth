@@ -1,30 +1,49 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
-import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { useColorScheme } from 'react-native';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeProvider';
 import { ToastProvider } from '@/context/ToastProvider';
-import { ActivityIndicator, View } from 'react-native';
+import { SplashScreen } from 'expo-router';
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const colorScheme = useColorScheme();
+  
+  // Load the custom fonts. The app will not render until this is complete.
+  const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': Inter_400Regular,
     'Inter-SemiBold': Inter_600SemiBold,
     'Inter-Bold': Inter_700Bold,
   });
 
-  if (!fontsLoaded) {
-    return <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}><ActivityIndicator /></View>;
+  useEffect(() => {
+    // Hide the splash screen once fonts are loaded or if there's an error.
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  // Do not render anything until the fonts are loaded. This prevents the crash.
+  if (!fontsLoaded && !fontError) {
+    return null;
   }
 
   return (
     <AuthProvider>
       <ThemeProvider>
         <ToastProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="admin" options={{ presentation: 'modal' }} />
-            <Stack.Screen name="chat" options={{ presentation: 'modal' }} />
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="+not-found" />
           </Stack>
         </ToastProvider>

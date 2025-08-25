@@ -1,47 +1,66 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ArrowUpRight, ArrowDownLeft, Plus, Send } from 'lucide-react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
-import Card from '@/components/common/Card';
+import { Plus, ArrowRightLeft, Upload, FilePieChart } from 'lucide-react-native';
 
-interface QuickActionsProps {
-  onAddTransaction: () => void;
+const actions = [
+  { text: 'Add Entry', icon: Plus, color: '#3B82F6' },
+  { text: 'Transfer', icon: ArrowRightLeft, color: '#10B981' },
+  { text: 'Add Bill', icon: Upload, color: '#F97316' },
+  { text: 'Reports', icon: FilePieChart, color: '#8B5CF6' },
+];
+
+const ActionButton = ({ action }: { action: typeof actions[0] }) => {
+    const { colors } = useTheme();
+
+    return (
+        <View style={styles.actionContainer}>
+            <TouchableOpacity style={[styles.iconButton, { backgroundColor: action.color }]}>
+                <action.icon color="#FFFFFF" size={24} />
+            </TouchableOpacity>
+            <Text style={[styles.actionText, { color: colors.textSecondary }]}>{action.text}</Text>
+        </View>
+    );
 }
 
-export default function QuickActions({ onAddTransaction }: QuickActionsProps) {
-  const { colors } = useTheme();
-
-  const actions = [
-    { label: 'Income', icon: ArrowUpRight, color: colors.success, onPress: onAddTransaction },
-    { label: 'Expense', icon: ArrowDownLeft, color: colors.error, onPress: onAddTransaction },
-    { label: 'Transfer', icon: Send, color: colors.primary, onPress: () => {} },
-    { label: 'Add New', icon: Plus, color: colors.textSecondary, onPress: onAddTransaction },
-  ];
-
+export default function QuickActions() {
   return (
-    <Animated.View entering={FadeInUp.duration(500).delay(400)}>
-      <Card>
-        <Text style={[styles.title, { color: colors.text }]}>Quick Actions</Text>
-        <View style={styles.actionsContainer}>
-          {actions.map((action, index) => (
-            <TouchableOpacity key={index} style={styles.actionButton} onPress={action.onPress}>
-              <View style={[styles.iconContainer, { backgroundColor: action.color }]}>
-                <action.icon color="#FFFFFF" size={24} />
-              </View>
-              <Text style={[styles.actionLabel, { color: colors.textSecondary }]}>{action.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </Card>
-    </Animated.View>
+    <View style={styles.container}>
+      {actions.map((action) => (
+        <ActionButton key={action.text} action={action} />
+      ))}
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
-  actionsContainer: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
-  actionButton: { alignItems: 'center', gap: 8 },
-  iconContainer: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
-  actionLabel: { fontSize: 12, fontWeight: '500' },
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 16,
+  },
+  actionContainer: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // Adding a subtle shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
 });

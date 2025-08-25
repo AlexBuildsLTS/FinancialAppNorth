@@ -1,78 +1,82 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { ArrowUpRight, ArrowDownLeft, ChevronRight } from 'lucide-react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { useTransactions } from '@/hooks/useTransactions'; // Live data hook
+import { useTransactions } from '@/hooks/useTransactions'; // Assuming you have this hook
+import { ArrowUpCircle, ArrowDownCircle } from 'lucide-react-native';
 import Card from '@/components/common/Card';
-import { Transaction } from '@/types'; // Import Transaction
 
-interface RecentTransactionsProps {
-  transactions?: Transaction[]; // Make it optional
-}
-
-export default function RecentTransactions({ transactions: propTransactions }: RecentTransactionsProps) { // Accept propTransactions
+export default function RecentTransactions() {
   const { colors } = useTheme();
-  const { transactions, isLoading } = useTransactions(); // --- LIVE DATA ---
+  const { transactions } = useTransactions();
+  
+  // Get the 5 most recent transactions
+  const recent = transactions.slice(0, 5);
 
-  const displayTransactions = propTransactions ? propTransactions : transactions.slice(0, 5); // Use propTransactions if available
+  const renderItem = ({ item }: any) => {
+    const isIncome = item.type === 'income';
+    const Icon = isIncome ? ArrowUpCircle : ArrowDownCircle;
+    const amountColor = isIncome ? colors.success : colors.text;
 
-  if (isLoading && !propTransactions) { // Only show loading if not using propTransactions
-    return <Card><ActivityIndicator color={colors.primary} size="large" /></Card>;
-  }
+    return (
+      <View style={[styles.itemContainer, { borderBottomColor: colors.border }]}>
+        <View style={styles.leftContent}>
+            <Icon color={isIncome ? colors.success : colors.error} size={32} />
+            <View>
+                <Text style={[styles.description, { color: colors.text }]}>{item.description}</Text>
+                <Text style={[styles.category, { color: colors.textSecondary }]}>{item.category}</Text>
+            </View>
+        </View>
+        <Text style={[styles.amount, { color: amountColor }]}>
+          {isIncome ? '+' : '-'}${Math.abs(item.amount).toFixed(2)}
+        </Text>
+      </View>
+    );
+  };
 
   return (
-    <Animated.View entering={FadeInUp.duration(500).delay(600)}>
-      <Card>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Recent Transactions</Text>
-          <TouchableOpacity><Text style={[styles.viewAll, { color: colors.primary }]}>View All</Text></TouchableOpacity>
-        </View>
-
-        {displayTransactions.length === 0 ? (
-          <View style={styles.emptyContainer}><Text style={[styles.emptyText, { color: colors.textSecondary }]}>No transactions yet.</Text></View>
-        ) : (
-          <View>
-            {displayTransactions.map((transaction: Transaction) => {
-              const isIncome = transaction.type === 'income';
-              const Icon = isIncome ? ArrowUpRight : ArrowDownLeft;
-              const amountColor = isIncome ? colors.success : colors.text;
-              return (
-                <TouchableOpacity key={transaction.id} style={[styles.transactionItem, { borderBottomColor: colors.border }]}>
-                  <View style={[styles.iconContainer, { backgroundColor: isIncome ? `${colors.success}20` : `${colors.error}20` }]}>
-                    <Icon color={isIncome ? colors.success : colors.error} size={20} />
-                  </View>
-                  <View style={styles.transactionInfo}>
-                    <Text style={[styles.transactionTitle, { color: colors.text }]}>{transaction.title}</Text>
-                    <Text style={[styles.transactionCategory, { color: colors.textSecondary }]}>{transaction.category}</Text>
-                  </View>
-                  <View style={styles.transactionRight}>
-                    <Text style={[styles.transactionAmount, { color: amountColor }]}>
-                      {isIncome ? '+' : '-'}${Math.abs(transaction.amount).toLocaleString()}
-                    </Text>
-                    <ChevronRight color={colors.textSecondary} size={16} />
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-      </Card>
-    </Animated.View>
+    <Card style={styles.container}>
+      {recent.length > 0 ? (
+        <FlatList
+            data={recent}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            scrollEnabled={false} // The parent ScrollView handles scrolling
+        />
+      ) : (
+        <Text style={{color: colors.textSecondary, textAlign: 'center', padding: 20}}>No recent transactions.</Text>
+      )}
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  title: { fontSize: 18, fontWeight: 'bold' },
-  viewAll: { fontSize: 14, fontWeight: '600' },
-  emptyContainer: { paddingVertical: 40, alignItems: 'center' },
-  emptyText: { fontSize: 14, textAlign: 'center' },
-  transactionItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
-  iconContainer: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  transactionInfo: { flex: 1 },
-  transactionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 2 },
-  transactionCategory: { fontSize: 12 },
-  transactionRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  transactionAmount: { fontSize: 16, fontWeight: '700' },
+  container: {
+    marginHorizontal: 16,
+    padding: 0, // Padding will be handled by list items
+  },
+  itemContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+  },
+  leftContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  description: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  category: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  amount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });

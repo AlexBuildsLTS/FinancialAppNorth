@@ -1,97 +1,84 @@
 import React from 'react';
-import { Tabs, Redirect } from 'expo-router';
-import { ActivityIndicator, View, Platform, useWindowDimensions } from 'react-native';
-import { 
-    House, Briefcase, CreditCard, Camera, Folder, Settings, Bot
-} from 'lucide-react-native';
-import { useAuth } from '@/context/AuthContext';
+import { Tabs } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
+import { Home, Briefcase, Receipt, Camera, FileText, MessageCircle } from 'lucide-react-native';
+import { Platform, View } from 'react-native';
 
-export default function TabLayout() {
-  const { colors } = useTheme();
-  const { user, initialized } = useAuth();
-  const { width } = useWindowDimensions();
-  
-  if (!initialized) {
+const TabIcon = ({ icon: Icon, color, focused }: { icon: any, color: string, focused: boolean }) => {
+    // A subtle visual difference for the focused tab
     return (
-        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background}}>
-            <ActivityIndicator size="large" color={colors.primary} />
+        <View style={{ 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            borderTopColor: focused ? color : 'transparent',
+            borderTopWidth: 2,
+            paddingTop: 4,
+            width: '100%',
+        }}>
+            <Icon color={color} size={24} strokeWidth={focused ? 2.5 : 2} />
         </View>
     );
-  }
+}
 
-  if (!user) {
-    return <Redirect href="/(auth)/login" />;
-  }
-  
-  const isProfessional = user?.role === 'Professional (CPA)' || user?.role === 'Administrator';
-  const isAdmin = user?.role === 'Administrator';
-
-  // --- RESPONSIVE LOGIC IMPLEMENTED ---
-  // Labels are shown only on web and when the screen is wider than 768px.
-  // On mobile (Android/iOS) or small web windows, only icons are shown.
-  const showLabels = Platform.OS === 'web' && width > 768;
-
-  type TabHref = React.ComponentProps<typeof Redirect>['href'];
-
-  interface TabConfig {
-    name: string;
-    title: string;
-    icon: any; // You might want to refine this type if possible
-    condition?: boolean;
-    href?: TabHref;
-  }
-
-  const tabs: TabConfig[] = [
-    { name: 'index', title: 'Home', icon: House }, // All users
-    { name: 'clients', title: 'Clients', icon: Briefcase, condition: isProfessional }, // CPA, Administrator only
-    { name: 'transactions', title: 'Transactions', icon: CreditCard }, // All users
-    { name: 'camera', title: 'Camera', icon: Camera }, // All users
-    { name: 'documents', title: 'Documents', icon: Folder }, // All users
-    { name: 'ai-assistant', title: 'AI Assistant', icon: Bot }, // All users (Robot icon for AI + document scanning)
-  ];
+export default function TabLayout() {
+  const { colors, isDark } = useTheme();
+  const { user } = useAuth();
+  const isProfessional = user?.role === 'Professional Accountant' || user?.role === 'Administrator';
 
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: { 
-            backgroundColor: colors.surface, 
-            borderTopColor: colors.border,
-            height: 60,
-            paddingBottom: 5,
-            paddingTop: 5,
+        tabBarShowLabel: false, // Hiding labels for a cleaner, icon-only look
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: Platform.OS === 'ios' ? 30 : 20,
+          left: 20,
+          right: 20,
+          elevation: 0, // Remove default Android shadow
+          backgroundColor: colors.surface,
+          borderRadius: 20,
+          height: 65,
+          borderTopWidth: 0,
+          // Custom shadow for a floating effect
+          shadowColor: isDark ? '#000' : '#4E5C79',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.2,
+          shadowRadius: 20,
         },
-        headerShown: false,
-        tabBarShowLabel: showLabels, // <-- THE RESPONSIVE LOGIC IS APPLIED HERE
-      }}>
-      {tabs.map(tab => {
-        if (tab.condition === false) return null;
-        return (
-          <Tabs.Screen 
-            key={tab.name}
-            name={tab.name} 
-            options={{ 
-              title: tab.title, 
-              ...(tab.href ? { href: tab.href } : {}),
-              tabBarIcon: ({ color, size }) => <tab.icon color={color} size={24} /> 
-            }} 
-          />
-        );
-      })}
-
-      {/* HIDDEN ROUTES */}
-      <Tabs.Screen name="profile" options={{ href: null }} />
-      <Tabs.Screen name="settings" options={{ href: null }} />
-      <Tabs.Screen name="journal" options={{ href: null }} />
-      <Tabs.Screen name="reports" options={{ href: null }} />
-      <Tabs.Screen name="support" options={{ href: null }} />
-      <Tabs.Screen name="client" options={{ href: null }} />
-      <Tabs.Screen name="accounts" options={{ href: null }} />
-      <Tabs.Screen name="analytics" options={{ href: null }} />
-      <Tabs.Screen name="budgets" options={{ href: null }} />
-      <Tabs.Screen name="admin" options={{ href: null }} />
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{ title: 'Dashboard', tabBarIcon: ({ color, focused }) => <TabIcon icon={Home} color={color} focused={focused} /> }}
+      />
+      <Tabs.Screen
+        name="clients"
+        options={{ 
+          title: 'Clients', 
+          tabBarIcon: ({ color, focused }) => <TabIcon icon={Briefcase} color={color} focused={focused} />,
+          href: isProfessional ? '/clients' : null, // This hides the tab for non-professional users
+        }}
+      />
+      <Tabs.Screen
+        name="transactions"
+        options={{ title: 'Transactions', tabBarIcon: ({ color, focused }) => <TabIcon icon={Receipt} color={color} focused={focused} /> }}
+      />
+      <Tabs.Screen
+        name="camera"
+        options={{ title: 'Scan', tabBarIcon: ({ color, focused }) => <TabIcon icon={Camera} color={color} focused={focused} /> }}
+      />
+      <Tabs.Screen
+        name="documents"
+        options={{ title: 'Documents', tabBarIcon: ({ color, focused }) => <TabIcon icon={FileText} color={color} focused={focused} /> }}
+      />
+       <Tabs.Screen
+        name="support"
+        options={{ title: 'Support', tabBarIcon: ({ color, focused }) => <TabIcon icon={MessageCircle} color={color} focused={focused} /> }}
+      />
     </Tabs>
   );
 }

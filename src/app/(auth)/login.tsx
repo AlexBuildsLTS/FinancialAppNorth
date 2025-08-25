@@ -1,165 +1,105 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
-import { CheckCircle2, Circle } from 'lucide-react-native';
-
+import { Eye, EyeOff, Sun, Moon, LogIn } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
-import Button from '@/components/common/Button';
 import ScreenContainer from '@/components/ScreenContainer';
-
-// Secure storage keys
-const REMEMBER_ME_KEY = 'remember_me';
-const EMAIL_KEY = 'stored_email';
-const PASSWORD_KEY = 'stored_password';
+import { Button, Card } from '@/components/common';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [initialCheckComplete, setInitialCheckComplete] = useState(false);
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [showPassword, setShowPassword] = React.useState(false);
+    const { signInWithEmail } = useAuth();
+    const { showToast } = useToast();
+    const router = useRouter();
+    const [loading, setLoading] = React.useState(false);
+    const { isDark, setColorScheme, colors } = useTheme();
 
-  const router = useRouter();
-  const { signInWithEmail } = useAuth();
-  const { colors } = useTheme();
-  const { showToast } = useToast();
-
-  // Check for stored credentials on component mount
-  useEffect(() => {
-    checkStoredCredentials();
-  }, []);
-
-  const checkStoredCredentials = async () => {
-    try {
-      const storedRememberMe = await SecureStore.getItemAsync(REMEMBER_ME_KEY);
-      
-      if (storedRememberMe === 'true') {
-        const storedEmail = await SecureStore.getItemAsync(EMAIL_KEY);
-        const storedPassword = await SecureStore.getItemAsync(PASSWORD_KEY);
-        
-        if (storedEmail && storedPassword) {
-          setEmail(storedEmail);
-          setPassword(storedPassword);
-          setRememberMe(true);
+    const handleLogin = async () => {
+        if (!email || !password) {
+            showToast('Please enter both email and password.', 'error');
+            return;
         }
-      }
-    } catch (error) {
-      console.error('Error checking stored credentials', error);
-    } finally {
-      setInitialCheckComplete(true);
-    }
-  };
+        setLoading(true);
+        const { error } = await signInWithEmail(email, password);
+        setLoading(false);
+        if (error) {
+            showToast(error.message, 'error');
+        } else {
+            showToast('Login successful!', 'success');
+        }
+    };
 
-  const storeCredentials = async () => {
-    try {
-      await SecureStore.setItemAsync(REMEMBER_ME_KEY, rememberMe.toString());
-      
-      if (rememberMe) {
-        await SecureStore.setItemAsync(EMAIL_KEY, email);
-        await SecureStore.setItemAsync(PASSWORD_KEY, password);
-      } else {
-        // Clear stored credentials if remember me is turned off
-        await SecureStore.deleteItemAsync(EMAIL_KEY);
-        await SecureStore.deleteItemAsync(PASSWORD_KEY);
-      }
-    } catch (error) {
-      console.error('Error storing credentials', error);
-    }
-  };
+    return (
+        <ScreenContainer style={styles.outerContainer}>
+             <View style={styles.themeToggleContainer}>
+                <Sun color={colors.textSecondary} size={20} />
+                <Switch
+                    value={isDark}
+                    onValueChange={(value) => setColorScheme(value ? 'dark' : 'light')}
+                    trackColor={{ false: '#767577', true: colors.primary }}
+                    thumbColor={'#f4f3f4'}
+                />
+                <Moon color={colors.textSecondary} size={20} />
+            </View>
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      return Alert.alert('Error', 'Please enter both email and password.');
-    }
+            <View style={styles.contentContainer}>
+                <Card padding={32}>
+                    <LogIn color={colors.primary} size={40} style={styles.headerIcon} />
+                    <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
+                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Sign in to continue your work</Text>
 
-    setLoading(true);
-    try {
-      const { error } = await signInWithEmail(email, password);
-      
-      if (error) {
-        showToast(error.message, 'error');
-      } else {
-        // Store credentials based on remember me setting
-        await storeCredentials();
-        
-        // Navigate to main app
-        router.replace('/(tabs)');
-      }
-    } catch (error) {
-      showToast('An unexpected error occurred', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+                    <TextInput
+                        style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                        placeholder="Email"
+                        placeholderTextColor={colors.textSecondary}
+                        value={email}
+                        onChangeText={setEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                    />
 
-  // Don't render until initial check is complete
-  if (!initialCheckComplete) {
-    return null; // Or a loading spinner
-  }
+                    <View style={styles.passwordContainer}>
+                        <TextInput
+                            style={[styles.input, { flex: 1, marginBottom: 0, backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                            placeholder="Password"
+                            placeholderTextColor={colors.textSecondary}
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry={!showPassword}
+                        />
+                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                            {showPassword ? <EyeOff color={colors.textSecondary} size={20} /> : <Eye color={colors.textSecondary} size={20} />}
+                        </TouchableOpacity>
+                    </View>
 
-  return (
-    <ScreenContainer style={styles.container}>
-      <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
-        placeholder="Email"
-        placeholderTextColor={colors.textSecondary}
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
-        placeholder="Password"
-        placeholderTextColor={colors.textSecondary}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <TouchableOpacity 
-        style={styles.checkboxContainer} 
-        onPress={() => setRememberMe(!rememberMe)}
-      >
-        {rememberMe ? (
-          <CheckCircle2 color={colors.primary} size={24} />
-        ) : (
-          <Circle color={colors.textSecondary} size={24} />
-        )}
-        <Text style={[styles.checkboxLabel, { color: colors.text }]}>
-          Remember me
-        </Text>
-      </TouchableOpacity>
-      <Button 
-        title="Login" 
-        onPress={handleLogin} 
-        isLoading={loading} 
-        style={{marginTop: 10}}
-      />
-      <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-        <Text style={[styles.link, { color: colors.primary }]}>
-          Don't have an account? Sign Up
-        </Text>
-      </TouchableOpacity>
-    </ScreenContainer>
-  );
+                    <Button title="Login" onPress={handleLogin} isLoading={loading} style={styles.button} />
+                    
+                    <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+                        <Text style={[styles.link, { color: colors.textSecondary }]}>
+                            Don't have an account? <Text style={[styles.boldLink, { color: colors.primary }]}>Sign Up</Text>
+                        </Text>
+                    </TouchableOpacity>
+                </Card>
+            </View>
+        </ScreenContainer>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 32, fontWeight: 'bold', marginBottom: 32, textAlign: 'center' },
-  input: { height: 50, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, fontSize: 16, borderWidth: 1 },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  checkboxLabel: {
-    marginLeft: 10,
-    fontSize: 16,
-  },
-  link: { marginTop: 24, textAlign: 'center', fontSize: 16, fontWeight: '500' },
+    outerContainer: { justifyContent: 'center', alignItems: 'center' },
+    themeToggleContainer: { position: 'absolute', top: 60, right: 24, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 1 },
+    contentContainer: { width: '100%', maxWidth: 420, padding: 24 },
+    headerIcon: { alignSelf: 'center', marginBottom: 16 },
+    title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
+    subtitle: { fontSize: 16, textAlign: 'center', marginBottom: 32 },
+    input: { height: 50, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, fontSize: 16, borderWidth: 1 },
+    passwordContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+    eyeIcon: { position: 'absolute', right: 15, top: 15 },
+    button: { marginBottom: 24 },
+    link: { textAlign: 'center', fontSize: 14 },
+    boldLink: { fontWeight: 'bold' },
 });
