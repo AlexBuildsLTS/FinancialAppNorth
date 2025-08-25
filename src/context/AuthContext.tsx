@@ -96,17 +96,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signOut = async () => {
-    try {
-      // Your existing logout logic
-      await supabase.auth.signOut();
-      await SecureStore.deleteItemAsync(REMEMBER_ME_KEY);
-      await SecureStore.deleteItemAsync(EMAIL_KEY);
-      await SecureStore.deleteItemAsync(PASSWORD_KEY);
-    } catch (error) {
-      console.error('Logout error', error);
-    }
-  };
+  // In your AuthContext
+const signOut = async () => {
+  try {
+    // Your existing logout logic
+    await SecureStore.deleteItemAsync(REMEMBER_ME_KEY);
+    await SecureStore.deleteItemAsync(EMAIL_KEY);
+    await SecureStore.deleteItemAsync(PASSWORD_KEY);
+  } catch (error) {
+    console.error('Logout error', error);
+  }
+};
 
   const value = { session, user, initialized, signInWithEmail, signUp, signOut };
 

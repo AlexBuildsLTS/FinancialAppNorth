@@ -1,34 +1,72 @@
-# dependencies
-node_modules/
+# =============================================================================
+# GENERAL
+# =============================================================================
 
-# expo
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Windows thumbnail cache
+Thumbs.db
+ehthumbs.db
+
+# =============================================================================
+# PROJECT-SPECIFIC
+# =============================================================================
+
+# Dependencies
+/node_modules
+
+# Build artifacts
+/dist
+/web-build
+/android
+/ios
+
+# Expo
 .expo/
-dist/
-web-build/
 expo-env.d.ts
+.expo-shared/
 
-# native
+# Metro bundler
+.metro-health-check*
+
+# Supabase
+**/.supabase/.temp/
+
+# Native build files and sensitive data
 *.orig.*
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.pem
 
-# metro
-.metro-health-check*
-
-# debug
+# Debug logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macos
-.DS_Store
-*.pem
-
-# local env files
+# Local environment variables
 .env
+.env.*
+!.env.example
 
-# typescript
+# TypeScript
 *.tsbuildinfo
+
+# =============================================================================
+# EDITOR
+# =============================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains
+.idea/
