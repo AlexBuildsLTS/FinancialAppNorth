@@ -1,46 +1,47 @@
-/**
- * A professional color palette based on user specifications.
- * Light Theme: Off-White, Light Blue Primary, Orange Highlight, Black Text
- * Dark Theme: Dark Navy Blue, White Text, Green Accent, Orange Highlight
- */
+// A professional and modern color palette
+
 export const lightColors = {
-  background: '#A5A2A5FF',      // Soft off-white
-  surface: '#FFFFFF',          // Pure white for cards
-  surfaceVariant: '#E9ECEF',   // Light gray for subtle contrast
-  text: '#0B0C0EFF',             // Very dark gray (Black) for primary text
-  textSecondary: '#6C757D',    // Muted gray for secondary text
-  border: '#DEE2E6',           // Light gray for borders
+  // Main Colors
+  background: '#F0F2F5', // Soft, light grey background (not extreme white)
+  surface: '#FFFFFF',    // Pure white for cards to make them pop
   
-  primary: '#BB4711FF',          // Professional light blue
+  // Accent Colors
+  primary: '#BB4711',     // Professional Orange
   primaryContrast: '#FFFFFF',
-  
-  success: '#2ECC71',          // Vibrant green
-  warning: '#F39C12',          // Professional orange
-  error: '#E74C3C',             // Clear red
-  
-  tabBarActive: '#3498DB',
-  tabBarInactive: '#6C757D',
-  purple: '#8A2BE2',            // Blue Violet for Food & Dining
+  secondary: '#007AFF',   // Professional Blue for secondary actions
+
+  // Text Colors
+  text: '#0B0C0E',         // Very dark gray/black for high contrast
+  textSecondary: '#6C757D', // Muted gray for less important text
+
+  // Utility Colors
+  border: '#DADDDF',
+  surfaceVariant: '#E7E9EC',
+  error: '#D32F2F',
+  success: '#2E7D32',
+  warning: '#ED6C02',
 };
 
 export const darkColors = {
-  background: '#0A192F',      // Dark navy blue
-  surface: '#172A45',          // Slightly lighter navy for cards
-  surfaceVariant: '#223A5E',   // Even lighter navy for contrast
-  text: '#FFFFFF',             // Pure white text
-  textSecondary: '#8892B0',    // Light slate gray for secondary text
-  border: '#223A5E',           // Muted navy border
+  // Main Colors
+  background: '#0A192F', // Dark navy blue
+  surface: '#172A45',    // Slightly lighter navy for cards
   
-  primary: '#1DB954',          // Vibrant green accent
+  // Accent Colors
+  primary: '#1DB954',     // Vibrant Green
   primaryContrast: '#FFFFFF',
+  secondary: '#BB4711',   // Professional Orange as a secondary accent
 
-  success: '#1DB954',
-  warning: '#FF7B00',          // Bright, professional orange
-  error: '#E74C3C',
-  purple: '#BF40BF',            // A shade of purple for Food & Dining
-  
-  tabBarActive: '#1DB954',
-  tabBarInactive: '#8892B0',
+  // Text Colors
+  text: '#FFFFFF',         // Pure white text
+  textSecondary: '#8892B0', // Light slate gray for less important text
+
+  // Utility Colors
+  border: '#2A3F5C',
+  surfaceVariant: '#1E3250',
+  error: '#EF5350',
+  success: '#66BB6A',
+  warning: '#FFA726',
 };
 
 export type ColorScheme = typeof lightColors;
