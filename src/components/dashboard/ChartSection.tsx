@@ -1,74 +1,106 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
-import { VictoryBar, VictoryChart, VictoryAxis, VictoryTheme } from 'victory-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { View, Text, StyleSheet } from 'react-native';
+import { LineChart } from 'react-native-gifted-charts';
 import { useTheme } from '@/context/ThemeProvider';
+import { useChartData } from '@/hooks/useChartData';
 import Card from '@/components/common/Card';
-import { useTransactions } from '@/hooks/useTransactions';
-import { format, subDays } from 'date-fns';
+import { BarChart3 } from 'lucide-react-native';
 
-export const ChartSection = () => {
-  const { colors } = useTheme();
-  const { transactions, isLoading } = useTransactions();
+export default function ChartSection() {
+    const { colors, isDark } = useTheme();
+    const { chartData } = useChartData();
 
-  const chartData = React.useMemo(() => {
-    const last7Days = Array.from({ length: 7 }).map((_, i) => subDays(new Date(), i));
-    return last7Days.map(date => {
-        const day = format(date, 'EEE');
-        const total = transactions
-            .filter(t => new Date(t.date).toDateString() === date.toDateString() && t.type === 'expense')
-            .reduce((sum, t) => sum + t.amount, 0);
-        return { day, total };
-    }).reverse();
-  }, [transactions]);
-  
-  if (isLoading) {
-    return <Card><ActivityIndicator color={colors.primary} /></Card>;
-  }
+    // Use primary accent color for the chart based on the theme
+    const chartColor = isDark ? colors.primary : colors.secondary; // Green for dark, Blue for light
 
-  return (
-    <Animated.View entering={FadeInUp.duration(500).delay(200)}>
-      <Card>
-        <Text style={[styles.title, { color: colors.text }]}>Weekly Spending</Text>
-        <VictoryChart
-            theme={VictoryTheme.material}
-            width={Dimensions.get('window').width - 64}
-            height={250}
-            domainPadding={{ x: 20 }}
-        >
-            <VictoryAxis
-                tickFormat={(x) => x}
-                style={{
-                    axis: { stroke: colors.border },
-                    tickLabels: { fill: colors.textSecondary, fontSize: 10 },
-                    grid: { stroke: 'transparent' }
-                }}
-            />
-            <VictoryAxis
-                dependentAxis
-                tickFormat={(y) => `$${y / 1000}k`}
-                style={{
-                    axis: { stroke: 'transparent' },
-                    tickLabels: { fill: colors.textSecondary, fontSize: 10 },
-                    grid: { stroke: colors.border, strokeDasharray: '4, 8' }
-                }}
-            />
-            <VictoryBar
+    return (
+        <Card style={styles.container}>
+            <View style={styles.header}>
+                <BarChart3 color={colors.textSecondary} size={20} />
+                <Text style={[styles.title, { color: colors.text }]}>Cash Flow Analysis</Text>
+            </View>
+            <LineChart
                 data={chartData}
-                x="day"
-                y="total"
-                style={{
-                    data: { fill: colors.primary }
+                height={200}
+                spacing={32}
+                initialSpacing={10}
+                endSpacing={10}
+                
+                // Styling
+                color1={chartColor}
+                textColor1={colors.text}
+                textShiftY={-8}
+                textShiftX={-10}
+                textFontSize={12}
+                
+                // Data points
+                dataPointsHeight={6}
+                dataPointsWidth={6}
+                dataPointsColor1={chartColor}
+
+                // Axis
+                xAxisLabelTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
+                yAxisTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
+                xAxisColor={colors.border}
+                yAxisColor={colors.border}
+                
+                // Area Chart
+                areaChart
+                startFillColor1={chartColor}
+                endFillColor1={isDark ? colors.background : colors.surface}
+                startOpacity={0.4}
+                endOpacity={0.1}
+
+                // Pointer
+                pointerConfig={{
+                    pointerStripHeight: 160,
+                    pointerStripColor: colors.textSecondary,
+                    pointerStripWidth: 2,
+                    pointerColor: colors.textSecondary,
+                    radius: 6,
+                    pointerLabelWidth: 100,
+                    pointerLabelHeight: 90,
+                    activatePointersOnLongPress: true,
+                    autoAdjustPointerLabelPosition: false,
+                    pointerLabelComponent: (items: any) => (
+                        <View style={[styles.pointerLabel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{items[0].date}</Text>
+                            <Text style={[styles.pointerValue, { color: chartColor }]}>${items[0].value.toFixed(2)}k</Text>
+                        </View>
+                    ),
                 }}
-                cornerRadius={{ topLeft: 5, topRight: 5 }}
-                animate={{ duration: 500, onLoad: { duration: 500 } }}
             />
-        </VictoryChart>
-      </Card>
-    </Animated.View>
-  );
-};
+        </Card>
+    );
+}
 
 const styles = StyleSheet.create({
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
+    container: {
+        marginHorizontal: 16,
+        marginTop: 16,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+        gap: 8,
+    },
+    title: {
+        fontSize: 18,
+        fontWeight: '600',
+    },
+    pointerLabel: {
+        height: 50,
+        width: 100,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        borderWidth: 1,
+    },
+    pointerValue: {
+        fontWeight: 'bold',
+        fontSize: 16,
+        marginTop: 4,
+    },
 });

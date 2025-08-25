@@ -1,63 +1,62 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import React from 'react';
+import { ScrollView, StyleSheet, View, Text } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
-import { useAuth } from '@/context/AuthContext';
-import { useTransactions } from '@/hooks/useTransactions';
+import ScreenContainer from '@/components/ScreenContainer';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import MetricsGrid from '@/components/dashboard/MetricsGrid';
-import { ChartSection } from '@/components/dashboard/ChartSection';
+import ChartSection from '@/components/dashboard/ChartSection';
 import QuickActions from '@/components/dashboard/QuickActions';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
-import AddTransactionModal from '@/components/forms/AddTransactionModal';
-import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 
 export default function DashboardScreen() {
-  const { colors } = useTheme();
-  const { user } = useAuth();
-  const router = useRouter();
-  const { refreshTransactions } = useTransactions();
+    const router = useRouter();
+    const { user } = useAuth();
+    const { colors } = useTheme();
+    const welcomeMessage = user?.display_name ? `Welcome back, ${user.display_name}!` : "Welcome back!";
 
-  const [isModalVisible, setIsModalVisible] = useState(false);
+    return (
+        <ScreenContainer>
+            <DashboardHeader
+                userName={user?.user_metadata?.display_name || 'User'}
+                onPressMessages={() => router.push('/chat/1')}
+                onPressProfile={function (): void {
+                    throw new Error('Function not implemented.');
+                }}
+                onPressSettings={function (): void {
+                    throw new Error('Function not implemented.');
+                }}
+            />
+          {'}'} {'}'}            /{'>'}
+            <ScrollView contentContainerStyle={styles.container}>
+                <MetricsGrid />
+                <ChartSection />
+                
+                {/* Section Title */}
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+                <QuickActions onAddTransaction={function (): void {
+            throw new Error('Function not implemented.');
+          } } />
 
-  const onTransactionAdded = () => {
-    refreshTransactions();
-  };
-
-  return (
-    <>
-      <ScrollView
-        style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-        <DashboardHeader
-          userName={user?.displayName || 'User'}
-          avatarUrl={user?.avatarUrl || ''}
-          onPressProfile={() => router.push('/(tabs)/profile')}
-          onPressMessages={() => router.push('/messages')}
-          onPressSettings={() => router.push('/(tabs)/settings')}
-        />
-
-        {/* These components now implicitly use the useTransactions hook for live data */}
-        <MetricsGrid />
-        <ChartSection />
-        <QuickActions onAddTransaction={() => setIsModalVisible(true)} />
-        <RecentTransactions />
-      </ScrollView>
-
-      <AddTransactionModal
-        visible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
-        onSuccess={onTransactionAdded}
-        clientId={null}
-      />
-    </>
-  );
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
+                <RecentTransactions />
+                
+                <View style={{ height: 40 }} />
+            </ScrollView>
+        </ScreenContainer>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    paddingBottom: 50,
-  },
+    container: {
+        paddingBottom: 16,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        marginTop: 24,
+        marginBottom: 8,
+        marginHorizontal: 16,
+    },
 });
