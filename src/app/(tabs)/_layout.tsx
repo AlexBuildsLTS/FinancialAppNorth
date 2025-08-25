@@ -2,8 +2,7 @@ import React from 'react';
 import { Tabs, Redirect } from 'expo-router';
 import { ActivityIndicator, View, Platform, useWindowDimensions } from 'react-native';
 import { 
-    Home, Briefcase, CreditCard, Camera, ShieldCheck, 
-    PiggyBank, PieChart, FileText, BookCopy, BarChart3, MessageCircle 
+    House, Briefcase, CreditCard, Camera, Folder, Settings, Bot
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
@@ -44,13 +43,12 @@ export default function TabLayout() {
   }
 
   const tabs: TabConfig[] = [
-    { name: 'index', title: 'Dashboard', icon: Home },
-    { name: 'transactions', title: 'Transactions', icon: CreditCard },
-    { name: 'analytics', title: 'Analytics', icon: PieChart },
-    { name: 'budgets', title: 'Budgets', icon: PiggyBank },
-    { name: 'camera', title: 'Scan', icon: Camera },
-    { name: 'clients', title: 'Clients', icon: Briefcase, condition: isProfessional },
-    { name: 'admin', title: 'Admin', href: '/admin', icon: ShieldCheck, condition: isAdmin },
+    { name: 'index', title: 'Home', icon: House }, // All users
+    { name: 'clients', title: 'Clients', icon: Briefcase, condition: isProfessional }, // CPA, Administrator only
+    { name: 'transactions', title: 'Transactions', icon: CreditCard }, // All users
+    { name: 'camera', title: 'Camera', icon: Camera }, // All users
+    { name: 'documents', title: 'Documents', icon: Folder }, // All users
+    { name: 'ai-assistant', title: 'AI Assistant', icon: Bot }, // All users (Robot icon for AI + document scanning)
   ];
 
   return (
@@ -86,13 +84,14 @@ export default function TabLayout() {
       {/* HIDDEN ROUTES */}
       <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
-      <Tabs.Screen name="documents" options={{ href: null }} />
       <Tabs.Screen name="journal" options={{ href: null }} />
       <Tabs.Screen name="reports" options={{ href: null }} />
-      <Tabs.Screen name="ai-assistant" options={{ href: null }} />
       <Tabs.Screen name="support" options={{ href: null }} />
       <Tabs.Screen name="client" options={{ href: null }} />
       <Tabs.Screen name="accounts" options={{ href: null }} />
+      <Tabs.Screen name="analytics" options={{ href: null }} />
+      <Tabs.Screen name="budgets" options={{ href: null }} />
+      <Tabs.Screen name="admin" options={{ href: null }} />
     </Tabs>
   );
 }

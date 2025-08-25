@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { UserProfile } from '@/types'; // Assuming UserProfile type exists
+import { UserProfile, UserRole } from '@/types'; // Assuming UserProfile type exists
 
 export const getAllUsers = async (): Promise<UserProfile[]> => {
   // This requires admin privileges on the RLS policies for the 'profiles' table.
@@ -42,7 +42,7 @@ export const deleteUser = async (userId: string): Promise<UserProfile> => {
   return data as UserProfile;
 };
 
-export const updateUserRole = async (userId: string, role: string): Promise<UserProfile> => {
+export const updateUserRole = async (userId: string, role: UserRole): Promise<UserProfile> => {
   const { data, error } = await supabase
     .from('profiles')
     .update({ role: role })
@@ -52,6 +52,21 @@ export const updateUserRole = async (userId: string, role: string): Promise<User
 
   if (error) {
     console.error('Error updating user role:', error);
+    throw error;
+  }
+  return data as UserProfile;
+};
+
+export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>): Promise<UserProfile> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating user profile:', error);
     throw error;
   }
   return data as UserProfile;

@@ -1,3 +1,19 @@
+/**
+ * Fetches all notifications for the current user.
+ */
+export const fetchNotifications = async () => {
+    const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching notifications:", error);
+        throw error;
+    }
+    return data;
+};
+
 import { supabase } from '@/lib/supabase';
 
 /**

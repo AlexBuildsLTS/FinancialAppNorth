@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, TextInput } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { UserProfile, UserRole } from '@/types';
 import Button from '@/components/common/Button';

@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Bell, MessageCircle, Settings, User } from 'lucide-react-native';
+import { Bell, Bot, Settings } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import NotificationDropdown from '@/components/common/NotificationDropdown';
+import UserDropdown from '@/components/common/UserDropdown';
 import { DashboardHeaderProps } from '@/types';
 
 export default function DashboardHeader({
@@ -30,15 +31,13 @@ export default function DashboardHeader({
       </View>
       <View style={styles.iconsContainer}>
         <NotificationDropdown />
-        <TouchableOpacity onPress={onPressMessages} style={styles.iconButton}>
-          <MessageCircle color={colors.textSecondary} size={24} />
+        <TouchableOpacity onPress={() => router.push('/chat/1')} style={styles.iconButton}>
+          <Bot color={colors.textSecondary} size={24} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push('/(tabs)/settings')} style={styles.iconButton}>
           <Settings color={colors.textSecondary} size={24} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={styles.iconButton}>
-          <User color={colors.textSecondary} size={24} />
-        </TouchableOpacity>
+        <UserDropdown />
       </View>
     </View>
   );

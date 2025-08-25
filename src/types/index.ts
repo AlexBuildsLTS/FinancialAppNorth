@@ -38,6 +38,7 @@ export interface Profile extends BaseModel {
   email: string;
   role: UserRole;
   assignment_status?: string; // Optional status from the join
+  profession?: string; // Added profession field
 }
 
 export interface UserProfile extends BaseModel {
@@ -46,6 +47,7 @@ export interface UserProfile extends BaseModel {
   role: UserRole;
   status: Status;
   avatar_url?: string;
+  profession?: string; // Added profession field
 }
 
 export interface Conversation extends BaseModel {
