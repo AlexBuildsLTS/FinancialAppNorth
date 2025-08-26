@@ -2,83 +2,119 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
-import { Home, Briefcase, Receipt, Camera, FileText, MessageCircle } from 'lucide-react-native';
-import { Platform, View } from 'react-native';
+import { Platform } from 'react-native';
+import {
+  Home,
+  Briefcase,
+  CreditCard,
+  Camera,
+  FileText,
+  MessageCircle,
+  User,
+} from 'lucide-react-native';
 
-const TabIcon = ({ icon: Icon, color, focused }: { icon: any, color: string, focused: boolean }) => {
-    // A subtle visual difference for the focused tab
-    return (
-        <View style={{ 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            borderTopColor: focused ? color : 'transparent',
-            borderTopWidth: 2,
-            paddingTop: 4,
-            width: '100%',
-        }}>
-            <Icon color={color} size={24} strokeWidth={focused ? 2.5 : 2} />
-        </View>
-    );
+interface TabBarIconProps {
+  Icon: React.ComponentType<{ color: string; size: number }>;
+  color: string;
+  size: number;
 }
 
+const TabBarIcon: React.FC<TabBarIconProps> = React.memo(
+  ({ Icon, color, size }) => <Icon color={color} size={size} />
+);
+
 export default function TabLayout() {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { user } = useAuth();
-  const isProfessional = user?.role === 'Professional Accountant' || user?.role === 'Administrator';
+  const isProfessional =
+    user?.role === 'Professional Accountant' || user?.role === 'Administrator';
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarShowLabel: false, // Hiding labels for a cleaner, icon-only look
+        tabBarActiveTintColor: colors.tabBarActive,
+        tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarStyle: {
-          position: 'absolute',
-          bottom: Platform.OS === 'ios' ? 30 : 20,
-          left: 20,
-          right: 20,
-          elevation: 0, // Remove default Android shadow
           backgroundColor: colors.surface,
-          borderRadius: 20,
-          height: 65,
-          borderTopWidth: 0,
-          // Custom shadow for a floating effect
-          shadowColor: isDark ? '#000' : '#4E5C79',
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.2,
-          shadowRadius: 20,
+          borderTopColor: colors.border,
+          height: Platform.OS === 'ios' ? 85 : 65,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
         },
       }}
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'Dashboard', tabBarIcon: ({ color, focused }) => <TabIcon icon={Home} color={color} focused={focused} /> }}
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon Icon={Home} color={color} size={size} />
+          ),
+        }}
       />
+      {isProfessional && (
+        <Tabs.Screen
+          name="clients"
+          options={{
+            title: 'Clients',
+            tabBarIcon: ({ color, size }) => (
+              <TabBarIcon Icon={Briefcase} color={color} size={size} />
+            ),
+          }}
+        />
+      )}
       <Tabs.Screen
-        name="clients"
-        options={{ 
-          title: 'Clients', 
-          tabBarIcon: ({ color, focused }) => <TabIcon icon={Briefcase} color={color} focused={focused} />,
-          href: isProfessional ? '/clients' : null, // This hides the tab for non-professional users
+        name="transactions"
+        options={{
+          title: 'Transactions',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon Icon={CreditCard} color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="transactions"
-        options={{ title: 'Transactions', tabBarIcon: ({ color, focused }) => <TabIcon icon={Receipt} color={color} focused={focused} /> }}
-      />
-      <Tabs.Screen
         name="camera"
-        options={{ title: 'Scan', tabBarIcon: ({ color, focused }) => <TabIcon icon={Camera} color={color} focused={focused} /> }}
+        options={{
+          title: 'Camera',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon Icon={Camera} color={color} size={size} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="documents"
-        options={{ title: 'Documents', tabBarIcon: ({ color, focused }) => <TabIcon icon={FileText} color={color} focused={focused} /> }}
+        options={{
+          title: 'Documents',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon Icon={FileText} color={color} size={size} />
+          ),
+        }}
       />
-       <Tabs.Screen
+      <Tabs.Screen
         name="support"
-        options={{ title: 'Support', tabBarIcon: ({ color, focused }) => <TabIcon icon={MessageCircle} color={color} focused={focused} /> }}
+        options={{
+          title: 'Support',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon Icon={MessageCircle} color={color} size={size} />
+          ),
+        }}
       />
+
+      {/* Hidden screens that don't appear in tabs */}
+      <Tabs.Screen name="profile" options={{ href: null }} />
+      <Tabs.Screen name="client" options={{ href: null }} />
+      <Tabs.Screen name="ai-assistant" options={{ href: null }} />
+      <Tabs.Screen name="budgets" options={{ href: null }} />
+      <Tabs.Screen name="journal" options={{ href: null }} />
+      <Tabs.Screen name="reports" options={{ href: null }} />
+      <Tabs.Screen name="accounts" options={{ href: null }} />
+      <Tabs.Screen name="analytics" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
     </Tabs>
   );
 }

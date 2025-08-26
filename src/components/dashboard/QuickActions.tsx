@@ -4,18 +4,18 @@ import { useTheme } from '@/context/ThemeProvider';
 import { Plus, ArrowRightLeft, Upload, FilePieChart } from 'lucide-react-native';
 
 const actions = [
-  { text: 'Add Entry', icon: Plus, color: '#3B82F6' },
-  { text: 'Transfer', icon: ArrowRightLeft, color: '#10B981' },
-  { text: 'Add Bill', icon: Upload, color: '#F97316' },
-  { text: 'Reports', icon: FilePieChart, color: '#8B5CF6' },
+  { text: 'Add Entry', icon: Plus, color: '#3B82F6', type: 'addTransaction' },
+  { text: 'Transfer', icon: ArrowRightLeft, color: '#10B981', type: 'transfer' },
+  { text: 'Add Bill', icon: Upload, color: '#F97316', type: 'addBill' },
+  { text: 'Reports', icon: FilePieChart, color: '#8B5CF6', type: 'reports' },
 ];
 
-const ActionButton = ({ action }: { action: typeof actions[0] }) => {
+const ActionButton = ({ action, onPress }: { action: typeof actions[0], onPress?: () => void }) => {
     const { colors } = useTheme();
 
     return (
         <View style={styles.actionContainer}>
-            <TouchableOpacity style={[styles.iconButton, { backgroundColor: action.color }]}>
+            <TouchableOpacity style={[styles.iconButton, { backgroundColor: action.color }]} onPress={onPress}>
                 <action.icon color="#FFFFFF" size={24} />
             </TouchableOpacity>
             <Text style={[styles.actionText, { color: colors.textSecondary }]}>{action.text}</Text>
@@ -23,11 +23,15 @@ const ActionButton = ({ action }: { action: typeof actions[0] }) => {
     );
 }
 
-export default function QuickActions() {
+export default function QuickActions({ onAddTransaction }: { onAddTransaction: () => void }) {
   return (
     <View style={styles.container}>
       {actions.map((action) => (
-        <ActionButton key={action.text} action={action} />
+        <ActionButton 
+          key={action.text} 
+          action={action} 
+          onPress={action.type === 'addTransaction' ? onAddTransaction : undefined} 
+        />
       ))}
     </View>
   );

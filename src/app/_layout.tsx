@@ -1,53 +1,77 @@
 import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
-import { useColorScheme } from 'react-native';
-import { AuthProvider } from '@/context/AuthContext';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useRouter, useSegments, Stack } from 'expo-router';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeProvider';
 import { ToastProvider } from '@/context/ToastProvider';
-import { SplashScreen } from 'expo-router';
-import {
-  useFonts,
-  Inter_400Regular,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
+// Component to handle authentication-based redirection
+const AuthRedirector = () => {
+  const { user, initialized } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!initialized) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (user && inAuthGroup) {
+      // Redirect authenticated users from auth pages to the main app
+      router.replace('/(tabs)');
+    } else if (!user && !inAuthGroup) {
+      // Redirect unauthenticated users from main app pages to the login page
+      router.replace('/(auth)/login');
+    }
+  }, [user, initialized, segments, router]);
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="admin" options={{ headerShown: false }} />
+      <Stack.Screen name="chat" options={{ headerShown: false }} />
+      <Stack.Screen name="process-document" options={{ headerShown: false }} />
+      <Stack.Screen name="client-support" options={{ headerShown: false }} />
+      <Stack.Screen name="client-dashboard" options={{ headerShown: false }} />
+      <Stack.Screen name="+not-found" />
+    </Stack>
+  );
+};
+
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  useFrameworkReady();
   
-  // Load the custom fonts. The app will not render until this is complete.
   const [fontsLoaded, fontError] = useFonts({
-    'Inter-Regular': Inter_400Regular,
-    'Inter-SemiBold': Inter_600SemiBold,
-    'Inter-Bold': Inter_700Bold,
+    'Inter-Regular': require('../assets/Inter/Inter-VariableFont_opsz,wght.ttf'),
+    'Inter-Bold': require('../assets/Inter/static/Inter_18pt-Bold.ttf'),
   });
 
   useEffect(() => {
-    // Hide the splash screen once fonts are loaded or if there's an error.
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
 
-  // Do not render anything until the fonts are loaded. This prevents the crash.
   if (!fontsLoaded && !fontError) {
     return null;
   }
 
   return (
-    <AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <ToastProvider>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
+          <AuthProvider>
+            <AuthRedirector />
+          </AuthProvider>
         </ToastProvider>
       </ThemeProvider>
-    </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

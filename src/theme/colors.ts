@@ -14,6 +14,10 @@ export const lightColors = {
   text: '#0B0C0E',         // Very dark gray/black for high contrast
   textSecondary: '#6C757D', // Muted gray for less important text
 
+  // Tab Bar Colors
+  tabBarActive: '#BB4711', // Use primary color for active tab
+  tabBarInactive: '#6C757D', // Use secondary text color for inactive tab
+
   // Utility Colors
   border: '#DADDDF',
   surfaceVariant: '#E7E9EC',
@@ -35,6 +39,10 @@ export const darkColors = {
   // Text Colors
   text: '#FFFFFF',         // Pure white text
   textSecondary: '#8892B0', // Light slate gray for less important text
+
+  // Tab Bar Colors
+  tabBarActive: '#1DB954', // Use primary color for active tab
+  tabBarInactive: '#8892B0', // Use secondary text color for inactive tab
 
   // Utility Colors
   border: '#2A3F5C',
