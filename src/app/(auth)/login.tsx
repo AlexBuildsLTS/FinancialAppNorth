@@ -12,7 +12,7 @@ export default function LoginScreen() {
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
     const [showPassword, setShowPassword] = React.useState(false);
-    const { signInWithEmail } = useAuth();
+    const { signInWithPassword } = useAuth();
     const { showToast } = useToast();
     const router = useRouter();
     const [loading, setLoading] = React.useState(false);
@@ -24,7 +24,7 @@ export default function LoginScreen() {
             return;
         }
         setLoading(true);
-        const { error } = await signInWithEmail(email, password);
+        const { error } = await signInWithPassword({ email, password });
         setLoading(false);
         if (error) {
             showToast(error.message, 'error');
