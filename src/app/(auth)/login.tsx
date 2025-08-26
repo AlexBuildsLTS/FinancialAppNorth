@@ -1,22 +1,47 @@
-import React from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Switch } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Eye, EyeOff, Sun, Moon, LogIn } from 'lucide-react-native';
+import { Eye, EyeOff, LogIn, CheckSquare, Square } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
 import ScreenContainer from '@/components/ScreenContainer';
 import { Button, Card } from '@/components/common';
+import * as SecureStore from 'expo-secure-store';
+
+const EMAIL_KEY = 'stored_email';
+const REMEMBER_ME_KEY = 'remember_me';
 
 export default function LoginScreen() {
-    const [email, setEmail] = React.useState('');
-    const [password, setPassword] = React.useState('');
-    const [showPassword, setShowPassword] = React.useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
+    const [loading, setLoading] = useState(false);
+    
     const { signInWithPassword } = useAuth();
     const { showToast } = useToast();
     const router = useRouter();
-    const [loading, setLoading] = React.useState(false);
-    const { isDark, setColorScheme, colors } = useTheme();
+    const { colors } = useTheme();
+    
+useEffect(() => {
+    const loadCredentials = async () => {
+        try {
+            const remembered = await SecureStore.getItemAsync(REMEMBER_ME_KEY);
+            if (remembered === 'true') {
+                // Use EMAIL_KEY constant instead of the email state variable
+                const savedEmail = await SecureStore.getItemAsync(EMAIL_KEY);
+                if (savedEmail) {
+                    setEmail(savedEmail);
+                    setRememberMe(true);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load credentials from secure store", error);
+        }
+    };
+    loadCredentials();
+}, []);
 
     const handleLogin = async () => {
         if (!email || !password) {
@@ -24,7 +49,7 @@ export default function LoginScreen() {
             return;
         }
         setLoading(true);
-        const { error } = await signInWithPassword({ email, password });
+        const { error } = await signInWithPassword({ email, password, rememberMe });
         setLoading(false);
         if (error) {
             showToast(error.message, 'error');
@@ -35,17 +60,6 @@ export default function LoginScreen() {
 
     return (
         <ScreenContainer style={styles.outerContainer}>
-             <View style={styles.themeToggleContainer}>
-                <Sun color={colors.textSecondary} size={20} />
-                <Switch
-                    value={isDark}
-                    onValueChange={(value) => setColorScheme(value ? 'dark' : 'light')}
-                    trackColor={{ false: '#767577', true: colors.primary }}
-                    thumbColor={'#f4f3f4'}
-                />
-                <Moon color={colors.textSecondary} size={20} />
-            </View>
-
             <View style={styles.contentContainer}>
                 <Card padding={32}>
                     <LogIn color={colors.primary} size={40} style={styles.headerIcon} />
@@ -76,6 +90,11 @@ export default function LoginScreen() {
                         </TouchableOpacity>
                     </View>
 
+                    <TouchableOpacity style={styles.rememberMeContainer} onPress={() => setRememberMe(!rememberMe)}>
+                        {rememberMe ? <CheckSquare color={colors.primary} size={20} /> : <Square color={colors.textSecondary} size={20} />}
+                        <Text style={[styles.rememberMeText, { color: colors.textSecondary }]}>Remember Me</Text>
+                    </TouchableOpacity>
+
                     <Button title="Login" onPress={handleLogin} isLoading={loading} style={styles.button} />
                     
                     <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
@@ -90,16 +109,24 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-    outerContainer: { justifyContent: 'center', alignItems: 'center' },
-    themeToggleContainer: { position: 'absolute', top: 60, right: 24, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 1 },
+    outerContainer: { justifyContent: 'center', alignItems: 'center', flex: 1 },
     contentContainer: { width: '100%', maxWidth: 420, padding: 24 },
     headerIcon: { alignSelf: 'center', marginBottom: 16 },
-    title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
-    subtitle: { fontSize: 16, textAlign: 'center', marginBottom: 32 },
-    input: { height: 50, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, fontSize: 16, borderWidth: 1 },
-    passwordContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+    title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginBottom: 8, fontFamily: 'Inter-Bold' },
+    subtitle: { fontSize: 16, textAlign: 'center', marginBottom: 32, fontFamily: 'Inter-Regular' },
+    input: { height: 50, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, fontSize: 16, borderWidth: 1, fontFamily: 'Inter-Regular' },
+    passwordContainer: { flexDirection: 'row', alignItems: 'center' },
     eyeIcon: { position: 'absolute', right: 15, top: 15 },
+    rememberMeContainer: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 8, 
+        marginTop: 8, // Added space from the password field above
+        marginBottom: 24, 
+        alignSelf: 'flex-start' 
+    },
+    rememberMeText: { fontSize: 14, fontFamily: 'Inter-Regular' },
     button: { marginBottom: 24 },
-    link: { textAlign: 'center', fontSize: 14 },
-    boldLink: { fontWeight: 'bold' },
+    link: { textAlign: 'center', fontSize: 14, fontFamily: 'Inter-Regular' },
+    boldLink: { fontWeight: 'bold', fontFamily: 'Inter-Bold' },
 });
