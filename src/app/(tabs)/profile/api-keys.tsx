@@ -39,7 +39,7 @@ const ApiKeyInput = ({ provider, value, onChange, onTest, testStatus }: any) => 
 
 export default function ApiKeysScreen() {
     const { colors } = useTheme();
-    const { user } = useAuth();
+    const { profile } = useAuth();
     const { showToast } = useToast();
     const [keys, setKeys] = useState({ openai_key: '', gemini_key: '', claude_key: '' });
     const [testStatuses, setTestStatuses] = useState<Record<Provider, TestStatus>>({ openai: 'untested', gemini: 'untested', claude: 'untested' });
@@ -47,10 +47,10 @@ export default function ApiKeysScreen() {
     const [fetching, setFetching] = useState(true);
 
     const fetchKeys = useCallback(async () => {
-        if (!user) return;
+        if (!profile) return;
         setFetching(true);
         try {
-            const savedKeys = await getApiKeys(user.id);
+            const savedKeys = await getApiKeys(profile.id);
             setKeys({
                 openai_key: savedKeys.openai_key || '',
                 gemini_key: savedKeys.gemini_key || '',
@@ -61,7 +61,7 @@ export default function ApiKeysScreen() {
         } finally {
             setFetching(false);
         }
-    }, [user, showToast]);
+    }, [profile, showToast]);
 
     useFocusEffect(
         useCallback(() => {
@@ -78,10 +78,10 @@ export default function ApiKeysScreen() {
     };
 
     const handleSave = async () => {
-        if (!user) return;
+        if (!profile) return;
         setLoading(true);
         try {
-            await saveApiKeys(user.id, keys);
+            await saveApiKeys(profile.id, keys);
             showToast('API keys saved successfully!', 'success');
         } catch (error) {
             showToast('Failed to save API keys.', 'error');

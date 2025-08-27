@@ -26,7 +26,7 @@ export default function AddClientModal({ visible, onClose, onClientAdded }: AddC
         setLoading(true);
         try {
             // This service function would send a request for client access to the specified email
-            await requestClientAccess(clientEmail); 
+            await addClient(clientEmail);
             showToast('Client successfully assigned!', 'success');
             onClientAdded(); // Refresh the client list
             onClose(); // Close the modal
@@ -75,3 +75,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
 });
+function addClient(clientEmail: string) {
+    throw new Error('Function not implemented.');
+}
+

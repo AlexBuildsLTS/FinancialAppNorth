@@ -5,11 +5,11 @@ import { useTheme } from '@/context/ThemeProvider';
 import { LayoutDashboard, Users } from 'lucide-react-native';
 
 export default function AdminTabLayout() {
-  const { user, initialized } = useAuth();
+  const { session, initialized } = useAuth();
   const { colors } = useTheme();
 
   if (!initialized) return null;
-  if (user?.role !== 'Administrator') return <Redirect href="/(tabs)" />;
+  if (session?.user?.role !== 'Administrator') return <Redirect href="/(tabs)" />;
 
   return (
     <Tabs screenOptions={{

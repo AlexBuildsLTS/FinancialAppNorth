@@ -11,7 +11,7 @@ import ScreenContainer from '@/components/ScreenContainer';
 import Button from '@/components/common/Button';
 
 export default function EditProfileScreen() {
-    const { user, session } = useAuth();
+    const { session } = useAuth();
     const { colors } = useTheme();
     const { showToast } = useToast();
 
@@ -22,9 +22,9 @@ export default function EditProfileScreen() {
     const [selectedImage, setSelectedImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
     useEffect(() => {
-        if (user) {
+        if (session?.user) {
             setLoading(true);
-            getProfile(user.id)
+            getProfile(session.user.id)
                 .then((data) => {
                     if (data) {
                         setProfile(data);
@@ -35,7 +35,7 @@ export default function EditProfileScreen() {
                 .catch((err) => showToast('Failed to load profile.', 'error'))
                 .finally(() => setLoading(false));
         }
-    }, [user]);
+    }, [session?.user]);
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -106,7 +106,7 @@ export default function EditProfileScreen() {
                     <Text style={[styles.label, { color: colors.textSecondary }]}>Email</Text>
                     <TextInput
                         style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.textSecondary, borderColor: colors.border }]}
-                        value={user?.email}
+                        value={session?.user?.email}
                         editable={false}
                     />
 

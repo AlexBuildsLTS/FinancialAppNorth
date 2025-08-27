@@ -11,7 +11,7 @@ import { Message } from '@/types';
 
 export default function ChatScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { session } = useAuth();
   const { id: conversationId } = useLocalSearchParams();
   
   const [messages, setMessages] = useState<Message[]>([]);
@@ -40,8 +40,8 @@ export default function ChatScreen() {
   );
 
   const handleSend = async () => {
-    if (inputText.trim() && user && conversationId) {
-      await sendMessage(conversationId as string, user.id, inputText.trim());
+    if (inputText.trim() && session?.user && conversationId) {
+      await sendMessage(conversationId as string, session.user.id, inputText.trim());
       setInputText('');
       fetchMessages(); // Refetch messages after sending
     }
@@ -62,7 +62,7 @@ export default function ChatScreen() {
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
-    const isMe = item.user_id === user?.id;
+    const isMe = item.user_id === session?.user?.id;
     return (
         <View style={[styles.messageRow, { justifyContent: isMe ? 'flex-end' : 'flex-start' }]}>
             <TouchableOpacity onLongPress={() => handleDeletePress(item.id)} style={[

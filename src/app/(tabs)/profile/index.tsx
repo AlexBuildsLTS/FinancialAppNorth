@@ -17,7 +17,7 @@ const ProfileMenuItem = ({ icon: Icon, text, onPress, colors }: any) => (
 );
 
 export default function ProfileScreen() {
-    const { user, signOut, session } = useAuth();
+    const { profile: authProfile, signOut, session } = useAuth(); // Renamed to authProfile to avoid conflict with local state
     const { colors, isDark, setColorScheme } = useTheme();
     const router = useRouter();
     const [profile, setProfile] = useState<Profile | null>(null);
@@ -62,7 +62,7 @@ export default function ProfileScreen() {
                         style={[styles.avatar, { borderColor: colors.primary }]}
                     />
                     <Text style={[styles.name, { color: colors.text }]}>{profile?.display_name || 'User'}</Text>
-                    <Text style={[styles.email, { color: colors.textSecondary }]}>{user?.email}</Text>
+                    <Text style={[styles.email, { color: colors.textSecondary }]}>{authProfile?.email}</Text>
                 </View>
 
                 <View style={[styles.menuSection, { borderColor: colors.border }]}>

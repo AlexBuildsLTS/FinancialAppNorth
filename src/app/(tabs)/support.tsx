@@ -52,7 +52,7 @@ interface SupportMessage {
 
 export default function SupportScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const router = useRouter();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -73,7 +73,7 @@ export default function SupportScreen() {
       const { data, error } = await supabase
         .from('support_tickets')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', profile?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -113,7 +113,7 @@ export default function SupportScreen() {
       const { data, error } = await supabase
         .from('support_tickets')
         .insert({
-          user_id: user?.id,
+          user_id: profile?.id,
           title: newTicketTitle,
           status: 'open',
           priority: 'medium',
@@ -128,7 +128,7 @@ export default function SupportScreen() {
         .from('support_messages')
         .insert({
           ticket_id: data.id,
-          user_id: user?.id,
+          user_id: profile?.id,
           message: newTicketMessage,
         });
 
@@ -151,7 +151,7 @@ export default function SupportScreen() {
         .from('support_messages')
         .insert({
           ticket_id: selectedTicket.id,
-          user_id: user?.id,
+          user_id: profile?.id,
           message: newMessage,
         });
 
@@ -253,23 +253,23 @@ export default function SupportScreen() {
           renderItem={({ item }) => (
             <View style={[
               styles.messageContainer,
-              item.user_id === user?.id ? styles.userMessage : styles.supportMessage,
-              { backgroundColor: item.user_id === user?.id ? colors.primary : colors.surface }
+              item.user_id === profile?.id ? styles.userMessage : styles.supportMessage,
+              { backgroundColor: item.user_id === profile?.id ? colors.primary : colors.surface }
             ]}>
               <View style={styles.messageHeader}>
                 <Text style={[styles.messageSender, { 
-                  color: item.user_id === user?.id ? colors.primaryContrast : colors.text 
+                  color: item.user_id === profile?.id ? colors.primaryContrast : colors.text 
                 }]}>
                   {item.user.display_name} {item.user.role === 'Support' && '(Support)'}
                 </Text>
                 <Text style={[styles.messageTime, { 
-                  color: item.user_id === user?.id ? colors.primaryContrast : colors.textSecondary 
+                  color: item.user_id === profile?.id ? colors.primaryContrast : colors.textSecondary 
                 }]}>
                   {new Date(item.created_at).toLocaleTimeString()}
                 </Text>
               </View>
               <Text style={[styles.messageText, { 
-                color: item.user_id === user?.id ? colors.primaryContrast : colors.text 
+                color: item.user_id === profile?.id ? colors.primaryContrast : colors.text 
               }]}>
                 {item.message}
               </Text>
