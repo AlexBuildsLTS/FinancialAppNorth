@@ -2,8 +2,8 @@
 
 export const lightColors = {
   // Main Colors
-  background: '#acb6f4ff', // Soft, light grey background (not extreme white)
-  surface: '#4e4e4eff',    // Pure white for cards to make them pop
+  background: '#9faafbe7', // Soft, light grey background (not extreme white)
+  surface: '#cdbafbd4',    // Pure white for cards to make them pop
   
   // Accent Colors
   primary: '#BB4711',     // Professional Orange

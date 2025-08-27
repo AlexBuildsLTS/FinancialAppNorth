@@ -4,7 +4,8 @@ import { Transaction } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 
 export function useTransactions() {
-  const { user } = useAuth();
+  const { session } = useAuth();
+  const user = session?.user;
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

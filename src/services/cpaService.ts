@@ -67,3 +67,20 @@ export const getAssignedClients = async (cpaId: string): Promise<ClientListItem[
         })
         .filter((item): item is ClientListItem => item !== null);
 };
+
+/**
+ * Sends a request for client access to the specified email.
+ * This is a placeholder function. In a real application, this would
+ * involve more complex logic, e.g., sending an invitation email,
+ * creating a pending assignment in the database, etc.
+ */
+export const requestClientAccess = async (clientEmail: string): Promise<void> => {
+    console.log(`Requesting client access for email: ${clientEmail}`);
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    // In a real scenario, you would interact with your backend/database here.
+    // For example:
+    // const { data, error } = await supabase.from('pending_client_invitations').insert([{ email: clientEmail, status: 'pending' }]);
+    // if (error) throw new Error(error.message);
+    console.log(`Client access request sent for ${clientEmail}`);
+};

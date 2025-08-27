@@ -28,7 +28,7 @@ export default function AddTransactionModal({
   clientId,
 }: AddTransactionModalProps) {
   const { colors } = useTheme();
-  const { user } = useAuth(); // Use the useAuth hook
+  const { session } = useAuth(); // Use the useAuth hook
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
@@ -48,7 +48,7 @@ export default function AddTransactionModal({
 
     setLoading(true);
     try {
-      if (!user) {
+      if (!session?.user) {
         Alert.alert('Error', 'User not authenticated.');
         setLoading(false);
         return;
@@ -60,21 +60,22 @@ export default function AddTransactionModal({
         category,
         type,
         clientId: clientId || '', // Ensure clientId is always present, even if empty string
-        // Default or derive as needed for other properties that are not omitted
-        accountId: '', 
-        description: '', 
-        date: new Date().toISOString().split('T')[0], 
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
-        tags: [], 
-        location: '', 
+        account_id: '', // Changed from accountId to account_id
+        description: '',
+        transaction_date: new Date().toISOString().split('T')[0], // Changed from date to transaction_date
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        tags: [],
+        location: '',
       };
 
       const addedTransaction = await addTransaction({ // Change to addTransaction
-        ...newTransactionData,
-        user_id: user.id, // Add user_id
-        accountId: '', // Default or derive as needed
+        ...newTransactionData, // Add user_id
+        user_id: session.user.id,
+        account_id: '', // Changed from accountId to account_id
         description: '', // Default or derive as needed
-        date: new Date().toISOString().split('T')[0], // Current date
+        transaction_date: new Date().toISOString().split('T')[0], // Current date
+        date: new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), // Current time
         tags: [], // Default tags
         location: '', // Default location

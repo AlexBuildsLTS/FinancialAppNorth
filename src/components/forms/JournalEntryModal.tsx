@@ -31,21 +31,26 @@ export default function JournalEntryModal({ visible, onClose, onSuccess, clientI
   }, [visible, clientId]);
   
   useEffect(() => {
-      const debits = lines.reduce((sum, line) => sum + (Number(line.debitAmount) || 0), 0);
-      const credits = lines.reduce((sum, line) => sum + (Number(line.creditAmount) || 0), 0);
+      const debits = lines.reduce((sum, line) => sum + (Number(line.debit_amount) || 0), 0);
+      const credits = lines.reduce((sum, line) => sum + (Number(line.credit_amount) || 0), 0);
       setTotalDebit(debits);
       setTotalCredit(credits);
   }, [lines]);
 
   const updateLine = (index: number, field: keyof JournalEntryLine, value: any) => {
     const newLines = [...lines];
-    if (field === 'accountId') {
+    if (field === 'account_id') {
         const selectedAccount = accounts.find(a => a.id === value);
-        newLines[index].accountId = value;
-        newLines[index].accountName = selectedAccount?.name;
-        newLines[index].accountCode = selectedAccount?.code;
+        newLines[index].account_id = value;
+        newLines[index].account_name = selectedAccount?.name;
+        newLines[index].account_code = selectedAccount?.code;
     } else {
-        newLines[index][field] = value;
+        // Ensure debit_amount and credit_amount are stored as numbers
+        if (field === 'debit_amount' || field === 'credit_amount') {
+            newLines[index][field] = Number(value) || 0;
+        } else {
+            newLines[index][field] = value;
+        }
     }
     setLines(newLines);
   };
@@ -54,7 +59,7 @@ export default function JournalEntryModal({ visible, onClose, onSuccess, clientI
   const removeLine = (index: number) => setLines(lines.filter((_, i) => i !== index));
 
   const handleSubmit = async () => {
-    if (!description || lines.some(l => !l.accountId || (!l.debitAmount && !l.creditAmount))) {
+    if (!description || lines.some(l => !l.account_id || (!l.debit_amount && !l.credit_amount))) {
         return Alert.alert('Validation Error', 'Please provide a description and fill all transaction lines.');
     }
     if (totalDebit !== totalCredit || totalDebit === 0) {
@@ -64,14 +69,15 @@ export default function JournalEntryModal({ visible, onClose, onSuccess, clientI
     setLoading(true);
     try {
         await createJournalEntry({
-            clientId,
+            client_id: clientId,
             date: new Date().toISOString(),
             description,
             entries: lines as JournalEntryLine[],
-            totalDebit,
-            totalCredit,
+            total_debit: totalDebit,
+            total_credit: totalCredit,
             status: 'posted',
-            createdBy: clientId, // In a real scenario, this would be the logged-in CPA's ID
+            created_by: clientId, // In a real scenario, this would be the logged-in CPA's ID
+            created_at: new Date().toISOString(),
         });
         onSuccess();
         onClose();
@@ -98,11 +104,11 @@ export default function JournalEntryModal({ visible, onClose, onSuccess, clientI
         keyExtractor={(_, index) => index.toString()}
         renderItem={({ item, index }) => (
           <View style={styles.lineItem}>
-              <Picker selectedValue={item.accountId} onValueChange={(val) => updateLine(index, 'accountId', val)} style={[styles.picker, { flex: 3 }]}>
+              <Picker selectedValue={item.account_id} onValueChange={(val) => updateLine(index, 'account_id', val)} style={[styles.picker, { flex: 3 }]}>
                   {accounts.map(acc => <Picker.Item key={acc.id} label={`${acc.code} - ${acc.name}`} value={acc.id} />)}
               </Picker>
-              <TextInput style={[styles.lineInput, { flex: 2 }]} placeholder="0.00" keyboardType="numeric" value={item.debitAmount?.toString()} onChangeText={(val) => updateLine(index, 'debitAmount', val)} />
-              <TextInput style={[styles.lineInput, { flex: 2 }]} placeholder="0.00" keyboardType="numeric" value={item.creditAmount?.toString()} onChangeText={(val) => updateLine(index, 'creditAmount', val)} />
+              <TextInput style={[styles.lineInput, { flex: 2 }]} placeholder="0.00" keyboardType="numeric" value={item.debit_amount?.toString()} onChangeText={(val) => updateLine(index, 'debit_amount', val)} />
+              <TextInput style={[styles.lineInput, { flex: 2 }]} placeholder="0.00" keyboardType="numeric" value={item.credit_amount?.toString()} onChangeText={(val) => updateLine(index, 'credit_amount', val)} />
               <TouchableOpacity onPress={() => removeLine(index)} style={{ width: 30, alignItems: 'center' }}>
                   <Trash2 color={colors.error} size={18} />
               </TouchableOpacity>

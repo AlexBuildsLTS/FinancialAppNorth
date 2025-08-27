@@ -15,14 +15,14 @@ interface CreateBudgetModalProps {
 
 export default function CreateBudgetModal({ visible, onClose, onSuccess }: CreateBudgetModalProps) {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { session } = useAuth();
   const { showToast } = useToast();
   const [category, setCategory] = useState('');
   const [allocated, setAllocated] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleCreateBudget = async () => {
-    if (!user) return;
+    if (!session?.user) return;
     const allocatedAmount = parseFloat(allocated);
     if (!category || isNaN(allocatedAmount) || allocatedAmount <= 0) {
       return Alert.alert('Invalid Input', 'Please enter a valid category and a positive amount.');
@@ -31,7 +31,7 @@ export default function CreateBudgetModal({ visible, onClose, onSuccess }: Creat
     setLoading(true);
     try {
       await createBudget({
-        user_id: user.id,
+        user_id: session.user.id,
         category,
         allocated: allocatedAmount,
         period: 'monthly', // Defaulting to monthly for now
