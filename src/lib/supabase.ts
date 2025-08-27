@@ -1,3 +1,4 @@
+// src/lib/supabase.ts
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
@@ -15,6 +16,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Supabase URL and Anon Key must be provided in your environment variables.");
 }
 
+// Configure storage based on platform
 let storage;
 if (Platform.OS === 'web') {
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -37,6 +39,7 @@ if (Platform.OS === 'web') {
   storage = AsyncStorage;
 }
 
+// Create and export the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: storage as any,
@@ -45,3 +48,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+// Optional: Add debug log to verify initialization
+console.log("Supabase client initialized with URL:", supabaseUrl?.substring(0, 15) + "...");
