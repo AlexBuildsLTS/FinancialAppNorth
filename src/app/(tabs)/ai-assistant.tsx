@@ -34,7 +34,7 @@ const AIFeatureCard = ({ title, description, icon: Icon, onPress, colors }: AIFe
 
 export default function AIAssistantScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const router = useRouter();
 
   const handleDocumentScan = () => {

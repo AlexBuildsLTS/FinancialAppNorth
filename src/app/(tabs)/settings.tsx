@@ -15,7 +15,7 @@ const SettingsListItem = ({ icon: Icon, text, onPress, rightContent, colors }: a
 );
 
 export default function SettingsScreen() {
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { colors, isDark, setColorScheme } = useTheme();
   const { signOut } = useAuth();
   const router = useRouter();
 
@@ -47,12 +47,12 @@ export default function SettingsScreen() {
            <SettingsListItem
               icon={Palette}
               text="Dark Mode"
-              onPress={toggleTheme}
+              onPress={() => setColorScheme(isDark ? 'light' : 'dark')}
               rightContent={
                 <Switch
                     trackColor={{ false: '#767577', true: colors.primary }}
                     thumbColor={isDark ? colors.surface : '#f4f3f4'}
-                    onValueChange={toggleTheme}
+                    onValueChange={() => setColorScheme(isDark ? 'light' : 'dark')}
                     value={isDark}
                 />
               }

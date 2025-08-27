@@ -9,7 +9,7 @@ import { uploadDocument } from '@/services/documentService';
 
 export default function CameraScreen() {
     const { colors } = useTheme();
-    const { user } = useAuth();
+    const { profile } = useAuth();
     const router = useRouter();
     const cameraRef = useRef<CameraView | null>(null); // Correctly typed ref for CameraView
     const [permission, requestPermission] = useCameraPermissions();
@@ -27,14 +27,14 @@ export default function CameraScreen() {
     };
 
     const takePicture = async () => {
-        if (!cameraRef.current || !user) return;
+        if (!cameraRef.current || !profile) return;
 
         setIsUploading(true);
         try {
             const photo = await cameraRef.current.takePictureAsync({ quality: 0.7, base64: true });
             if (photo && photo.base64) {
                 const fileName = `scan_${Date.now()}`;
-                await uploadDocument(photo.base64, fileName, user.id);
+                await uploadDocument(photo.base64, fileName, profile.id);
                 Alert.alert('Success', 'Document uploaded and is now being processed.');
                 router.back();
             } else {

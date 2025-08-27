@@ -27,7 +27,7 @@ const ClientListItem = ({ client, onPress }: { client: Profile, onPress: () => v
 
 export default function ClientsScreen() {
     const { colors } = useTheme();
-    const { user } = useAuth();
+    const { profile } = useAuth();
     const router = useRouter();
     
     const [clients, setClients] = useState<Profile[]>([]);
@@ -35,10 +35,10 @@ export default function ClientsScreen() {
     const [isModalVisible, setIsModalVisible] = useState(false);
 
     const fetchClients = useCallback(async () => {
-        if (user?.id) {
+        if (profile?.id) {
             try {
                 setLoading(true);
-                const clientData = await getAssignedClients(user.id);
+                const clientData = await getAssignedClients(profile.id);
                 const profileData: Profile[] = clientData.map(client => ({
                     id: client.id,
                     display_name: client.name,
@@ -53,7 +53,7 @@ export default function ClientsScreen() {
                 setLoading(false);
             }
         }
-    }, [user]);
+    }, [profile]);
 
     useFocusEffect(useCallback(() => { fetchClients(); }, [fetchClients]));
 

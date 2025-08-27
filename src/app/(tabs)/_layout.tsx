@@ -25,9 +25,9 @@ const TabBarIcon: React.FC<TabBarIconProps> = React.memo(
 
 export default function TabLayout() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const isProfessional =
-    user?.role === 'Professional Accountant' || user?.role === 'Administrator';
+    profile?.role === 'Professional (CPA)' || profile?.role === 'Administrator';
 
   return (
     <Tabs
