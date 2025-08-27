@@ -9,12 +9,12 @@ import { BarChart3 } from 'lucide-react-native';
 
 export default function ChartSection({ userId }: { userId?: string }) {
     const { colors, isDark } = useTheme();
-    const { user } = useAuth();
+    const { session } = useAuth();
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [loading, setLoading] = useState(true);
     
     useEffect(() => {
-        const targetUserId = userId || user?.id;
+        const targetUserId = userId || session?.user?.id;
         if (targetUserId) {
             setLoading(true);
             getMonthlyCashFlow(targetUserId)
@@ -22,7 +22,7 @@ export default function ChartSection({ userId }: { userId?: string }) {
                 .catch(console.error)
                 .finally(() => setLoading(false));
         }
-    }, [user, userId]);
+    }, [session, userId]);
 
     const chartColor = isDark ? colors.primary : colors.secondary;
 

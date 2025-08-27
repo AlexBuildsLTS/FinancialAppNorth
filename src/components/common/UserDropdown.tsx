@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function UserDropdown() {
   const { colors } = useTheme();
-  const { user, signOut } = useAuth();
+  const { profile, signOut } = useAuth();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -49,10 +49,10 @@ export default function UserDropdown() {
           <View style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.userInfo}>
               <Text style={[styles.userName, { color: colors.text }]}>
-                {user?.user_metadata?.display_name || 'User'}
+                {profile?.display_name || 'User'}
               </Text>
               <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
-                {user?.email}
+                {profile?.email}
               </Text>
             </View>
             
@@ -76,7 +76,7 @@ export default function UserDropdown() {
             
             <View style={[styles.separator, { backgroundColor: colors.border }]} />
 
-            {user?.role === 'Administrator' && (
+            {profile?.role === 'Administrator' && (
               <>
                 <TouchableOpacity 
                   style={styles.menuItem} 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, TextInput } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { UserProfile, UserRole } from '@/types';
+import { Profile } from '@/types';
 import Button from '@/components/common/Button';
 import Modal from '@/components/common/Modal';
 import { Picker } from '@react-native-picker/picker';
@@ -10,11 +10,11 @@ import { updateUserRole } from '@/services/adminService';
 interface EditUserModalProps {
   visible: boolean;
   onClose: () => void;
-  user: UserProfile | null;
+  user: Profile | null;
   onUserUpdate: () => void;
 }
 
-const ROLES: UserProfile['role'][] = [
+const ROLES: Profile['role'][] = [
     'Member', 
     'Premium Member', 
     'Professional (CPA)', 
@@ -24,7 +24,7 @@ const ROLES: UserProfile['role'][] = [
 
 export default function EditUserModal({ visible, onClose, user, onUserUpdate }: EditUserModalProps) {
   const { colors } = useTheme();
-  const [selectedRole, setSelectedRole] = useState<UserProfile['role']>('Member');
+  const [selectedRole, setSelectedRole] = useState<Profile['role']>('Member');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export default function EditUserModal({ visible, onClose, user, onUserUpdate }: 
         <View style={[styles.pickerContainer, { backgroundColor: colors.background }]}>
             <Picker
                 selectedValue={selectedRole}
-                onValueChange={(itemValue: string) => setSelectedRole(itemValue as UserProfile['role'])}
+                onValueChange={(itemValue: string) => setSelectedRole(itemValue as Profile['role'])}
                 style={{ color: colors.text }}
             >
                 {ROLES.map(role => (

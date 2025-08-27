@@ -16,7 +16,7 @@ export default function DashboardHeader({
   onPressSettings,
 }: DashboardHeaderProps) {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const router = useRouter();
 
   return (

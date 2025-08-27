@@ -20,11 +20,11 @@ export async function getAccounts(): Promise<Account[]> {
 
   return (data || []).map(account => ({
     id: account.id,
+    user_id: account.user_id,
     name: account.name,
     type: account.type,
     balance: parseFloat(account.balance),
     currency: account.currency,
-    lastUpdated: account.updated_at,
   }));
 }
 
@@ -46,16 +46,19 @@ export async function getTransactions(userId?: string): Promise<Transaction[]> {
 
   return (data || []).map(tx => ({
     id: tx.id,
-    clientId: tx.user_id,
-    accountId: tx.account_id,
+    user_id: tx.user_id,
+    account_id: tx.account_id,
     title: tx.title,
     description: tx.description,
     category: tx.category,
     amount: parseFloat(tx.amount),
-    date: tx.transaction_date,
-    time: tx.transaction_time,
+    transaction_date: tx.transaction_date,
     type: tx.type,
     status: tx.status,
+    created_at: tx.created_at,
+    clientId: tx.user_id,
+    date: tx.transaction_date,
+    time: tx.transaction_time,
     tags: tx.tags,
     location: tx.location,
   }));
@@ -129,7 +132,7 @@ export async function createTransaction(transaction: Omit<Transaction, 'id'>): P
     .from('transactions')
     .insert({
       user_id: user.id,
-      account_id: transaction.accountId,
+      account_id: transaction.account_id,
       title: transaction.title,
       description: transaction.description,
       category: transaction.category,
@@ -148,16 +151,19 @@ export async function createTransaction(transaction: Omit<Transaction, 'id'>): P
 
   return {
     id: data.id,
-    clientId: data.user_id,
-    accountId: data.account_id,
+    user_id: data.user_id,
+    account_id: data.account_id,
     title: data.title,
     description: data.description,
     category: data.category,
     amount: parseFloat(data.amount),
-    date: data.transaction_date,
-    time: data.transaction_time,
+    transaction_date: data.transaction_date,
     type: data.type,
     status: data.status,
+    created_at: data.created_at,
+    clientId: data.user_id,
+    date: data.transaction_date,
+    time: data.transaction_time,
     tags: data.tags,
     location: data.location,
   };
