@@ -1,53 +1,49 @@
-// src/lib/supabase.ts
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+import
+ { setItemAsync, getItemAsync, deleteItemAsync } from "expo-secure-store";
+// Define a secure storage adapter for native platforms using expo-secure-store
+const NativeSecureStoreAdapter = {
+  getItem: (key: string) => SecureStore.getItemAsync(key),
+  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+};
 
-// Conditional import for AsyncStorage
-let AsyncStorage;
-if (Platform.OS !== 'web') {
-  AsyncStorage = require('@react-native-async-storage/async-storage').default;
-}
-
+// Use standard localStorage for the web, which is the correct practice
+const WebLocalStorageAdapter = {
+  getItem: async (key: string) => (typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null),
+  setItem: async (key: string, value: string) => { if (typeof localStorage !== 'undefined') localStorage.setItem(key, value); },
+  removeItem: async (key: string) => { if (typeof localStorage !== 'undefined') localStorage.removeItem(key); },
+};
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Supabase URL and Anon Key must be provided in your environment variables.");
+  throw new Error("Supabase URL or Anon Key is not set in your environment variables. Check your .env file.");
 }
 
-// Configure storage based on platform
-let storage;
-if (Platform.OS === 'web') {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    storage = window.localStorage;
-  } else {
-    // In-memory storage for SSR or environments without localStorage
-    const inMemoryStorage: { [key: string]: string } = {};
-    storage = {
-      getItem: (key: string) => inMemoryStorage[key] || null,
-      setItem: (key: string, value: string) => {
-        inMemoryStorage[key] = value;
-      },
-      removeItem: (key: string) => {
-        delete inMemoryStorage[key];
-      },
-    };
-  }
-} else {
-  // For native platforms (iOS, Android), use AsyncStorage
-  storage = AsyncStorage;
-}
+// Conditionally choose the storage adapter based on the platform
+const storageAdapter = Platform.OS === 'web' ? WebLocalStorageAdapter : NativeSecureStoreAdapter;
 
-// Create and export the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: storage as any,
+    storage: storageAdapter,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    flowType: 'pkce',
   },
 });
 
-// Optional: Add debug log to verify initialization
-console.log("Supabase client initialized with URL:", supabaseUrl?.substring(0, 15) + "...");
+// Refreshes the session when the app comes to the foreground on native platforms
+if (Platform.OS !== 'web') {
+  AppState.addEventListener('change', (nextAppState) => {
+    if (nextAppState === 'active') {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}

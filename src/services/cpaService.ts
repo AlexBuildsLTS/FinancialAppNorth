@@ -1,111 +1,69 @@
-import { supabase } from '@/lib/supabase';
-import { UserProfile, Transaction, Client as TypesClient } from '@/types';
+import { supabase } from '../lib/supabase';
+import { Profile, DashboardMetrics, ClientDashboardData, ClientListItem, } from '../types';
 
-// Represents a client assigned to a CPA
-export interface Client extends UserProfile {
-  last_activity: string; // Could be a timestamp of last login or transaction
-}
+/**
+ * Fetches all necessary data for a single client's dashboard.
+ */
+export const getClientDashboardData = async (  clientId: string,): Promise<ClientDashboardData> => {
+    if (!clientId) throw new Error("Client ID must be provided.");
 
-// Mapping function to convert cpaService Client to types/index.ts Client
-export const mapCpaClientToTypesClient = (cpaClient: Client): TypesClient => {
-  return {
-    id: cpaClient.id,
-    name: cpaClient.display_name,
-    email: cpaClient.email,
-    status: cpaClient.status as 'active' | 'inactive', // Type assertion to match expected type
-    companyName: cpaClient.display_name, // Using display name as company name
-    avatarUrl: cpaClient.avatar_url || `https://i.pravatar.cc/150?u=${cpaClient.id}`,
-    netWorth: 0, // Default value, could be updated if this data is available
-    uncategorized: 0, // Default value, could be updated if this data is available
-    };
+    try {
+        const [profileRes, metricsRes, transactionsRes] = await Promise.all([
+            supabase.from('profiles').select('*').eq('id', clientId).single(),
+            supabase.rpc('get_dashboard_metrics', { client_id: clientId }),
+            supabase.from('transactions').select('*, category:categories(name)').eq('user_id', clientId).order('transaction_date', { ascending: false }).limit(5)
+        ]);
+
+        if (profileRes.error) throw new Error(`Profile fetch failed: ${profileRes.error.message}`);
+        if (metricsRes.error) throw new Error(`Metrics RPC failed: ${metricsRes.error.message}`);
+        if (transactionsRes.error) throw new Error(`Transactions fetch failed: ${transactionsRes.error.message}`);
+        if (!profileRes.data) throw new Error('Client profile not found.');
+        if (!metricsRes.data) throw new Error('Could not calculate client metrics.');
+
+        const formattedTransactions = transactionsRes.data?.map((t: any) => ({
+            ...t,
+            category: t.categories?.name || 'Uncategorized',
+        })) || [];
+
+        return {
+            profile: profileRes.data,
+            metrics: metricsRes.data,
+            recentTransactions: formattedTransactions,
+        };
+    } catch (error) {
+        console.error("Critical error in getClientDashboardData:", error);
+        throw error;
+    }
 };
 
 /**
- * Sends a request for client access to a specific email address.
- * This assumes a 'client_access_requests' table exists.
- * @param email The email address of the client to request access for.
+ * Fetches a list of all active clients assigned to a specific CPA.
  */
-export const requestClientAccess = async (email: string): Promise<void> => {
-  const { error } = await supabase
-    .from('client_access_requests')
-    .insert([{ email, status: 'pending' }]); // Assuming 'status' defaults to 'pending'
+export const getAssignedClients = async (cpaId: string): Promise<ClientListItem[]> => {
+    const { data, error } = await supabase
+        .from('cpa_client_assignments')
+        .select('client:profiles!inner(id, display_name, email, avatar_url)')
+        .eq('cpa_user_id', cpaId)
+        .eq('status', 'active');
 
-  if (error) {
-    console.error('Error sending client access request:', error);
-    throw error;
-  }
-};
+    if (error) {
+        console.error('Error fetching assigned clients:', error);
+        throw error;
+    }
 
-// Represents the full financial overview for a single client
-export interface ClientDashboardData {
-  profile: UserProfile;
-  totalBalance: number;
-  totalIncome: number;
-  totalExpenses: number;
-  recentTransactions: Transaction[];
-}
-
-/**
- * Fetches a list of all clients assigned to a specific CPA.
- * This assumes a 'cpa_client_assignments' table exists linking professionals to their clients.
- * @param cpaId The UUID of the Professional (CPA) user.
- */
-export const getAssignedClients = async (cpaId: string): Promise<TypesClient[]> => {
-  const { data, error } = await supabase
-    .from('client_assignments')
-    .select('client:profiles(*)')
-    .eq('cpa_id', cpaId);
-
-  if (error) {
-    console.error('Error fetching assigned clients:', error);
-    throw error;
-  }
-
-  // Map the data to the Client type
-  return data.map(item => {
-    const clientWithActivity: any = {
-      ...item.client,
-      last_activity: '2025-08-24T10:00:00Z', // Placeholder activity
-    };
-    
-    return mapCpaClientToTypesClient(clientWithActivity as Client);
-  });
-};
-
-/**
- * Fetches all necessary data for a single client's dashboard view.
- * This is the secure data fetch for when a CPA enters a client's workspace.
- * @param clientId The UUID of the client being viewed.
- */
-export const getClientDashboardData = async (clientId: string): Promise<ClientDashboardData> => {
-    // 1. Fetch Client Profile
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', clientId)
-        .single();
-    
-    if (profileError) throw profileError;
-
-    // 2. Fetch Client Transactions
-    const { data: transactions, error: transactionsError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', clientId)
-        .order('date', { ascending: false });
-
-    if (transactionsError) throw transactionsError;
-
-    // 3. Calculate Financials
-    const totalIncome = transactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0;
-    const totalExpenses = transactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0;
-    const totalBalance = totalIncome - totalExpenses;
-    
-    return {
-        profile,
-        totalBalance,
-        totalIncome,
-        totalExpenses,
-        recentTransactions: transactions?.slice(0, 5) || [],
-    };
+    return (data || [])
+        .map(item => {
+            const clientProfile = Array.isArray(item.client) ? item.client[0] : item.client;
+            if (!clientProfile) {
+                return null;
+            }
+            return {
+                id: clientProfile.id,
+                name: clientProfile.display_name,
+                email: clientProfile.email,
+                avatarUrl: clientProfile.avatar_url || `https://avatar.vercel.sh/${clientProfile.id}`,
+                last_activity: 'Just now', // Placeholder
+            };
+        })
+        .filter((item): item is ClientListItem => item !== null);
 };
