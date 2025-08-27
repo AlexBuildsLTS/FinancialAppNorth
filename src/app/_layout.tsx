@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useRouter, useSegments, Stack } from 'expo-router';
+import { useSegments, Stack, Redirect } from 'expo-router';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeProvider';
 import { ToastProvider } from '@/context/ToastProvider';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -15,22 +15,24 @@ SplashScreen.preventAutoHideAsync();
 const AuthRedirector = () => {
   const { user, initialized } = useAuth();
   const segments = useSegments();
-  const router = useRouter();
 
-  useEffect(() => {
-    if (!initialized) return;
+  // If the app is not initialized, we don't want to render anything.
+  if (!initialized) {
+    return null; // or a loading spinner
+  }
 
-    const inAuthGroup = segments[0] === '(auth)';
+  const inAuthGroup = segments[0] === '(auth)';
 
-    if (user && inAuthGroup) {
-      // Redirect authenticated users from auth pages to the main app
-      router.replace('/(tabs)');
-    } else if (!user && !inAuthGroup) {
-      // Redirect unauthenticated users from main app pages to the login page
-      router.replace('/(auth)/login');
-    }
-  }, [user, initialized, segments, router]);
+  if (user && inAuthGroup) {
+    // Redirect authenticated users from auth pages to the main app
+    // Using 'replace' to prevent user from going back to auth screens.
+    return <Redirect href="/(tabs)" />;
+  } else if (!user && !inAuthGroup) {
+    // Redirect unauthenticated users from main app pages to the login page
+    return <Redirect href="/(auth)/login" />;
+  }
 
+  // If the user is in the correct group, render the stack.
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -39,14 +41,12 @@ const AuthRedirector = () => {
       <Stack.Screen name="chat" options={{ headerShown: false }} />
       <Stack.Screen name="process-document" options={{ headerShown: false }} />
       <Stack.Screen name="client-support" options={{ headerShown: false }} />
-      <Stack.Screen name="client-dashboard" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
 };
 
 export default function RootLayout() {
-  useFrameworkReady();
   
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': require('../assets/Inter/Inter-VariableFont_opsz,wght.ttf'),

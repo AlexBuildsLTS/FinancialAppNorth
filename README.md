@@ -51,8 +51,6 @@ Our vision is to create an intuitive and powerful financial management platform 
             └── 📁chat
                 ├── _layout.tsx
                 ├── [id].tsx
-            └── 📁client-dashboard
-                ├── [id].tsx
             ├── _layout.tsx
             ├── +not-found.tsx
             ├── client-support.tsx
@@ -236,7 +234,6 @@ Our vision is to create an intuitive and powerful financial management platform 
     ├── package.json
     ├── README.md
     └── tsconfig.json
-```
 
 ## Vision & User Experience
 
@@ -292,11 +289,11 @@ The application is built on a robust, role-based permission system to ensure dat
 
 | Role                 | Description                                                  | Key Permissions                                                                                                                                                    |
 | :------------------- | :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Member**           | The default role for all new users. Designed for personal use. | • Manage own financial data<br>• Access core bookkeeping & budgeting<br>• Use camera scanning & AI assistant for personal data                                       |
-| **Premium Member**   | An upgraded role for users who need more powerful tools.     | • All Member permissions<br>• In-depth analytics & multi-year forecasting<br>• Advanced tax preparation summaries<br>• Export data to CSV                         |
-| **Professional (CPA)** | A distinct account for accountants managing multiple clients. | • Access a dashboard of assigned clients<br>• Full financial management within segregated client workspaces<br>• Generate professional reports for clients              |
-| **Support**          | An internal role for troubleshooting and user assistance.    | • Read-only access to specific user data for diagnostics<br>• View transaction logs and reports<br>• Cannot modify any financial data                            |
-| **Administrator**    | The highest-level internal role with full system oversight.  | • Full access to the Admin Panel<br>• Manage all users and assign roles<br>• Send global messages<br>• Perform system-wide auditing                                |
+| **Member**           | The default role for all new users. Designed for personal use. | • Manage own financial data, • Access core bookkeeping & budgeting, • Use camera scanning & AI assistant for personal data                                       |
+| **Premium Member**   | An upgraded role for users who need more powerful tools.     | • All Member permissions, • In-depth analytics & multi-year forecasting, • Advanced tax preparation summaries, • Export data to CSV                         |
+| **Professional (CPA)** | A distinct account for accountants managing multiple clients. | • Access a dashboard of assigned clients, • Full financial management within segregated client workspaces, • Generate professional reports for clients              |
+| **Support**          | An internal role for troubleshooting and user assistance.    | • Read-only access to specific user data for diagnostics, • View transaction logs and reports, • Cannot modify any financial data                            |
+| **Administrator**    | The highest-level internal role with full system oversight.  | • Full access to the Admin Panel, • Manage all users and assign roles, • Send global messages, • Perform system-wide auditing                                |
 
 ---
 
@@ -380,3 +377,136 @@ To maintain client privacy and security, a CPA **cannot**:
   * **OCR:** Camera-based document scanning will use a cloud-based OCR service to extract text from images.
   * **AI Providers:** The AI Assistant will connect to user-provided API keys for OpenAI, Google Gemini, and Anthropic Claude, with a dedicated screen for key management and connection testing.
 * **Currency Conversion:** A real-time currency exchange rate API will be integrated to handle conversions between SEK, USD, EUR, and other currencies.
+
+*
+
+--------------------------------------------------------------------------------
+
+## Full Project Snapshot SUPABASE
+
+``` Below is a concise, searchable reference of every schema, table, view, storage bucket, extension and RLS policy in the fniujrqxkhepevzvghja Supabase project. Use it as a cheat‑sheet when building UI calls, Edge Functions, or debugging the signup flow.
+
+1️⃣ Schemas & Their Role
+Schema What it Holds RLS Default
+auth Core Auth objects (users, sessions, identities, mfa_*, refresh_tokens, etc.) ✅ enabled (but most tables have built‑in Supabase policies)
+public Your application data – profiles, finances, chat, support, audit, etc. ✅ enabled (policies listed below)
+private Internal meta‑tables (e.g. user_roles). No RLS (intended for service‑role use). ❌ disabled
+storage Buckets & objects for file storage. ✅ enabled (bucket‑level policies you see below)
+vault Encrypted secrets (vault.secrets). ❌ disabled (access via service‑role only)
+realtime Internal Realtime replication tables (messages_*). ✅ disabled (used only by Supabase Realtime)
+graphql, graphql_public, pgbouncer, extensions, supabase_migrations System‑level infrastructure. Varies (mostly disabled for RLS).
+2️⃣ All Tables – Key Columns, PKs & Relationships
+Note – Every foreign‑key column already has an index (created in a previous migration).
+
+Table (schema) Primary Key Important Columns RLS ? FK → Target
+auth.users id (uuid) email, encrypted_password, role, phone, is_super_admin ✅ –
+auth.sessions id (uuid) user_id, created_at, updated_at ✅ user_id → auth.users.id
+auth.identities id (uuid) user_id, provider_id, provider, email ✅ user_id → auth.users.id
+auth.refresh_tokens id (bigint) user_id, token, revoked ✅ user_id → auth.users.id
+auth.mfa_factors id (uuid) user_id, factor_type, status ✅ user_id → auth.users.id
+auth.mfa_challenges id (uuid) factor_id, verified_at ✅ factor_id → auth.mfa_factors.id
+auth.mfa_amr_claims id (uuid) session_id, authentication_method ✅ session_id → auth.sessions.id
+auth.sso_providers, auth.sso_domains, auth.saml_providers, auth.saml_relay_states, auth.flow_state, auth.one_time_tokens various … ✅ Various ↔ auth.users
+public.profiles id (uuid) display_name, avatar_url, role (enum: member, premium, cpa, support, admin) ✅ id → auth.users.id
+public.accounts id (uuid) user_id, name, type (checking, savings, credit, investment), balance, currency ✅ user_id → public.profiles.id
+public.categories id (uuid) user_id, name, type (income, expense) ✅ user_id → public.profiles.id
+public.documents id (uuid) user_id, storage_path, file_name, mime_type, status (processing, processed, error) ✅ user_id → public.profiles.id
+public.transactions id (uuid) user_id, account_id, category_id, document_id, description, amount, type (income, expense), transaction_date, status (pending, cleared, cancelled) ✅ user_id → profiles.id, account_id → accounts.id, category_id → categories.id, document_id → documents.id
+public.cpa_client_assignments id (uuid) cpa_user_id, client_user_id, status (pending, active, terminated), assigned_at ✅ cpa_user_id → profiles.id, client_user_id → profiles.id
+public.user_secrets id (uuid) user_id (unique), openai_key, gemini_key, claude_key ✅ user_id → profiles.id
+public.channels id (bigint) created_by, created_at ✅ created_by → auth.users.id
+public.channel_participants PK (channel_id, user_id) – ✅ channel_id → channels.id, user_id → profiles.id
+public.messages id (bigint) channel_id, user_id, content, created_at ✅ channel_id → channels.id, user_id → profiles.id
+public.support_tickets id (uuid) user_id, title, status (open, in_progress, resolved, closed), priority (low, medium, high, urgent), assigned_to_id ✅ user_id → profiles.id, assigned_to_id → profiles.id
+public.support_messages id (uuid) ticket_id, user_id, message, created_at ✅ ticket_id → support_tickets.id, user_id → profiles.id
+public.audit_log id (bigint) actor_id, action, target_id, details, created_at ✅ actor_id → profiles.id
+storage.buckets id (text) name, public, owner_id, type (STANDARD, ANALYTICS) ✅ –
+storage.objects id (uuid) bucket_id, name, owner_id, metadata, created_at, updated_at ✅ bucket_id → buckets.id
+private.user_roles user_id (uuid) (PK) roles (array of text), permissions (jsonb), assigned_at, assigned_by ❌ (no RLS) user_id → auth.users.id
+realtime.<messages_*> id (uuid) Realtime log rows – not used by your UI directly. ✅ (disabled) 
+supabase_migrations.schema_migrations, supabase_migrations.seed_files – Migration tracking – internal only. ❌ –
+vault.secrets id (uuid) Encrypted secret – accessed via Supabase Vault API only. ❌ –
+3️⃣ Storage Buckets (visible via Supabase UI)
+Bucket Owner Public? RLS ? Typical Use
+avatars null false ✅ Users’ profile pictures (policies already listed).
+documents null false ✅ Uploaded receipts / invoices (policy Users can manage their own documents).
+buckets_analytics null true ✅ Analytics‑only bucket (system).
+You can create more buckets with supabase storage create-bucket <name> or via the dashboard.
+
+4️⃣ Extensions Currently Installed
+Extension Version What it Provides
+uuid-ossp 1.1 UUID generation (uuid_generate_v4()).
+pgcrypto 1.3 Cryptographic functions (hashing, encryption).
+pg_stat_statements 1.11 Query performance stats.
+supabase_vault 0.3.1 Encrypted secret storage.
+Many others (PostGIS, pgnet, vector, pgmq, etc.) are available but not installed in this project (their installed_version is null). They can be added via the Extensions UI if you need spatial queries, full‑text search, message queues, etc.  
+5️⃣ RLS Policies – What’s Already Enforced
+The policies below are generated from list_policies and grouped by table. They are all PERMISSIVE (the typical Supabase style).
+
+5.1 Public‑Schema Core Tables
+Table Operation Role(s) Condition
+profiles SELECT / UPDATE / ALL public (any authenticated user) auth.uid() = id (owner only)
+accounts, categories, transactions, documents, user_secrets, audit_log, support_tickets, support_messages, channels, channel_participants, messages ALL / SELECT public auth.uid() = user_id (owner)
+accounts, categories, transactions, documents, support_tickets, support_messages, messages SELECT public AND CPA visibility EXISTS (SELECT 1 FROM cpa_client_assignments ca WHERE ca.client_user_id = <owner_id> AND ca.cpa_user_id = auth.uid() AND ca.status = 'active')
+cpa_client_assignments SELECT public cpa_user_id = auth.uid() (CPA can see their own assignments)
+cpa_client_assignments SELECT (client view) public client_user_id = auth.uid() (client can see their own assignments)
+cpa_client_assignments INSERT public cpa_user_id = auth.uid() AND status = 'pending'
+cpa_client_assignments DELETE (client revokes) public client_user_id = auth.uid()
+channels INSERT authenticated CHECK true (any authenticated user can create a channel)
+channel_participants SELECT / ALL public EXISTS (SELECT 1 FROM channel_participants cp WHERE cp.channel_id = channels.id AND cp.user_id = auth.uid()) (only participants see a channel)
+messages ALL public Same as above – participants can read/write messages in their channels.
+support_tickets SELECT public profile.role ∈ {admin, support} (staff can view all)
+support_tickets ALL public auth.uid() = user_id (owner)
+support_messages ALL public Ticket owner, assigned staff, or admin/support can read/write.
+audit_log INSERT public actor_id = auth.uid() (users insert their own audit rows)
+audit_log SELECT public profile.role ∈ {admin, support} (staff can view).
+storage (avatars) SELECT / UPDATE public Owner‑only via storage.foldername(name) check.
+storage (avatars) INSERT public Owner‑only via check.
+storage (documents) ALL authenticated Owner‑only via folder check.
+Missing policies – cpa_client_assignments already has SELECT policies, but no INSERT/UPDATE/DELETE for the “client” side (the client can’t request a CPA). You may want to add a request table later.
+
+5.2 Auth‑Schema (built‑in)
+Supabase ships default policies for the auth tables (allow sign‑up, sign‑in, password reset, etc.). No custom changes are needed unless you’ve added triggers.
+
+6️⃣ Why the POST /auth/v1/signup is failing (500 Internal Server Error)
+The request you posted is a standard Supabase signup. The server returned:
+
+SQL Query
+
+x-sb-error-code: unexpected_failure
+
+That means Supabase hit an unhandled exception while processing the request. Most common causes:
+
+Possible Cause How to verify & fix
+Missing required fields – the body must contain at least { "email": "...", "password": "..." }. Anything else is ignored. Check the exact payload sent from your Expo app. If you’re also sending email_confirm or custom user‑meta, ensure they are valid JSON.
+Email already exists – Supabase returns 409 Conflict, but a custom trigger could convert it to 500. Try signing up with a brand‑new email via the Supabase dashboard ➜ Authentication ➜ Users. If it works, the email you used is already taken.
+Custom “sign‑up” trigger or Postgres function that raises an exception (e.g., checking a domain whitelist). Run SELECT *FROM pg_trigger WHERE tgrelid = 'auth.users'::regclass; in the SQL editor. If any trigger exists, inspect its definition.
+RLS on auth.users (unlikely) – if you changed default policies, sign‑up may be blocked. Verify SELECT* FROM pg_policy WHERE schemaname='auth' AND tablename='users'; – default policies should allow INSERT for anon and authenticated.
+Malformed request headers – you sent both apikey and Authorization: Bearer … to the signup endpoint. Supabase expects only apikey (service role not needed). Including a bearer token that is not yet valid can cause the server to attempt a lookup of auth.uid() → NULL → error. Remove the Authorization header on the signup call. Only include apikey (or leave it out entirely – the JS client handles it).
+Expired/invalid API key – the API key you posted is a service‑role key (has role=anon). If the key is revoked or malformed, the gateway returns 500. Generate a fresh anon key from the Supabase dashboard ➜ Project Settings ➜ API. Use that for client‑side calls.
+Quick Test you can run from the browser console (or Postman)
+curl -X POST "<https://fniujrqxkhepevzvghja.supabase.co/auth/v1/signup>" \
+  -H "apikey: <YOUR_ANON_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"<test1234@example.com>","password":"SuperSecret123!"}'
+
+
+    If this returns a user object (or a “confirmation email sent” message), the backend is healthy.
+*If you still see 500, open the Supabase Logs (Dashboard → Settings → Logs) and look for the request‑ID (0198eb8b-c4d9-...). The log entry will show the exact PostgreSQL error (e.g., duplicate key value violates unique constraint "users_pkey" or a trigger exception).
+
+7️⃣ Immediate Action Items
+✅ Done ❌ Pending
+✅ All tables listed with columns, PKs, indexes. ❌ Add INSERT/DELETE policies for cpa_client_assignments if you want clients to request a CPA (e.g., a client_requests table).
+✅ RLS policies reviewed – most essential policies already exist. ❌ Fix the signup request (remove Authorization header, ensure email & password present, use a fresh anon key).
+✅ Storage bucket policies are in place for avatars & documents. ❌ If you need a public bucket (e.g., for marketing assets), create a new bucket with public: true and add a bucket‑level policy if you want finer control.
+✅ All required indexes are present (you’ll see them in list_indexes if you run it). ❌ If you add new tables (e.g., client_requests), remember to enable RLS and create indexes on any FK used in policies.
+✅ Extensions (uuid-ossp, pgcrypto, `pg_stat`
+--
+Quick Action Checklist
+✅ Done ⬜ Pending
+✅ Identify missing policies (RLS enabled, none defined). ⬜ Write CREATE POLICY statements (adjust column/role names).
+✅ Decide on access model (client ↔ CPA ↔ admin). ⬜ Apply policies to the table.
+✅ (Optional) Add a temporary admin‑bypass policy. ⬜ Create indexes on client_user_id, cpa_user_id, status.
+✅ Verify policies via pg_policy. ⬜ Test each role’s ability to SELECT/INSERT/UPDATE/DELETE.
+✅ Document the policy purpose. ⬜ Deploy migration and monitor logs for any permission errors.
+```

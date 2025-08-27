@@ -11,6 +11,7 @@ import ChartSection from '@/components/dashboard/ChartSection';
 import QuickActions from '@/components/dashboard/QuickActions';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
 import AddTransactionModal from '@/components/forms/AddTransactionModal';
+import { useTransactions } from '@/hooks/useTransactions';
 import { 
   BarChart3, 
   Target, 
@@ -22,13 +23,46 @@ import {
 
 export default function DashboardScreen() {
   const { colors, isDark } = useTheme();
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const router = useRouter();
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const { transactions, isLoading, error, refreshTransactions } = useTransactions();
 
   const onTransactionAdded = () => {
     setIsModalVisible(false);
+    refreshTransactions(); // Refresh transactions after a new one is added
   };
+
+  const metricData = [
+    {
+      title: 'Net Revenue',
+      value: '$15,230',
+      change: 12.5,
+      Icon: TrendingUp,
+      changeType: 'positive' as 'positive' | 'negative',
+    },
+    {
+      title: 'Gross Profit',
+      value: '$12,890',
+      change: 8.2,
+      Icon: PieChart,
+      changeType: 'positive' as 'positive' | 'negative',
+    },
+    {
+      title: 'Accounts Receivable',
+      value: '$5,600',
+      change: -2.1,
+      Icon: FileText,
+      changeType: 'negative' as 'positive' | 'negative',
+    },
+    {
+      title: 'Accounts Payable',
+      value: '$3,200',
+      change: 5.7,
+      Icon: Calculator,
+      changeType: 'positive' as 'positive' | 'negative',
+    },
+  ];
 
   const quickNavItems = [
     {
@@ -67,14 +101,14 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
       >
         <DashboardHeader
-                  userName={user?.displayName || 'User'}
-                  avatarUrl={user?.avatarUrl || ''}
+                  userName={profile?.display_name || 'User'}
+                  avatarUrl={profile?.avatar_url || ''}
                   onPressProfile={() => router.push('/(tabs)/profile')}
                   onPressSettings={() => router.push('/(tabs)/settings')} onPressMessages={function (): void {
                       throw new Error('Function not implemented.');
                   } }        />
 
-        <MetricsGrid />
+        <MetricsGrid metricData={metricData} />
         
         <View style={styles.quickNavSection}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -100,14 +134,14 @@ export default function DashboardScreen() {
 
         <ChartSection />
         <QuickActions onAddTransaction={() => setIsModalVisible(true)} />
-        <RecentTransactions />
+        <RecentTransactions transactions={transactions} />
       </ScrollView>
 
       <AddTransactionModal
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
-        onSuccess={onTransactionAdded}
-        clientId={user?.id || ''}
+        onSuccess={onTransactionAdded} 
+        clientId={profile?.id || ''}
       />
     </SafeAreaView>
   );

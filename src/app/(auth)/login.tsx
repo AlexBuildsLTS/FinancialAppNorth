@@ -7,10 +7,20 @@ import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
 import ScreenContainer from '@/components/ScreenContainer';
 import { Button, Card } from '@/components/common';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 const EMAIL_KEY = 'stored_email';
 const REMEMBER_ME_KEY = 'remember_me';
+
+// Conditional storage for web
+const WebStorage = {
+    getItemAsync: async (key: string) => localStorage.getItem(key),
+    setItemAsync: async (key: string, value: string) => localStorage.setItem(key, value),
+    deleteItemAsync: async (key: string) => localStorage.removeItem(key),
+};
+
+const CurrentSecureStore = Platform.OS === 'web' ? WebStorage : SecureStore;
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
@@ -19,7 +29,7 @@ export default function LoginScreen() {
     const [rememberMe, setRememberMe] = useState(false);
     const [loading, setLoading] = useState(false);
     
-    const { signInWithPassword } = useAuth();
+    const { signIn } = useAuth();
     const { showToast } = useToast();
     const router = useRouter();
     const { colors } = useTheme();
@@ -27,10 +37,10 @@ export default function LoginScreen() {
 useEffect(() => {
     const loadCredentials = async () => {
         try {
-            const remembered = await SecureStore.getItemAsync(REMEMBER_ME_KEY);
+            const remembered = await CurrentSecureStore.getItemAsync(REMEMBER_ME_KEY);
             if (remembered === 'true') {
                 // Use EMAIL_KEY constant instead of the email state variable
-                const savedEmail = await SecureStore.getItemAsync(EMAIL_KEY);
+                const savedEmail = await CurrentSecureStore.getItemAsync(EMAIL_KEY);
                 if (savedEmail) {
                     setEmail(savedEmail);
                     setRememberMe(true);
@@ -49,7 +59,7 @@ useEffect(() => {
             return;
         }
         setLoading(true);
-        const { error } = await signInWithPassword({ email, password, rememberMe });
+        const { error } = await signIn({ email, password, rememberMe });
         setLoading(false);
         if (error) {
             showToast(error.message, 'error');

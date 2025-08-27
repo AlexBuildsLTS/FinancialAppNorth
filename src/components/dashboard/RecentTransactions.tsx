@@ -1,18 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { useTransactions } from '@/hooks/useTransactions'; // Assuming you have this hook
+import { useTheme } from '../../context/ThemeProvider';
+import { Transaction } from '../../types';
 import { ArrowUpCircle, ArrowDownCircle } from 'lucide-react-native';
-import Card from '@/components/common/Card';
+import Card from '../common/Card';
 
-export default function RecentTransactions() {
+interface RecentTransactionsProps {
+    transactions: Transaction[];
+}
+
+export default function RecentTransactions({ transactions = [] }: RecentTransactionsProps) {
   const { colors } = useTheme();
-  const { transactions } = useTransactions();
-  
-  // Get the 5 most recent transactions
-  const recent = transactions.slice(0, 5);
 
-  const renderItem = ({ item }: any) => {
+  const renderItem = ({ item }: { item: Transaction }) => {
     const isIncome = item.type === 'income';
     const Icon = isIncome ? ArrowUpCircle : ArrowDownCircle;
     const amountColor = isIncome ? colors.success : colors.text;
@@ -35,12 +35,12 @@ export default function RecentTransactions() {
 
   return (
     <Card style={styles.container}>
-      {recent.length > 0 ? (
+      {transactions.length > 0 ? (
         <FlatList
-            data={recent}
+            data={transactions}
             renderItem={renderItem}
-            keyExtractor={(item) => item.id.toString()}
-            scrollEnabled={false} // The parent ScrollView handles scrolling
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
         />
       ) : (
         <Text style={{color: colors.textSecondary, textAlign: 'center', padding: 20}}>No recent transactions.</Text>
@@ -50,33 +50,10 @@ export default function RecentTransactions() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginHorizontal: 16,
-    padding: 0, // Padding will be handled by list items
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-  },
-  leftContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  description: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  category: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  amount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  container: { marginHorizontal: 16, padding: 0 },
+  itemContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: 1 },
+  leftContent: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  description: { fontSize: 16, fontWeight: '600' },
+  category: { fontSize: 14, marginTop: 4 },
+  amount: { fontSize: 16, fontWeight: 'bold' },
 });
