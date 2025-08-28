@@ -54,17 +54,13 @@ export default function AddTransactionModal({
         return;
       }
 
-      const newTransactionData: Omit<Transaction, 'id' | 'created_at' | 'status' | 'user_id'> = {
-        title,
+      const newTransactionData: Omit<Transaction, 'id' | 'created_at' | 'status' | 'user_id' | 'transaction_date'> = {
+        description: title, // Map title to description
         amount: numericAmount,
         category,
         type,
-        clientId: clientId || '', // Ensure clientId is always present, even if empty string
-        account_id: '', // Changed from accountId to account_id
-        description: '',
-        transaction_date: new Date().toISOString().split('T')[0], // Changed from date to transaction_date
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        client_id: clientId || '', // Ensure clientId is always present, even if empty string
+        account_id: '',
         tags: [],
         location: '',
       };
@@ -72,13 +68,7 @@ export default function AddTransactionModal({
       const addedTransaction = await addTransaction({ // Change to addTransaction
         ...newTransactionData, // Add user_id
         user_id: session.user.id,
-        account_id: '', // Changed from accountId to account_id
-        description: '', // Default or derive as needed
-        transaction_date: new Date().toISOString().split('T')[0], // Current date
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), // Current time
-        tags: [], // Default tags
-        location: '', // Default location
+        transaction_date: new Date().toISOString(), // Current date and time
       });
       
       Alert.alert('Success', 'Transaction added successfully.');

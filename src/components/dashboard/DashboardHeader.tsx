@@ -1,70 +1,96 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Bell, Bot, Settings } from 'lucide-react-native';
+// src/components/dashboard/DashboardHeader.tsx
+
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { Bell, Mail } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
-import NotificationDropdown from '@/components/common/NotificationDropdown';
-import UserDropdown from '@/components/common/UserDropdown';
-import { DashboardHeaderProps } from '@/types';
+import Avatar from '../common/Avatar';
+import NotificationDropdown from '../common/NotificationDropdown';
+import { useRouter } from 'expo-router';
 
-export default function DashboardHeader({
-  userName,
-  avatarUrl,
-  onPressProfile,
-  onPressMessages,
-  onPressSettings,
-}: DashboardHeaderProps) {
+const DashboardHeader = () => {
   const { colors } = useTheme();
   const { profile } = useAuth();
   const router = useRouter();
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const displayName = profile?.display_name || 'User';
 
   return (
-    <View style={styles.container}>
-      <View>
-        <Text style={[styles.greeting, { color: colors.textSecondary }]}>
-          Welcome back,
-        </Text>
-        <Text style={[styles.userName, { color: colors.text }]}>
-          {userName || 'User'}
-        </Text>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <View style={styles.container}>
+        <View>
+          <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>Welcome back,</Text>
+          <Text style={[styles.userName, { color: colors.text }]}>{displayName}!</Text>
+        </View>
+
+        <View style={styles.iconContainer}>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => setShowNotifications(prev => !prev)}
+          >
+            <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.badgeText}>2</Text>
+            </View>
+            <Bell color={colors.textSecondary} size={24} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton}>
+            <Mail color={colors.textSecondary} size={24} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/profile')}>
+            <Avatar profile={profile} size={40} />
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={styles.iconsContainer}>
-        <NotificationDropdown />
-        <TouchableOpacity onPress={() => router.push('/chat/1')} style={styles.iconButton}>
-          <Bot color={colors.textSecondary} size={24} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/settings')} style={styles.iconButton}>
-          <Settings color={colors.textSecondary} size={24} />
-        </TouchableOpacity>
-        <UserDropdown />
-      </View>
-    </View>
+      {showNotifications && <NotificationDropdown onClose={() => setShowNotifications(false)} />}
+    </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
+  safeArea: {
+    width: '100%',
+  },
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    paddingTop: 20, // Extra padding for status bar area
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    zIndex: 1, // Ensure header is above content
   },
-  greeting: {
-    fontSize: 16,
+  welcomeText: {
+    fontSize: 14,
   },
   userName: {
     fontSize: 24,
     fontWeight: 'bold',
   },
-  iconsContainer: {
+  iconContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 20,
   },
   iconButton: {
-    marginLeft: 16,
-    padding: 4,
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
+
+export default DashboardHeader;

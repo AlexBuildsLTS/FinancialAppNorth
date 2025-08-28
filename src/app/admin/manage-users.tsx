@@ -1,140 +1,148 @@
+// src/app/admin/manage-users.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
+import { getAllUsers } from '@/services/adminService';
+import { Profile } from '@/types';
 import ScreenContainer from '@/components/ScreenContainer';
-import { Search, Edit, UserX, Trash2 } from 'lucide-react-native';
-import { getAllUsers, updateUserStatus, deleteUser } from '@/services/adminService';
-import { UserProfile } from '@/types';
-import EditUserModal from '@/components/admin/EditUserModal';
+import Avatar from '@/components/common/Avatar';
+import { SlidersHorizontal, Trash2, Edit } from 'lucide-react-native';
 
-export default function ManageUsersScreen() {
-    const { colors } = useTheme();
-    const [users, setUsers] = useState<UserProfile[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isEditModalVisible, setEditModalVisible] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+const UserManagementScreen = () => {
+  const { colors } = useTheme();
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
-    const fetchUsers = async () => {
-        !loading && setLoading(true);
-        try {
-            const data = await getAllUsers();
-            setUsers(data);
-        } catch (error) {
-            Alert.alert("Error", "Failed to fetch users.");
-        } finally {
-            setLoading(false);
-        }
-    };
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const allUsers = await getAllUsers();
+      setUsers(allUsers);
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      // Handle error with a toast message
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    useFocusEffect(useCallback(() => {
-        fetchUsers();
-    }, []));
+  useFocusEffect(
+    useCallback(() => {
+      fetchUsers();
+    }, [])
+  );
 
-    const openEditModal = (user: UserProfile) => {
-        setSelectedUser(user);
-        setEditModalVisible(true);
-    };
+  const filteredUsers = users.filter(user =>
+    user.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    const handleDeactivate = (user: UserProfile) => {
-        Alert.alert(
-            "Confirm Deactivation (Ban)",
-            `Are you sure you want to ban ${user.email}? They will lose all access.`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Deactivate",
-                    onPress: async () => {
-                        await updateUserStatus(user.id, 'Inactive');
-                        fetchUsers();
-                    },
-                    style: "destructive",
-                },
-            ]
-        );
-    };
-    
-    const handleDelete = (user: UserProfile) => {
-        Alert.alert(
-            "Confirm Deletion",
-            `Are you sure you want to permanently delete ${user.email}? This action cannot be undone.`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    onPress: async () => {
-                        await deleteUser(user.id);
-                        fetchUsers();
-                    },
-                    style: "destructive",
-                },
-            ]
-        );
-    };
-
-    const renderUser = ({ item }: { item: UserProfile }) => (
-        <View style={[styles.userRow, { backgroundColor: colors.surface }]}>
-            <View style={styles.userInfo}>
-                <Text style={[styles.userEmail, { color: colors.text }]}>{item.email}</Text>
-                <Text style={{ color: colors.textSecondary }}>{item.role}</Text>
-            </View>
-            <View style={styles.userStatus}>
-                <View style={[styles.statusBadge, { backgroundColor: item.status === 'Active' ? '#1DB95420' : '#FF450020' }]}>
-                    <Text style={{ color: item.status === 'Active' ? '#1DB954' : '#FF4500' }}>{item.status}</Text>
-                </View>
-            </View>
-            <View style={styles.userActions}>
-                <TouchableOpacity onPress={() => openEditModal(item)} style={styles.actionButton}>
-                    <Edit color={colors.textSecondary} size={20} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDeactivate(item)} style={styles.actionButton} disabled={item.status === 'Inactive'}>
-                    <UserX color={item.status === 'Inactive' ? '#555' : 'orange'} size={20} />
-                </TouchableOpacity>
-                 <TouchableOpacity onPress={() => handleDelete(item)} style={styles.actionButton}>
-                    <Trash2 color={'#FF4500'} size={20} />
-                </TouchableOpacity>
-            </View>
+  const renderUserRow = ({ item }: { item: Profile }) => (
+    <View style={[styles.row, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={styles.userInfo}>
+        <Avatar profile={item} size={40} />
+        <View style={{ marginLeft: 12 }}>
+          <Text style={[styles.userName, { color: colors.text }]}>{item.display_name}</Text>
+          <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{item.email}</Text>
         </View>
-    );
+      </View>
+      <View style={styles.roleContainer}>
+        <Text style={[styles.roleText, { color: colors.text }]}>{item.role}</Text>
+      </View>
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => { /* Open Edit Modal */ }}>
+          <Edit color={colors.primary} size={20} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton} onPress={() => { /* Open Delete Confirmation */ }}>
+          <Trash2 color={'#E53E3E'} size={20} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
-    const filteredUsers = users.filter(user => user.email.toLowerCase().includes(searchQuery.toLowerCase()));
+  return (
+    <ScreenContainer>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <TextInput
+          placeholder="Search by name or email..."
+          placeholderTextColor={colors.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={[styles.searchInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+        />
+        {/* Add Filter Button Here */}
+      </View>
 
-    return (
-        <ScreenContainer>
-            <View style={styles.searchContainer}>
-                <Search color={colors.textSecondary} size={20} style={styles.searchIcon} />
-                <TextInput style={[styles.searchInput, { backgroundColor: colors.surface, color: colors.text }]} placeholder="Search users..." placeholderTextColor={colors.textSecondary} value={searchQuery} onChangeText={setSearchQuery} />
-            </View>
-
-            {loading ? <ActivityIndicator size="large" color={colors.primary} /> : (
-                <FlatList
-                    data={filteredUsers}
-                    renderItem={renderUser}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={styles.listContainer}
-                />
-            )}
-            <EditUserModal 
-                visible={isEditModalVisible}
-                onClose={() => setEditModalVisible(false)}
-                user={selectedUser}
-                onUserUpdate={fetchUsers}
-            />
-        </ScreenContainer>
-    );
-}
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 50 }} size="large" color={colors.primary} />
+      ) : (
+        <FlatList
+          data={filteredUsers}
+          keyExtractor={(item) => item.id}
+          renderItem={renderUserRow}
+          contentContainerStyle={{ paddingBottom: 24 }}
+        />
+      )}
+    </ScreenContainer>
+  );
+};
 
 const styles = StyleSheet.create({
-    searchContainer: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-    searchIcon: { position: 'absolute', left: 32, zIndex: 1 },
-    searchInput: { flex: 1, height: 44, borderRadius: 22, paddingLeft: 40, paddingRight: 16, fontSize: 16 },
-    listContainer: { paddingHorizontal: 16 },
-    userRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 12, marginBottom: 10 },
-    userInfo: { flex: 4 },
-    userEmail: { fontSize: 16, fontWeight: '500' },
-    userStatus: { flex: 2, alignItems: 'center' },
-    statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12 },
-    userActions: { flex: 2, flexDirection: 'row', justifyContent: 'flex-end' },
-    actionButton: { padding: 6, marginLeft: 8 },
+  header: {
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  searchInput: {
+    height: 44,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    borderWidth: 1,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  userInfo: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  userEmail: {
+    fontSize: 12,
+  },
+  roleContainer: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  roleText: {
+    fontSize: 14,
+    fontWeight: '500',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    overflow: 'hidden', // for iOS
+    // Add background color based on role
+  },
+  actionsContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 16,
+  },
+  actionButton: {
+    padding: 4,
+  },
 });
+
+export default UserManagementScreen;
