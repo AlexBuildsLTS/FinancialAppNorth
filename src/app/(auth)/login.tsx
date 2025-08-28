@@ -17,7 +17,7 @@ const REMEMBER_ME_KEY = 'remember_me';
 const WebStorage = {
     getItemAsync: async (key: string) => localStorage.getItem(key),
     setItemAsync: async (key: string, value: string) => localStorage.setItem(key, value),
-    deleteItemAsync: async (key: string) => localStorage.removeItem(key),
+    deleteItemAsync: async (key: string) => localStorage.removeItem(key), // ← correct name
 };
 
 const CurrentSecureStore = Platform.OS === 'web' ? WebStorage : SecureStore;
@@ -46,8 +46,8 @@ useEffect(() => {
                     setRememberMe(true);
                 }
             }
-        } catch (error) {
-            console.error("Failed to load credentials from secure store", error);
+        } catch (e) {
+            console.error('🔐 Secure store load error:', e);
         }
     };
     loadCredentials();
@@ -62,7 +62,8 @@ useEffect(() => {
         const { error } = await signIn({ email, password, rememberMe });
         setLoading(false);
         if (error) {
-            showToast(error.message, 'error');
+            showToast(error.message ?? 'Login failed', 'error');
+            console.error('🔐 Login error:', error);
         } else {
             showToast('Login successful!', 'success');
         }

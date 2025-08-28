@@ -1,27 +1,30 @@
+// src/app/(auth)/_layout.tsx
+
 import React from 'react';
-import { Stack, Redirect } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { View, StyleSheet } from 'react-native';
 import ScreenContainer from '@/components/ScreenContainer';
-import AnimatedThemeIcon from '@/components/common/AnimatedThemeIcon'; // Import the new component
+import AnimatedThemeIcon from '@/components/common/AnimatedThemeIcon';
 
 export default function AuthLayout() {
-  const { session, initialized } = useAuth();
-
-  // If the session is initialized and the user is logged in,
-  // redirect them away from the auth screens to the main app.
-  if (initialized && session) {
-    return <Redirect href="/(tabs)" />;
+  const { isLoading } = useAuth();
+  
+  // The redirect is now handled by the root layout.
+  // We just wait here until the auth state is ready before showing anything.
+  if (isLoading) {
+    return null;
   }
 
-  // Otherwise, show the login/register screens within a container
-  // that has the shared animated theme icon.
   return (
     <ScreenContainer>
       <View style={styles.themeToggleContainer}>
         <AnimatedThemeIcon />
       </View>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="login" />
+        <Stack.Screen name="register" />
+      </Stack>
     </ScreenContainer>
   );
 }

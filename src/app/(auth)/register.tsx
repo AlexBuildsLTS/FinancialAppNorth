@@ -108,13 +108,15 @@ export default function RegisterScreen() {
         try {
             const { error } = await signUp(email, password, displayName || email.split('@')[0]);
             if (error) {
-                showToast(error.message || 'Registration failed.', 'error');
-            } else {
-                showToast('Registration successful! Please check your email to verify your account.', 'success');
-                router.replace('/(auth)/login');
+                showToast(error.message ?? 'Registration failed', 'error');
+                console.error('🧾 Sign‑up error:', error);
+                return;
             }
-        } catch (err: any) {
-            showToast(err.message || 'An unexpected error occurred.', 'error');
+            showToast('Registration successful! Please check your email to verify your account.', 'success');
+            router.replace('/(auth)/login');
+        } catch (e: any) {
+            showToast(e.message ?? 'Unexpected error', 'error');
+            console.error('🧾 Unexpected sign‑up exception:', e);
         } finally {
             setLoading(false);
         }

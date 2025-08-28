@@ -1,38 +1,39 @@
+// src/app/admin/_layout.tsx
+
 import React from 'react';
-import { Tabs, Redirect } from 'expo-router';
+import { Stack, Redirect } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
-import { LayoutDashboard, Users } from 'lucide-react-native';
 
-export default function AdminTabLayout() {
-  const { session, initialized } = useAuth();
+export default function AdminStackLayout() {
+  const { session, isLoading } = useAuth();
   const { colors } = useTheme();
 
-  if (!initialized) return null;
-  if (session?.user?.role !== 'Administrator') return <Redirect href="/(tabs)" />;
+  // Wait for session to be initialized
+  if (isLoading) {
+    return null;
+  }
+  // Protect the entire route group
+  if (session?.user?.role !== 'Administrator') {
+    return <Redirect href="/(tabs)" />;
+  }
 
+  // Use a Stack navigator for the admin section
   return (
-    <Tabs screenOptions={{
-      tabBarActiveTintColor: colors.primary,
-      tabBarInactiveTintColor: colors.textSecondary,
-      tabBarStyle: { backgroundColor: colors.surface },
-      headerStyle: { backgroundColor: colors.surface },
-      headerTintColor: colors.text,
-    }}>
-      <Tabs.Screen
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
+      }}
+    >
+      <Stack.Screen
         name="index"
-        options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} />,
-        }}
+        options={{ title: 'Admin Dashboard' }}
       />
-      <Tabs.Screen
+      <Stack.Screen
         name="manage-users"
-        options={{
-          title: 'User Management',
-          tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
-        }}
+        options={{ title: 'User Management' }}
       />
-    </Tabs>
+    </Stack>
   );
 }

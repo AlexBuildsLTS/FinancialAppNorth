@@ -14,7 +14,7 @@ type ReportType = 'profit_loss' | 'balance_sheet'; // Cash flow is not supported
 
 export default function ReportsScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { session } = useAuth();
   const [reportType, setReportType] = useState<ReportType>('profit_loss');
   const [reportData, setReportData] = useState<FinancialStatement | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,11 +24,11 @@ export default function ReportsScreen() {
   const [periodEnd, setPeriodEnd] = useState(new Date().toISOString().split('T')[0]);
 
   const handleGenerateReport = async () => {
-    if (!user) return;
+    if (!session?.user) return;
     setLoading(true);
     setReportData(null);
     try { // Changed to getFinancialStatementData
-      const data = await generateFinancialStatement(reportType, user.id, periodStart, periodEnd, 'USD');
+      const data = await generateFinancialStatement(reportType, session.user.id, periodStart, periodEnd, 'USD');
       setReportData(data);
     } catch (error) {
       console.error(`Failed to generate ${reportType} report:`, error);
