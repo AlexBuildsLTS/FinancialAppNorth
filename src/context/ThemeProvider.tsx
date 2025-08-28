@@ -5,7 +5,7 @@ import { lightColors, darkColors } from '../theme/colors';
 
 const THEME_STORAGE_KEY = '@theme_preference';
 
-interface ThemeContextType {
+export interface ThemeContextType {
   isDark: boolean;
   colors: typeof lightColors;
   setColorScheme: (scheme: 'light' | 'dark' | 'system') => void;
@@ -62,8 +62,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
 export const useTheme = () => {
   const context = useContext(ThemeContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
-};
+}
