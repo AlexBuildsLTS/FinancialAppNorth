@@ -10,17 +10,17 @@ import { Conversation } from '@/types';
 
 export default function MessagesScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { session } = useAuth();
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchConversations = async () => {
-    if (!user) return;
+    if (!session?.user) return;
     try {
       setLoading(true);
-      const data = await getConversations(user.id);
+      const data = await getConversations(session.user.id);
       setConversations(data);
       setError(null);
     } catch (e) {
@@ -35,7 +35,7 @@ export default function MessagesScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchConversations();
-    }, [user])
+    }, [session])
   );
 
   const renderItem = ({ item }: { item: Conversation }) => (

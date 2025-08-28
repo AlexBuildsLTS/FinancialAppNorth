@@ -13,7 +13,7 @@ SplashScreen.preventAutoHideAsync();
 
 // Component to handle authentication-based redirection
 const AuthRedirector = () => {
-  const { user, initialized } = useAuth();
+  const { session, initialized } = useAuth();
   const segments = useSegments();
 
   // If the app is not initialized, we don't want to render anything.
@@ -23,11 +23,11 @@ const AuthRedirector = () => {
 
   const inAuthGroup = segments[0] === '(auth)';
 
-  if (user && inAuthGroup) {
+  if (session?.user && inAuthGroup) {
     // Redirect authenticated users from auth pages to the main app
     // Using 'replace' to prevent user from going back to auth screens.
     return <Redirect href="/(tabs)" />;
-  } else if (!user && !inAuthGroup) {
+  } else if (!session?.user && !inAuthGroup) {
     // Redirect unauthenticated users from main app pages to the login page
     return <Redirect href="/(auth)/login" />;
   }

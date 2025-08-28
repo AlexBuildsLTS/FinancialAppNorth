@@ -12,15 +12,15 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function DashboardScreen() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { profile } = useAuth();
     const { colors } = useTheme();
     
-    const welcomeMessage = user?.display_name ? `Welcome back, ${user.display_name}!` : "Welcome back!";
+    const welcomeMessage = profile?.display_name ? `Welcome back, ${profile.display_name}!` : "Welcome back!";
 
     return (
         <ScreenContainer>
             <DashboardHeader
-                userName={user?.display_name || 'User'}
+                userName={profile?.display_name || 'User'}
                 onPressProfile={() => router.push('/(tabs)/profile')}
                 onPressSettings={() => router.push('/(tabs)/settings')}
                 onPressMessages={() => router.push('/chat/1')}
