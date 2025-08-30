@@ -1,9 +1,11 @@
+// src/components/common/Button.tsx
+
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, Platform } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { LucideIcon } from 'lucide-react-native';
 
-type ButtonVariant = 'solid' | 'outline' | 'ghost' | 'destructive' | 'secondary';
+type ButtonVariant = 'solid' | 'outline' | 'ghost';
 type ButtonSize = 'small' | 'medium' | 'large';
 
 interface ButtonProps {
@@ -17,26 +19,15 @@ interface ButtonProps {
   style?: ViewStyle;
 }
 
-export default function Button({
-  title,
-  onPress,
-  variant = 'solid',
-  size = 'medium',
-  isLoading = false,
-  disabled = false,
-  icon: Icon,
-  style,
-}: ButtonProps) {
+export const Button = ({ title, onPress, variant = 'solid', size = 'medium', isLoading = false, disabled = false, icon: Icon, style }: ButtonProps) => {
   const { colors } = useTheme();
   const isDisabled = isLoading || disabled;
 
   const getButtonStyles = () => {
     const base: ViewStyle = { ...styles.buttonBase, ...styles[size] };
     switch (variant) {
-      case 'outline': return { ...base, borderColor: colors.primary, borderWidth: 2 };
+      case 'outline': return { ...base, borderColor: colors.primary, borderWidth: 1 };
       case 'ghost': return { ...base, backgroundColor: 'transparent' };
-      case 'destructive': return { ...base, backgroundColor: colors.error };
-      case 'secondary': return { ...base, backgroundColor: colors.surfaceVariant };
       case 'solid':
       default: return { ...base, backgroundColor: colors.primary };
     }
@@ -47,10 +38,8 @@ export default function Button({
     switch (variant) {
       case 'outline': return { ...base, color: colors.primary };
       case 'ghost': return { ...base, color: colors.textSecondary };
-      case 'secondary': return { ...base, color: colors.text };
-      case 'destructive':
       case 'solid':
-      default: return { ...base, color: colors.primaryContrast };
+      default: return { ...base, color: '#FFFFFF' };
     }
   };
 
@@ -60,27 +49,25 @@ export default function Button({
 
   return (
     <TouchableOpacity onPress={onPress} style={buttonStyle} disabled={isDisabled}>
-      {isLoading ? (
-        <ActivityIndicator color={iconColor} />
-      ) : (
+      {isLoading ? <ActivityIndicator color={iconColor} /> : (
         <>
-          {Icon && <Icon color={iconColor} size={16} style={styles.icon} />}
+          {Icon && <Icon color={iconColor} size={18} style={styles.icon} />}
           <Text style={textStyle}>{title}</Text>
         </>
       )}
     </TouchableOpacity>
   );
-}
+};
 
 const styles = StyleSheet.create({
   buttonBase: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', borderRadius: 12, gap: 8 },
-  textBase: { fontFamily: 'Inter-Bold', fontWeight: '600', textAlign: 'center' },
-  disabled: { opacity: 0.6 },
+  textBase: { fontWeight: '600', textAlign: 'center' },
+  disabled: { opacity: 0.5 },
   icon: {},
   small: { paddingVertical: 8, paddingHorizontal: 12 },
   medium: { paddingVertical: 12, paddingHorizontal: 20 },
   large: { paddingVertical: 16, paddingHorizontal: 24 },
-  text_small: { fontSize: 12 },
-  text_medium: { fontSize: 14 },
-  text_large: { fontSize: 16 },
+  text_small: { fontSize: 14 },
+  text_medium: { fontSize: 16 },
+  text_large: { fontSize: 18 },
 });

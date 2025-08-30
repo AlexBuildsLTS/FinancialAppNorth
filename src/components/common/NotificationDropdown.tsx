@@ -5,18 +5,12 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native
 import { useTheme } from '@/context/ThemeProvider';
 import { Notification } from '@/types';
 
-// Mock Data - Replace with a fetch call
-const MOCK_NOTIFICATIONS: Notification[] = [
-  { id: '1', user_id: 'mock_user_id_1', title: 'New Event Invitation', message: 'You have been invited to Team Meeting', type: 'event_invite', is_read: false, created_at: new Date().toISOString() },
-  { id: '2', user_id: 'mock_user_id_1', title: 'New Message', message: 'You have a new message from Sigma Technology', type: 'info', is_read: false, created_at: new Date().toISOString() },
-  { id: '3', user_id: 'mock_user_id_1', title: 'System Maintenance', message: 'Scheduled maintenance planned for tomorrow.', type: 'warning', is_read: true, created_at: new Date().toISOString() },
-];
-
 interface NotificationDropdownProps {
+  notifications: Notification[];
   onClose: () => void;
 }
 
-const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onClose }) => {
+const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ notifications, onClose }) => {
   const { colors } = useTheme();
 
   const renderItem = ({ item }: { item: Notification }) => (
@@ -38,7 +32,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onClose }) 
         </TouchableOpacity>
       </View>
       <FlatList
-        data={MOCK_NOTIFICATIONS}
+        data={notifications}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
       />

@@ -11,7 +11,8 @@ import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext'; // Import useAuth
 import { addTransaction } from '@/services/transactionService'; // Change to addTransaction
 import { Transaction } from '@/types';
-import Button from '@/components/common/Button';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 import Modal from '@/components/common/Modal'; // Using the polished base modal
 
 interface AddTransactionModalProps {
@@ -55,14 +56,15 @@ export default function AddTransactionModal({
       }
 
       const newTransactionData: Omit<Transaction, 'id' | 'created_at' | 'status' | 'user_id' | 'transaction_date'> = {
-        description: title, // Map title to description
+        description: title,
         amount: numericAmount,
         category,
         type,
-        client_id: clientId || '', // Ensure clientId is always present, even if empty string
+        client_id: clientId || '',
         account_id: '',
         tags: [],
         location: '',
+        date: ''
       };
 
       const addedTransaction = await addTransaction({ // Change to addTransaction

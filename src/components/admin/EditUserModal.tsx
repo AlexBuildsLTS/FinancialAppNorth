@@ -1,30 +1,31 @@
+import { UserRole } from '@/types';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, TextInput } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { Profile } from '@/types';
-import Button from '@/components/common/Button';
-import Modal from '@/components/common/Modal';
+import { Button } from '@/components/common/Button';
+import Modal from '@/components/common/Modal'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
 import { Picker } from '@react-native-picker/picker';
 import { updateUserRole } from '@/services/adminService';
 
 interface EditUserModalProps {
   visible: boolean;
   onClose: () => void;
-  user: Profile | null;
+  user: Profile | null; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
   onUserUpdate: () => void;
 }
 
 const ROLES: Profile['role'][] = [
-    'Member', 
-    'Premium Member', 
-    'Professional (CPA)', 
-    'Support', 
-    'Administrator'
+    UserRole.MEMBER,
+    UserRole.PREMIUM_MEMBER,
+    UserRole.CPA,
+    UserRole.SUPPORT,
+    UserRole.ADMIN,
 ];
 
 export default function EditUserModal({ visible, onClose, user, onUserUpdate }: EditUserModalProps) {
   const { colors } = useTheme();
-  const [selectedRole, setSelectedRole] = useState<Profile['role']>('Member');
+  const [selectedRole, setSelectedRole] = useState<Profile['role']>(UserRole.MEMBER);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

@@ -5,8 +5,8 @@ import { ChevronRight, KeyRound, Lock, ShieldCheck } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
 import ScreenContainer from '@/components/ScreenContainer';
-import { Text } from 'react-native';
-import Button from '@/components/common/Button';
+import { Text } from 'react-native'; // Keep this line
+import { Button } from '@/components/common/Button';
 
 
 const SecurityListItem = ({ icon: Icon, text, onPress, colors }: any) => (

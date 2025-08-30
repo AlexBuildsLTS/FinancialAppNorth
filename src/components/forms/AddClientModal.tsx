@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert } from 'react-native';
 import Modal from '@/components/common/Modal';
-import Button from '@/components/common/Button';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
 import { requestClientAccess } from '@/services/cpaService';

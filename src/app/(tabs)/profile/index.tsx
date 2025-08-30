@@ -7,6 +7,9 @@ import { useTheme } from '@/context/ThemeProvider';
 import { getProfile } from '@/services/profileService';
 import { Profile } from '@/types';
 import ScreenContainer from '@/components/ScreenContainer';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
+
 
 const ProfileMenuItem = ({ icon: Icon, text, onPress, colors }: any) => (
     <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.surface, borderBottomColor: colors.border }]} onPress={onPress}>

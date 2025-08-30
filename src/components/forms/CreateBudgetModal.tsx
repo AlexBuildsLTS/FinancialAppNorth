@@ -5,7 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastProvider';
 import { createBudget } from '@/services/budgetService';
 import Modal from '@/components/common/Modal';
-import Button from '@/components/common/Button';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 
 interface CreateBudgetModalProps {
   visible: boolean;

@@ -3,7 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { LucideProps } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeProvider';
 import { Card } from '../common';
-import { DashboardMetricItem } from '../../types';
+import { DashboardMetricItem } from '../../types/index';
+
 
 interface MetricsGridProps {
   metricData: DashboardMetricItem[];

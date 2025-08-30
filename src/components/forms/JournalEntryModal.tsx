@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert } 
 import { Plus, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { createJournalEntry, getChartOfAccounts } from '@/services/accountingService';
-import { JournalEntryLine, ChartOfAccounts } from '@/types/accounting';
-import Button from '@/components/common/Button';
+import { JournalEntryLine, Account } from '@/types';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 import Modal from '@/components/common/Modal';
 import { Picker } from '@react-native-picker/picker';
 
@@ -18,8 +19,8 @@ interface JournalEntryModalProps {
 export default function JournalEntryModal({ visible, onClose, onSuccess, clientId }: JournalEntryModalProps) {
   const { colors } = useTheme();
   const [description, setDescription] = useState('');
-  const [lines, setLines] = useState<Partial<JournalEntryLine>[]>([{}, {}]);
-  const [accounts, setAccounts] = useState<ChartOfAccounts[]>([]);
+  const [lines, setLines] = useState<Partial<JournalEntryLine>[]>([{ debit_amount: 0, credit_amount: 0 }, { debit_amount: 0, credit_amount: 0 }]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalDebit, setTotalDebit] = useState(0);
   const [totalCredit, setTotalCredit] = useState(0);
@@ -41,9 +42,9 @@ export default function JournalEntryModal({ visible, onClose, onSuccess, clientI
     const newLines = [...lines];
     if (field === 'account_id') {
         const selectedAccount = accounts.find(a => a.id === value);
-        newLines[index].account_id = value;
-        newLines[index].account_name = selectedAccount?.name;
-        newLines[index].account_code = selectedAccount?.code;
+        newLines[index].account_id = selectedAccount?.id;
+        // newLines[index].account_name = selectedAccount?.name; // account_name is not part of JournalEntryLine
+        newLines[index].account_id = selectedAccount?.code;
     } else {
         // Ensure debit_amount and credit_amount are stored as numbers
         if (field === 'debit_amount' || field === 'credit_amount') {
@@ -69,15 +70,14 @@ export default function JournalEntryModal({ visible, onClose, onSuccess, clientI
     setLoading(true);
     try {
         await createJournalEntry({
-            client_id: clientId,
-            date: new Date().toISOString(),
-            description,
-            entries: lines as JournalEntryLine[],
-            total_debit: totalDebit,
-            total_credit: totalCredit,
-            status: 'posted',
-            created_by: clientId, // In a real scenario, this would be the logged-in CPA's ID
-            created_at: new Date().toISOString(),
+          client_id: clientId,
+          date: new Date().toISOString(),
+          description,
+          entries: lines as JournalEntryLine[],
+          status: 'posted',
+          created_by: clientId,
+          TOTAL: undefined,
+          total_credit: undefined
         });
         onSuccess();
         onClose();

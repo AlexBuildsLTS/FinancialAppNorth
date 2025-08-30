@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
-import { supabase } from '@/lib/supabase';
-import Button from '@/components/common/Button';
+import { supabase } from '@/lib/supabase'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
+import { Button } from '@/components/common/Button';
 import ScreenContainer from '@/components/ScreenContainer';
 import PasswordStrengthIndicator from '@/components/common/PasswordStrengthIndicator';
 import { Eye, EyeOff } from 'lucide-react-native';

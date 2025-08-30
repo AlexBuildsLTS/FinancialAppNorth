@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { ScrollView, StyleSheet, View, Text } from 'react-native';
-import ScreenContainer from '@/components/ScreenContainer';
-import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import ScreenContainer from '@/components/ScreenContainer'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { useTheme } from '@/context/ThemeProvider';
 // Import your components for metrics and charts here
 // import MetricsGrid from '@/components/dashboard/MetricsGrid';

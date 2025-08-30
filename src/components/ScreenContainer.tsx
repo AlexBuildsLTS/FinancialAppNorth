@@ -11,6 +11,7 @@ interface ScreenContainerProps {
   padded?: boolean;
 }
 
+// FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
 export default function ScreenContainer({ children, style, scrollable = false, padded = false }: ScreenContainerProps) {
   const { colors, isDark } = useTheme();
 

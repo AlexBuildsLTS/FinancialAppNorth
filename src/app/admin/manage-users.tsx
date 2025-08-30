@@ -1,13 +1,14 @@
 // src/app/admin/manage-users.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
-import { getAllUsers } from '@/services/adminService';
+import { getAllUsers, updateUserRole, deleteUser } from '@/services/adminService';
 import { Profile } from '@/types';
 import ScreenContainer from '@/components/ScreenContainer';
-import Avatar from '@/components/common/Avatar';
+import { Avatar } from '@/components/common/Avatar';
+import EditUserModal from '@/components/admin/EditUserModal';
 import { SlidersHorizontal, Trash2, Edit } from 'lucide-react-native';
 
 const UserManagementScreen = () => {
@@ -15,12 +16,15 @@ const UserManagementScreen = () => {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const allUsers = await getAllUsers();
       setUsers(allUsers);
+      console.log("Fetched users:", allUsers);
     } catch (error) {
       console.error("Failed to fetch users:", error);
       // Handle error with a toast message
@@ -40,6 +44,30 @@ const UserManagementScreen = () => {
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleEditUser = (user: Profile) => {
+    setSelectedUser(user);
+    setIsEditModalVisible(true);
+  };
+
+  const handleDeleteUser = (user: Profile) => {
+    Alert.alert(
+      "Confirm Deletion",
+      `Are you sure you want to delete ${user.email}? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteUser(user.id);
+            fetchUsers(); // Refresh the list
+            Alert.alert("Success", "User deleted successfully.");
+          },
+        },
+      ]
+    );
+  };
+
   const renderUserRow = ({ item }: { item: Profile }) => (
     <View style={[styles.row, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.userInfo}>
@@ -51,12 +79,12 @@ const UserManagementScreen = () => {
       </View>
       <View style={styles.roleContainer}>
         <Text style={[styles.roleText, { color: colors.text }]}>{item.role}</Text>
-      </View>
+      </View> 
       <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => { /* Open Edit Modal */ }}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => handleEditUser(item)}>
           <Edit color={colors.primary} size={20} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => { /* Open Delete Confirmation */ }}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => handleDeleteUser(item)}>
           <Trash2 color={'#E53E3E'} size={20} />
         </TouchableOpacity>
       </View>
@@ -86,6 +114,12 @@ const UserManagementScreen = () => {
           contentContainerStyle={{ paddingBottom: 24 }}
         />
       )}
+      <EditUserModal
+        visible={isEditModalVisible}
+        onClose={() => setIsEditModalVisible(false)}
+        user={selectedUser}
+        onUserUpdate={fetchUsers} // Refresh list after update
+      />
     </ScreenContainer>
   );
 };
