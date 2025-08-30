@@ -1,27 +1,50 @@
-import React from 'react';
-import { View, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+// src/components/ScreenContainer.tsx
+
+import React, { useMemo } from 'react';
+import { View, StyleSheet, SafeAreaView, StatusBar, ScrollView, ViewStyle } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 
 interface ScreenContainerProps {
   children: React.ReactNode;
-  style?: object;
+  style?: ViewStyle;
+  scrollable?: boolean;
+  padded?: boolean;
 }
 
-export default function ScreenContainer({ children, style }: ScreenContainerProps) {
+export default function ScreenContainer({ children, style, scrollable = false, padded = false }: ScreenContainerProps) {
   const { colors, isDark } = useTheme();
 
+  const containerStyle = useMemo(() => [
+    styles.baseContainer,
+    { backgroundColor: colors.background },
+    padded && styles.padding,
+    style,
+  ], [colors.background, padded, style]);
+
+  const Content = scrollable ? ScrollView : View;
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={[styles.flex, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <View style={[styles.container, { backgroundColor: colors.background, padding: 8 }, style]}>
-        {children}
-      </View>
+      <Content 
+        style={styles.flex} 
+        contentContainerStyle={scrollable ? containerStyle : undefined}
+        keyboardShouldPersistTaps="handled"
+      >
+        {!scrollable ? <View style={containerStyle}>{children}</View> : children}
+      </Content>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
     flex: 1,
+  },
+  baseContainer: {
+    flex: 1,
+  },
+  padding: {
+    padding: 16,
   },
 });

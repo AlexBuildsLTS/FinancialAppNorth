@@ -1,7 +1,10 @@
-export { default as Button } from './Button';
-export { default as Card } from './Card';
-export { default as Modal } from './Modal';
-export { default as NotificationDropdown } from './NotificationDropdown';
-export { default as PasswordStrengthIndicator } from './PasswordStrengthIndicator';
-export { default as Toast } from './Toast';
-export { default as UserDropdown } from './UserDropdown';
+// src/components/common/index.ts
+
+export * from './AnimatedThemeIcon';
+export * from './Avatar';
+export * from './Button';
+export * from './Card';
+export * from './DropdownMenu';
+export * from './Modal';
+export * from './PasswordStrengthIndicator';
+export * from './Toast';

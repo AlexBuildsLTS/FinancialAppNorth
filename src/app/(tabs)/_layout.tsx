@@ -1,63 +1,114 @@
 // src/app/(tabs)/_layout.tsx
 
 import React from 'react';
-import { Tabs, useRouter } from 'expo-router';
-import { Pressable } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
+import { Tabs, Redirect } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import Avatar from '@/components/common/Avatar';
-import { LayoutDashboard, FileText, Settings, Wallet } from 'lucide-react-native';
+import { useTheme } from '@/context/ThemeProvider';
+import { UserRole } from '@/types';
 
-const ProfileHeaderIcon = () => {
-    const router = useRouter();
-    const { profile } = useAuth();
-    return (
-        <Pressable onPress={() => router.push('/(tabs)/profile')} style={{ marginRight: 24 }}>
-            <Avatar profile={profile} size={32} />
-        </Pressable>
-    );
-};
+// Import all the necessary icons for your tabs
+import { 
+    LayoutDashboard, 
+    Briefcase, 
+    Wallet, 
+    Camera, 
+    FileText, 
+    MessageCircle 
+} from 'lucide-react-native';
 
 export default function TabLayout() {
-    const { colors, isDark } = useTheme();
-    const activeTabColor = isDark ? '#1DB954' : '#BB4711';
+    const { colors } = useTheme();
+    const { profile, isAuthenticated, isLoading } = useAuth();
+
+    if (isLoading) {
+        return null; // Wait for the auth state to be determined
+    }
+
+    if (!isAuthenticated || !profile) {
+        return <Redirect href="/(auth)/login" />;
+    }
+
+    const userRole = profile.role;
+
+    // --- Role-Based Tab Visibility Checks using your exact UserRole enum ---
+    const canSeeClientsTab = userRole === UserRole.CPA || userRole === UserRole.ADMIN;
+    const isInternalUser = userRole === UserRole.SUPPORT || userRole === UserRole.ADMIN;
 
     return (
         <Tabs
             screenOptions={{
-                headerShown: true,
-                headerStyle: { backgroundColor: colors.surface, borderBottomWidth: 0, elevation: 0 },
-                headerTintColor: colors.text,
-                headerRight: () => <ProfileHeaderIcon />,
-                tabBarActiveTintColor: activeTabColor,
+                headerShown: false, // CRITICAL FIX: Hides the default header to prevent the "double header" issue.
+                tabBarActiveTintColor: colors.primary,
                 tabBarInactiveTintColor: colors.textSecondary,
-                tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+                tabBarStyle: { 
+                    backgroundColor: colors.surface,
+                    borderTopColor: colors.border,
+                },
             }}
         >
-            {/* These are the 4 screens that will appear in your bottom tab bar */}
-            <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} /> }} />
-            <Tabs.Screen name="transactions" options={{ title: 'Transactions', tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} /> }} />
-            <Tabs.Screen name="reports" options={{ title: 'Reports', tabBarIcon: ({ color, size }) => <FileText color={color} size={size} /> }} />
-            <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: ({ color, size }) => <Settings color={color} size={size} /> }} />
+            <Tabs.Screen 
+                name="index" 
+                options={{ 
+                    title: 'Dashboard', 
+                    tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} />,
+                    href: userRole === UserRole.CPA ? null : '/(tabs)',
+                }} 
+            />
+            
+            <Tabs.Screen 
+                name="clients" 
+                options={{ 
+                    title: 'Clients', 
+                    tabBarIcon: ({ color, size }) => <Briefcase color={color} size={size} />,
+                    href: canSeeClientsTab ? '/(tabs)/clients' : null,
+                }} 
+            />
 
-            {/*
-              EVERY OTHER file inside the (tabs) folder MUST be defined here as a screen,
-              but hidden from the tab bar using `href: null`. This is the fix.
-            */}
-            <Tabs.Screen name="accounts" options={{ href: null }} />
-            <Tabs.Screen name="ai-assistant" options={{ href: null }} />
-            <Tabs.Screen name="analytics" options={{ href: null }} />
-            <Tabs.Screen name="budgets" options={{ href: null }} />
-            <Tabs.Screen name="camera" options={{ href: null }} />
-            <Tabs.Screen name="clients" options={{ href: null }} />
-            <Tabs.Screen name="documents" options={{ href: null }} />
-            <Tabs.Screen name="journal" options={{ href: null }} />
-            <Tabs.Screen name="support" options={{ href: null }} />
-            
-            {/* This defines the screens inside the nested directories */}
-            <Tabs.Screen name="client/[id]" options={{ href: null }} />
+            <Tabs.Screen 
+                name="transactions" 
+                options={{ 
+                    title: 'Transactions', 
+                    tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} />,
+                    href: userRole === UserRole.SUPPORT ? null : '/(tabs)/transactions',
+                }} 
+            />
+
+            <Tabs.Screen 
+                name="camera" 
+                options={{ 
+                    title: 'Scan', 
+                    tabBarIcon: ({ color, size }) => <Camera color={color} size={size} />,
+                    href: isInternalUser ? null : '/(tabs)/camera',
+                }} 
+            />
+
+            <Tabs.Screen 
+                name="documents" 
+                options={{ 
+                    title: 'Documents', 
+                    tabBarIcon: ({ color, size }) => <FileText color={color} size={size} />,
+                    href: userRole === UserRole.SUPPORT ? null : '/(tabs)/documents',
+                }} 
+            />
+
+            <Tabs.Screen 
+                name="support" 
+                options={{ 
+                    title: 'Support', 
+                    tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} />,
+                }} 
+            />
+
+            {/* --- HIDDEN NAVIGABLE ROUTES --- */}
             <Tabs.Screen name="profile" options={{ href: null }} />
-            
+            <Tabs.Screen name="settings" options={{ href: null }} />
+            <Tabs.Screen name="reports" options={{ href: null }} />
+            <Tabs.Screen name="budgets" options={{ href: null }} />
+            <Tabs.Screen name="analytics" options={{ href: null }} />
+            <Tabs.Screen name="journal" options={{ href: null }} />
+            <Tabs.Screen name="ai-assistant" options={{ href: null }} />
+            <Tabs.Screen name="accounts" options={{ href: null }} />
+            <Tabs.Screen name="client/[id]" options={{ href: null }} />
         </Tabs>
     );
 }

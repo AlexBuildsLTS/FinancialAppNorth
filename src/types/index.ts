@@ -4,12 +4,13 @@ import { LucideProps } from 'lucide-react-native';
 import React from 'react';
 
 // --- AUTH & USERS ---
-export type UserRole =
-  | 'Member'
-  | 'Premium Member'
-  | 'Professional (CPA)'
-  | 'Support'
-  | 'Administrator';
+export enum UserRole {
+  MEMBER = 'Member',
+  PREMIUM_MEMBER = 'Premium Member',
+  CPA = 'Professional (CPA)',
+  SUPPORT = 'Support',
+  ADMIN = 'Administrator',
+}
 
 export interface Profile {
   id: string;
@@ -30,12 +31,6 @@ export interface Account {
 }
 
 export interface Transaction {
-  // CRITICAL FIX: This 'index signature' is the definitive solution.
-  // It tells TypeScript that while we have specific typed properties below,
-  // this object can also be treated as a general dictionary without causing errors
-  // in charts or data grids. This resolves the "...is not assignable..." error.
-  [key: string]: any;
-
   id: string;
   user_id: string;
   account_id: string;
@@ -51,7 +46,6 @@ export interface Transaction {
   client_id?: string;
 }
 
-// Other types remain the same...
 export interface Budget {
   id: string;
   user_id: string;
@@ -70,4 +64,13 @@ export interface Notification {
   type: 'info' | 'warning' | 'error' | 'success';
   is_read: boolean;
   created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  name: string;
+  avatar: string | null;
+  lastMessage: string;
+  timestamp: string;
+  unread: number;
 }

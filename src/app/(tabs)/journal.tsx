@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+ import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { Plus, BookCopy } from 'lucide-react-native';
+import { Plus, BookCopy, User } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import { getJournalEntries } from '@/services/accountingService';
@@ -18,25 +18,27 @@ import JournalEntryModal from '@/components/forms/JournalEntryModal'; // We will
 
 export default function JournalScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { session } = useAuth();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setModalVisible] = useState(false);
 
   const fetchEntries = useCallback(async () => {
-    if (!user) return;
+    if (!User) return;
     setLoading(true);
-    try {
-      // Assuming we're fetching for the logged-in user.
-      // In a CPA context, a client ID would be passed here.
-      const data = await getJournalEntries(user.id);
-      setEntries(data);
-    } catch (error) {
-      console.error('Failed to fetch journal entries:', error);
-    } finally {
-      setLoading(false);
+    if (session?.user?.id) {
+      try {
+        // Assuming we're fetching for the logged-in user.
+        // In a CPA context, a client ID would be passed here.
+        const data = await getJournalEntries(session.user.id);
+        setEntries(data);
+      } catch (error) {
+        console.error('Failed to fetch journal entries:', error);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [user]);
+  }, [session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -54,15 +56,15 @@ export default function JournalScreen() {
       <View style={styles.lineItemsContainer}>
         {item.entries.map((line, index) => (
           <View key={index} style={styles.lineItem}>
-            <Text style={[styles.accountName, { color: colors.text }]}>{line.accountName}</Text>
-            <Text style={[styles.lineAmount, { color: colors.text }]}>${line.debitAmount > 0 ? line.debitAmount.toFixed(2) : ''}</Text>
-            <Text style={[styles.lineAmount, { color: colors.text }]}>${line.creditAmount > 0 ? line.creditAmount.toFixed(2) : ''}</Text>
+            <Text style={[styles.accountName, { color: colors.text }]}>{line.account_name}</Text>
+            <Text style={[styles.lineAmount, { color: colors.text }]}>${line.debit_amount > 0 ? line.debit_amount.toFixed(2) : ''}</Text>
+            <Text style={[styles.lineAmount, { color: colors.text }]}>${line.credit_amount.toFixed(2)}</Text>
           </View>
         ))}
       </View>
        <View style={styles.entryFooter}>
-         <Text style={[styles.totalAmount, { color: colors.text }]}>${item.totalDebit.toFixed(2)}</Text>
-         <Text style={[styles.totalAmount, { color: colors.text }]}>${item.totalCredit.toFixed(2)}</Text>
+         <Text style={[styles.totalAmount, { color: colors.text }]}>${item.total_debit.toFixed(2)}</Text>
+         <Text style={[styles.totalAmount, { color: colors.text }]}>${item.total_credit.toFixed(2)}</Text>
        </View>
     </View>
   );
@@ -96,8 +98,8 @@ export default function JournalScreen() {
       <JournalEntryModal
         visible={isModalVisible}
         onClose={() => setModalVisible(false)}
-        onSuccess={fetchEntries}
-        clientId={user!.id} // Pass the current user's ID
+        onSuccess={fetchEntries} // Pass the current user's ID
+        clientId={session?.user?.id || ''}
       />
     </ScreenContainer>
   );

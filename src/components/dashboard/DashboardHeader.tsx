@@ -1,96 +1,84 @@
 // src/components/dashboard/DashboardHeader.tsx
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
-import { Bell, Mail } from 'lucide-react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { useAuth } from '@/context/AuthContext';
-import Avatar from '../common/Avatar';
-import NotificationDropdown from '../common/NotificationDropdown';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeProvider';
+import { UserRole, Conversation, Notification } from '@/types'; // FIX: Corrected imports
+import { Avatar, DropdownMenu } from '@/components/common'; // FIX: Corrected named imports
 
-const DashboardHeader = () => {
-  const { colors } = useTheme();
-  const { profile } = useAuth();
-  const router = useRouter();
-  const [showNotifications, setShowNotifications] = useState(false);
+import { MessageCircle, Bell, Shield, User, Settings, LogOut } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-  const displayName = profile?.display_name || 'User';
+const MenuItem = ({ text, icon: Icon, onPress, color }: { text: string, icon: React.ElementType, onPress: () => void, color: string }) => (
+  <Pressable style={styles.menuItem} onPress={onPress}>
+    <Icon color={color} size={18} />
+    <Text style={[styles.menuText, { color }]}>{text}</Text>
+  </Pressable>
+);
 
-  return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <View style={styles.container}>
-        <View>
-          <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>Welcome back,</Text>
-          <Text style={[styles.userName, { color: colors.text }]}>{displayName}!</Text>
-        </View>
+export const DashboardHeader = ({ title = "Dashboard" }: { title?: string }) => {
+    const { colors } = useTheme();
+    const router = useRouter();
+    const { profile, signOut } = useAuth();
+    
+    const [messages, setMessages] = useState<Conversation[]>([]);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
 
-        <View style={styles.iconContainer}>
-          <TouchableOpacity 
-            style={styles.iconButton}
-            onPress={() => setShowNotifications(prev => !prev)}
-          >
-            <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-              <Text style={styles.badgeText}>2</Text>
+    useEffect(() => {
+        // Fetch real data here
+    }, []);
+
+    const handleSignOut = async () => {
+        await signOut();
+        router.replace('/(auth)/login');
+    };
+
+    return (
+        <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']}>
+            <View style={[styles.container, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+                
+                <View style={styles.rightContainer}>
+                    <DropdownMenu trigger={<MessageCircle color={colors.textSecondary} size={24} />}>
+                        <View style={styles.dropdownContent}>
+                            {messages.length > 0 ? messages.map(msg => (
+                                <MenuItem key={msg.id} text={`${msg.name}: ${msg.lastMessage}`} icon={MessageCircle} color={colors.text} onPress={() => router.push(`/chat/${msg.id}`)} />
+                            )) : <Text style={[styles.emptyText, {color: colors.textSecondary}]}>No new messages</Text>}
+                        </View>
+                    </DropdownMenu>
+
+                    <DropdownMenu trigger={<Bell color={colors.textSecondary} size={24} />}>
+                         <View style={styles.dropdownContent}>
+                            {notifications.length > 0 ? notifications.map(notif => (
+                                <MenuItem key={notif.id} text={notif.message} icon={Bell} color={colors.text} onPress={() => { /* Handle notification click */ }} />
+                            )) : <Text style={[styles.emptyText, {color: colors.textSecondary}]}>No new notifications</Text>}
+                        </View>
+                    </DropdownMenu>
+
+                    <DropdownMenu trigger={<Avatar profile={profile} size={32} />}>
+                        <MenuItem text="My Profile" icon={User} color={colors.text} onPress={() => router.push('/(tabs)/profile')} />
+                        <MenuItem text="Settings" icon={Settings} color={colors.text} onPress={() => router.push('/(tabs)/settings')} />
+                        {profile?.role === UserRole.ADMIN && ( // FIX: Using correct uppercase enum value
+                            <MenuItem text="Admin Panel" icon={Shield} color={colors.text} onPress={() => router.push('/admin')} />
+                        )}
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                        <MenuItem text="Sign Out" icon={LogOut} color={colors.error} onPress={handleSignOut} />
+                    </DropdownMenu>
+                </View>
             </View>
-            <Bell color={colors.textSecondary} size={24} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Mail color={colors.textSecondary} size={24} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/profile')}>
-            <Avatar profile={profile} size={40} />
-          </TouchableOpacity>
-        </View>
-      </View>
-      {showNotifications && <NotificationDropdown onClose={() => setShowNotifications(false)} />}
-    </SafeAreaView>
-  );
+        </SafeAreaView>
+    );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    width: '100%',
-  },
-  container: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    zIndex: 1, // Ensure header is above content
-  },
-  welcomeText: {
-    fontSize: 14,
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  iconContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  iconButton: {
-    position: 'relative',
-  },
-  badge: {
-    position: 'absolute',
-    top: -5,
-    right: -8,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
+    container: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, height: 60, borderBottomWidth: 1 },
+    title: { fontSize: 24, fontWeight: 'bold' },
+    rightContainer: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+    dropdownContent: { minWidth: 240, paddingVertical: 8 },
+    menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16, gap: 12 },
+    menuText: { fontSize: 16 },
+    divider: { height: 1, marginVertical: 8, opacity: 0.5 },
+    emptyText: { padding: 16, fontStyle: 'italic' },
 });
-
-export default DashboardHeader;

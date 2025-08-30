@@ -1,15 +1,18 @@
 // src/components/common/Avatar.tsx
 
-import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/context/ThemeProvider';
+import { Profile } from '@/types';
 
-// --- Helper Functions ---
-/**
- * Generates initials from a display name.
- * e.g., "Alex Test" -> "AT"
- */
-const getInitials = (name: string = ''): string => {
+type AvatarProps = {
+  profile: Profile | null;
+  size?: number;
+};
+
+const getInitials = (name: string | null | undefined): string => {
+  if (!name) return '?';
   return name
     .split(' ')
     .map(n => n[0])
@@ -18,63 +21,64 @@ const getInitials = (name: string = ''): string => {
     .toUpperCase();
 };
 
-/**
- * Generates a consistent, vibrant color from a string (e.g., user ID).
- * This ensures a user's avatar color is always the same.
- */
-const aA = 'a'.charCodeAt(0);
-const zA = 'z'.charCodeAt(0);
-const colorRange = zA-aA;
-const COLORS = ['#1abc9c', '#2ecc71', '#3498db', '#9b59b6', '#34495e', '#f1c40f', '#e67e22', '#e74c3c'];
-const generateColor = (id: string = ''): string => {
-    const nameCode = id.split('').reduce((acc, char) => acc + char.toLowerCase().charCodeAt(0)-aA ,0)
-    return COLORS[nameCode % COLORS.length];
-};
-
-
-// --- Component Definition ---
-interface AvatarProps {
-  size?: number;
-  profile?: {
-    avatar_url: string | null;
-    display_name: string;
-    id: string;
-  } | null;
-}
-
-const Avatar: React.FC<AvatarProps> = ({ size = 48, profile }) => {
+export const Avatar = ({ profile, size = 48 }: AvatarProps) => {
   const { colors } = useTheme();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const avatarUrl = profile?.avatar_url;
-  const displayName = profile?.display_name || 'User';
-  const userId = profile?.id || 'default-user-id';
-  
-  const initials = getInitials(displayName);
-  const backgroundColor = generateColor(userId);
+  useEffect(() => {
+    if (profile?.avatar_url) {
+      setIsLoading(true);
+      const downloadImage = async () => {
+        try {
+          const { data, error } = await supabase.storage
+            .from('avatars')
+            .download(profile.avatar_url!);
+            
+          if (error) throw error;
 
-  const style = {
-    width: size,
-    height: size,
-    borderRadius: size / 2,
-  };
+          const fr = new FileReader();
+          fr.readAsDataURL(data);
+          fr.onload = () => {
+            setAvatarUrl(fr.result as string);
+            setIsLoading(false);
+          };
+        } catch (error) {
+          console.error('Error downloading avatar:', (error as Error).message);
+          setAvatarUrl(null);
+          setIsLoading(false);
+        }
+      };
+      downloadImage();
+    } else {
+      setAvatarUrl(null);
+    }
+  }, [profile?.avatar_url]);
+
+  if (isLoading) {
+    return <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.surfaceVariant, justifyContent: 'center', alignItems: 'center' }]} ><ActivityIndicator size="small" /></View>;
+  }
 
   if (avatarUrl) {
-    return <Image source={{ uri: avatarUrl }} style={[styles.avatar, style]} />;
+    return (
+      <Image
+        source={{ uri: avatarUrl }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        key={profile?.avatar_url} // Force re-render when the URL changes
+      />
+    );
   }
 
   return (
-    <View style={[styles.initialsContainer, style, { backgroundColor }]}>
-      <Text style={[styles.initialsText, { fontSize: size * 0.4, color: '#FFFFFF' }]}>
-        {initials}
+    <View style={[ styles.initialsContainer, { width: size, height: size, borderRadius: size / 2, backgroundColor: colors.surfaceVariant } ]}>
+      <Text style={[styles.initialsText, { color: colors.textSecondary, fontSize: size / 2.5 }]}>
+        {getInitials(profile?.display_name)}
       </Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  avatar: {
-    resizeMode: 'cover',
-  },
   initialsContainer: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -83,5 +87,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-export default Avatar;
