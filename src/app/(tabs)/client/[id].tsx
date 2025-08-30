@@ -23,13 +23,9 @@ import {
 } from 'lucide-react-native';
 import ScreenContainer from '../../../components/ScreenContainer';
 import { useTheme } from '../../../context/ThemeProvider';
-import { getClientDashboardData } from '../../../services/cpaService'; // ✅ correct path
-import {
-  Transaction,
-  DashboardMetrics,
-  DashboardMetricItem,
-  ClientDashboardData,
-} from '../../../types';
+import { getClientDashboardData } from '../../../services/cpaService';
+import { ClientDashboardData } from '../../../types';
+
 
 // Child components
 import MetricsGrid from '../../../components/dashboard/MetricsGrid';
@@ -85,7 +81,7 @@ export default function ClientDashboardScreen() {
   }
 
   /* ---- Build metrics for the MetricsGrid component ---- */
-  const metrics: DashboardMetricItem[] = [
+  const metrics: any[] = [
     {
       title: 'Total Balance',
       value:
@@ -172,7 +168,9 @@ export default function ClientDashboardScreen() {
         </Text>
 
         {/* Pass the transactions array directly */}
-        <RecentTransactions transactions={data.recentTransactions} />
+        <RecentTransactions transactions={data.recentTransactions} onAddTransaction={function (): void {
+          throw new Error('Function not implemented.');
+        } } />
 
         {/* Action buttons */}
         <View style={styles.actionsContainer}>

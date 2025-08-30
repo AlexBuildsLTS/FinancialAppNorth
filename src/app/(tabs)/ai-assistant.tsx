@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'rea
 import { useTheme } from '@/context/ThemeProvider';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 import { 
   Bot, Camera, FileText, Download, Upload, 
   MessageCircle, Scan, FileSpreadsheet, Zap 

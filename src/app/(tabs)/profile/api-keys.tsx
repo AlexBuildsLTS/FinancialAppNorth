@@ -7,7 +7,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastProvider';
 import { saveApiKeys, getApiKeys, testApiKeyConnection } from '@/services/settingsService';
 import ScreenContainer from '@/components/ScreenContainer';
-import Button from '@/components/common/Button';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 
 type Provider = 'openai' | 'gemini' | 'claude';
 type TestStatus = 'untested' | 'testing' | 'success' | 'failure';

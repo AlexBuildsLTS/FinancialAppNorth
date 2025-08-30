@@ -1,12 +1,15 @@
+// src/app/(auth)/register.tsx
+
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CheckCircle2, Circle, RefreshCw, Eye, EyeOff, UserPlus } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
-import ScreenContainer from '@/components/ScreenContainer';
-import { Button, Card, PasswordStrengthIndicator } from '@/components/common';
+import ScreenContainer from '@/components/ScreenContainer'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
+import { Button, Card } from '@/components/common';
+import PasswordStrengthIndicator from '@/components/common/PasswordStrengthIndicator';
 
 const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => {
     const { colors } = useTheme();
@@ -32,7 +35,6 @@ export default function RegisterScreen() {
     const [emailError, setEmailError] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [passwordsMatch, setPasswordsMatch] = useState(false);
-    const [passwordStrength, setPasswordStrength] = useState<'empty' | 'weak' | 'medium' | 'strong' | 'very-strong'>('empty');
 
     const router = useRouter();
     const { signUp } = useAuth();
@@ -40,11 +42,7 @@ export default function RegisterScreen() {
     const { showToast } = useToast();
 
     useEffect(() => {
-        if (password.length > 0 && confirmPassword.length > 0) {
-            setPasswordsMatch(password === confirmPassword);
-        } else {
-            setPasswordsMatch(false);
-        }
+        setPasswordsMatch(password.length > 0 && password === confirmPassword);
     }, [password, confirmPassword]);
 
     const requirements = {
@@ -56,145 +54,52 @@ export default function RegisterScreen() {
     };
     const allRequirementsMet = Object.values(requirements).every(Boolean);
 
-    const validateEmail = (text: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
-
-    const generatePassword = () => {
-        const length = 12;
-        const chars = {
-            uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-            lowercase: 'abcdefghijklmnopqrstuvwxyz',
-            numbers: '0123456789',
-            symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?'
-        };
-        const allChars = Object.values(chars).join('');
-        const getRandomChar = (charSet: string) => charSet.charAt(Math.floor(Math.random() * charSet.length));
-        const newPassword = [
-            getRandomChar(chars.uppercase),
-            getRandomChar(chars.lowercase),
-            getRandomChar(chars.numbers),
-            getRandomChar(chars.symbols),
-            ...Array.from({ length: length - 4 }, () => getRandomChar(allChars))
-        ].sort(() => Math.random() - 0.5).join('');
-        setPassword(newPassword);
-        setConfirmPassword(newPassword);
-        setPasswordError('');
-        showToast('Generated a secure password.', 'info');
-    };
-
     const handleRegister = async () => {
-        setEmailError('');
-        setPasswordError('');
-        if (!email.trim() || !validateEmail(email)) {
-            setEmailError('Please enter a valid email address.');
-            return;
-        }
-        if (!password) {
-            setPasswordError('Password is required.');
-            return;
-        }
-        if (!allRequirementsMet) {
-            setPasswordError('Password does not meet all requirements.');
-            return;
-        }
-        if (!passwordsMatch) {
-            setPasswordError('Passwords do not match.');
-            return;
-        }
-        if (!termsAccepted) {
-            showToast('Please accept the terms and conditions.', 'error');
-            return;
-        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailError('Please enter a valid email.'); return; }
+        if (!allRequirementsMet) { setPasswordError('Password does not meet all requirements.'); return; }
+        if (!passwordsMatch) { setPasswordError('Passwords do not match.'); return; }
+        if (!termsAccepted) { showToast('Please accept the terms and conditions.', 'error'); return; }
+        
         setLoading(true);
-        try {
-            const { error } = await signUp(email, password, displayName || email.split('@')[0]);
-            if (error) {
-                showToast(error.message ?? 'Registration failed', 'error');
-                console.error('🧾 Sign‑up error:', error);
-                return;
-            }
-            showToast('Registration successful! Please check your email to verify your account.', 'success');
+        const { error } = await signUp({ email, password, displayName: displayName || email.split('@')[0] });
+        setLoading(false);
+
+        if (error) {
+            showToast(error.message, 'error');
+        } else {
+            showToast('Registration successful! Please check your email to verify.', 'success');
             router.replace('/(auth)/login');
-        } catch (e: any) {
-            showToast(e.message ?? 'Unexpected error', 'error');
-            console.error('🧾 Unexpected sign‑up exception:', e);
-        } finally {
-            setLoading(false);
         }
     };
-
-    const isButtonDisabled = loading || !email || !password || !termsAccepted || !allRequirementsMet || !passwordsMatch;
-
+    
     return (
-        <ScreenContainer style={styles.outerContainer}>
+        <ScreenContainer>
             <View style={styles.contentContainer}>
                 <Card>
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                         <UserPlus color={colors.primary} size={40} style={styles.headerIcon} />
                         <Text style={[styles.title, { color: colors.text }]}>Create an Account</Text>
 
-                        <TextInput
-                            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                            placeholder="Display Name (Optional)"
-                            placeholderTextColor={colors.textSecondary}
-                            value={displayName}
-                            onChangeText={setDisplayName}
-                        />
-                        <TextInput
-                            style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: emailError ? colors.error : colors.border }]}
-                            placeholder="Email"
-                            placeholderTextColor={colors.textSecondary}
-                            value={email}
-                            onChangeText={(text) => { setEmail(text); setEmailError(''); }}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
+                        <TextInput style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]} placeholder="Display Name (Optional)" placeholderTextColor={colors.textSecondary} value={displayName} onChangeText={setDisplayName} />
+                        <TextInput style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: emailError ? colors.error : colors.border }]} placeholder="Email" placeholderTextColor={colors.textSecondary} value={email} onChangeText={(t) => { setEmail(t); setEmailError(''); }} keyboardType="email-address" autoCapitalize="none" />
                         {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
                         
-                        <View style={styles.passwordWrapper}>
-                            <View style={styles.passwordContainer}>
-                                <TextInput
-                                    style={[styles.input, { flex: 1, marginBottom: 0, backgroundColor: colors.background, color: colors.text, borderColor: passwordError ? colors.error : colors.border }]}
-                                    placeholder="Password"
-                                    placeholderTextColor={colors.textSecondary}
-                                    value={password}
-                                    onChangeText={(text) => { setPassword(text); setPasswordError(''); }}
-                                    secureTextEntry={!showPassword}
-                                />
-                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                                    {showPassword ? <Eye color={colors.textSecondary} size={20} /> : <EyeOff color={colors.textSecondary} size={20} />}
-                                </TouchableOpacity>
-                            </View>
+                        <View style={styles.passwordContainer}>
+                            <TextInput style={[styles.input, { flex: 1, marginBottom: 0, backgroundColor: colors.background, color: colors.text, borderColor: passwordError ? colors.error : colors.border }]} placeholder="Password" placeholderTextColor={colors.textSecondary} value={password} onChangeText={(t) => { setPassword(t); setPasswordError(''); }} secureTextEntry={!showPassword} />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                                {showPassword ? <Eye color={colors.textSecondary} size={20} /> : <EyeOff color={colors.textSecondary} size={20} />}
+                            </TouchableOpacity>
                         </View>
                         
-                        <View style={styles.passwordWrapper}>
-                            <View style={styles.passwordContainer}>
-                                <TextInput
-                                    style={[styles.input, { flex: 1, marginBottom: 0, backgroundColor: colors.background, color: colors.text, borderColor: passwordError && !passwordsMatch ? colors.error : colors.border }]}
-                                    placeholder="Confirm Password"
-                                    placeholderTextColor={colors.textSecondary}
-                                    value={confirmPassword}
-                                    onChangeText={(text) => { setConfirmPassword(text); setPasswordError(''); }}
-                                    secureTextEntry={!showConfirmPassword}
-                                />
-                                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-                                    {showConfirmPassword ? <Eye color={colors.textSecondary} size={20} /> : <EyeOff color={colors.textSecondary} size={20} />}
-                                </TouchableOpacity>
-                            </View>
-                            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+                        <View style={styles.passwordContainer}>
+                            <TextInput style={[styles.input, { flex: 1, marginBottom: 0, backgroundColor: colors.background, color: colors.text, borderColor: passwordError && !passwordsMatch ? colors.error : colors.border }]} placeholder="Confirm Password" placeholderTextColor={colors.textSecondary} value={confirmPassword} onChangeText={(t) => { setConfirmPassword(t); setPasswordError(''); }} secureTextEntry={!showConfirmPassword} />
+                            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
+                                {showConfirmPassword ? <Eye color={colors.textSecondary} size={20} /> : <EyeOff color={colors.textSecondary} size={20} />}
+                            </TouchableOpacity>
                         </View>
+                        {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
-                        <View style={styles.passwordInfoContainer}>
-                           <PasswordStrengthIndicator password={password} onStrengthChanged={setPasswordStrength} />
-                        </View>
-
-                        <Button 
-                            title="Generate Strong Password" 
-                            onPress={generatePassword} 
-                            variant="outline"
-                            size="small"
-                            icon={RefreshCw}
-                            style={{marginVertical: 16, alignSelf: 'center'}}
-                        />
+                        <PasswordStrengthIndicator password={password} />
                         
                         <View style={styles.requirementsContainer}>
                             <PasswordRequirement met={requirements.length} text="At least 8 characters" />
@@ -209,9 +114,9 @@ export default function RegisterScreen() {
                             <Text style={[styles.checkboxLabel, { color: colors.text }]}>I accept the terms and conditions</Text>
                         </TouchableOpacity>
 
-                        <Button title="Create Account" onPress={handleRegister} isLoading={loading} disabled={isButtonDisabled} style={styles.button} />
+                        <Button title="Create Account" onPress={handleRegister} isLoading={loading} disabled={loading || !termsAccepted || !allRequirementsMet || !passwordsMatch} style={styles.button} />
                         <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-                            <Text style={[styles.link, { color: colors.textSecondary }]}>Already have an account? <Text style={[styles.boldLink, {color: colors.primary}]}>Login</Text></Text>
+                            <Text style={[styles.link, { color: colors.textSecondary }]}>Already have an account? <Text style={{fontWeight: 'bold', color: colors.primary}}>Login</Text></Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </Card>
@@ -221,23 +126,19 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-    outerContainer: { justifyContent: 'center', alignItems: 'center', flex: 1 },
-    contentContainer: { width: '100%', maxWidth: 480, padding: 24, },
+    contentContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 },
     scrollContent: { padding: 20 },
     headerIcon: { alignSelf: 'center', marginBottom: 16 },
-    title: { fontSize: 32, fontFamily: 'Inter-Bold', textAlign: 'center', marginBottom: 24 },
-    input: { height: 50, borderRadius: 12, paddingHorizontal: 16, marginBottom: 12, fontSize: 16, borderWidth: 1, fontFamily: 'Inter-Regular' },
-    passwordWrapper: { marginBottom: 8 },
-    passwordContainer: { flexDirection: 'row', alignItems: 'center' },
-    passwordInfoContainer: { marginTop: 4, marginBottom: 4 },
+    title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 },
+    input: { height: 50, borderRadius: 12, paddingHorizontal: 16, marginBottom: 12, fontSize: 16, borderWidth: 1 },
+    passwordContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
     eyeIcon: { position: 'absolute', right: 15, top: 15 },
-    requirementsContainer: { marginTop: 8, paddingLeft: 10, gap: 8 },
-    requirement: { flexDirection: 'row', alignItems: 'center' },
-    requirementText: { marginLeft: 10, fontSize: 14, fontFamily: 'Inter-Regular' },
-    checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
-    checkboxLabel: { marginLeft: 10, fontSize: 15, fontFamily: 'Inter-SemiBold' },
-    button: { marginBottom: 24 },
-    link: { textAlign: 'center', fontSize: 14, paddingBottom: 20, fontFamily: 'Inter-Regular' },
-    boldLink: { fontFamily: 'Inter-Bold' },
-    errorText: { color: '#D32F2F', marginTop: -8, marginBottom: 10, marginLeft: 4, fontSize: 13, fontFamily: 'Inter-Regular' },
+    requirementsContainer: { marginTop: 16, paddingLeft: 10, gap: 8 },
+    requirement: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    requirementText: { fontSize: 14 },
+    checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 20, gap: 12 },
+    checkboxLabel: { fontSize: 15, fontWeight: '500' },
+    button: { marginBottom: 24, marginTop: 16 },
+    link: { textAlign: 'center', fontSize: 14 },
+    errorText: { color: '#D32F2F', marginTop: -8, marginBottom: 10, marginLeft: 4, fontSize: 13 },
 });

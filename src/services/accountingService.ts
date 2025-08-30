@@ -3,17 +3,20 @@
 import { supabase } from '@/lib/supabase';
 import {
   JournalEntry,
-  ChartOfAccounts,
-  FinancialStatement,
-  TaxCategory,
   AuditTrail,
-} from '@/types/accounting';
+  TaxCategory,
+  Account,
+  FinancialStatement, // Import FinancialStatement from '@/types/index'
+} from '@/types/index';
+  
+
+
 
 /**
  * Fetches the chart of accounts for the currently logged-in user or a specific client.
  * @param userId - The ID of the user whose chart of accounts to fetch.
  */
-export const getChartOfAccounts = async (userId: string): Promise<ChartOfAccounts[]> => {
+export const getChartOfAccounts = async (userId: string): Promise<Account[]> => { // Changed from ChartOfAccounts to Account
   const { data, error } = await supabase
     .from('chart_of_accounts')
     .select('*')
@@ -136,3 +139,5 @@ export const createAuditTrail = async (trail: Omit<AuditTrail, 'id' | 'timestamp
     // We don't throw an error to avoid breaking user-facing flows for a logging failure.
   }
 };
+
+export { FinancialStatement };

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Profile, DashboardMetrics, ClientDashboardData, ClientListItem, } from '../types';
+import { Profile, ClientDashboardData, ClientListItem, } from '../types';
 
 /**
  * Fetches all necessary data for a single client's dashboard.

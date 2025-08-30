@@ -18,16 +18,16 @@ import ScreenContainer from '@/components/ScreenContainer';
 
 export default function DocumentsScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { session } = useAuth();
   const router = useRouter();
   const [documents, setDocuments] = useState<ScannedDocument[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchDocuments = useCallback(async () => {
-    if (!user) return;
+    if (!session?.user?.id) return;
     setLoading(true);
     try {
-      const data = await getUserDocuments(user.id);
+      const data = await getUserDocuments(session?.user?.id);
       setDocuments(data);
     } catch (error) {
       console.error(error);
@@ -35,7 +35,7 @@ export default function DocumentsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [session]);
 
   useFocusEffect(useCallback(() => { fetchDocuments(); }, [fetchDocuments]));
 

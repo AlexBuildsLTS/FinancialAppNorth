@@ -7,8 +7,11 @@ import { getProfile, updateProfile, uploadAvatar } from '@/services/profileServi
 import { Profile } from '@/types';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'lucide-react-native';
-import ScreenContainer from '@/components/ScreenContainer';
-import Button from '@/components/common/Button';
+import ScreenContainer from '@/components/ScreenContainer'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
+
+
 
 export default function EditProfileScreen() {
     const { session } = useAuth();

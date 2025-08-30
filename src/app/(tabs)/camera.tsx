@@ -6,6 +6,8 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import { uploadDocument } from '@/services/documentService';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 
 export default function CameraScreen() {
     const { colors } = useTheme();

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
-import { UserProfile, UserRole } from '@/types'; // Assuming UserProfile type exists
+import { Profile, UserRole } from '@/types'; // Assuming UserProfile type exists
 
-export const getAllUsers = async (): Promise<UserProfile[]> => {
+export const getAllUsers = async (): Promise<Profile[]> => {
   // This requires admin privileges on the RLS policies for the 'profiles' table.
   const { data, error } = await supabase.from('profiles').select('*');
 
@@ -9,10 +9,10 @@ export const getAllUsers = async (): Promise<UserProfile[]> => {
     console.error('Error fetching users:', error);
     throw error;
   }
-  return data as UserProfile[];
+  return data as Profile[];
 };
 
-export const updateUserStatus = async (userId: string, status: 'Active' | 'Inactive'): Promise<UserProfile> => {
+export const updateUserStatus = async (userId: string, status: 'Active' | 'Inactive'): Promise<Profile> => {
   const { data, error } = await supabase
     .from('profiles')
     .update({ status: status })
@@ -24,10 +24,10 @@ export const updateUserStatus = async (userId: string, status: 'Active' | 'Inact
     console.error('Error updating user status:', error);
     throw error;
   }
-  return data as UserProfile;
+  return data as Profile;
 };
 
-export const deleteUser = async (userId: string): Promise<UserProfile> => {
+export const deleteUser = async (userId: string): Promise<Profile> => {
   const { data, error } = await supabase
     .from('profiles')
     .delete()
@@ -39,10 +39,10 @@ export const deleteUser = async (userId: string): Promise<UserProfile> => {
     console.error('Error deleting user:', error);
     throw error;
   }
-  return data as UserProfile;
+  return data as Profile;
 };
 
-export const updateUserRole = async (userId: string, role: UserRole): Promise<UserProfile> => {
+export const updateUserRole = async (userId: string, role: UserRole): Promise<Profile> => {
   const { data, error } = await supabase
     .from('profiles')
     .update({ role: role })
@@ -54,10 +54,10 @@ export const updateUserRole = async (userId: string, role: UserRole): Promise<Us
     console.error('Error updating user role:', error);
     throw error;
   }
-  return data as UserProfile;
+  return data as Profile;
 };
 
-export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>): Promise<UserProfile> => {
+export const updateUserProfile = async (userId: string, updates: Partial<Profile>): Promise<Profile> => {
   const { data, error } = await supabase
     .from('profiles')
     .update(updates)
@@ -69,7 +69,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
     console.error('Error updating user profile:', error);
     throw error;
   }
-  return data as UserProfile;
+  return data as Profile;
 };
 
 export const getSystemStats = async () => {

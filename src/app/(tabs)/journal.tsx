@@ -12,7 +12,7 @@ import { Plus, BookCopy, User } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import { getJournalEntries } from '@/services/accountingService';
-import { JournalEntry } from '@/types/accounting';
+import { JournalEntry } from '@/types/index';
 import ScreenContainer from '@/components/ScreenContainer';
 import JournalEntryModal from '@/components/forms/JournalEntryModal'; // We will create this next
 
@@ -56,14 +56,14 @@ export default function JournalScreen() {
       <View style={styles.lineItemsContainer}>
         {item.entries.map((line, index) => (
           <View key={index} style={styles.lineItem}>
-            <Text style={[styles.accountName, { color: colors.text }]}>{line.account_name}</Text>
+            <Text style={[styles.accountName, { color: colors.text }]}>{line.account_id}</Text>
             <Text style={[styles.lineAmount, { color: colors.text }]}>${line.debit_amount > 0 ? line.debit_amount.toFixed(2) : ''}</Text>
             <Text style={[styles.lineAmount, { color: colors.text }]}>${line.credit_amount.toFixed(2)}</Text>
           </View>
         ))}
       </View>
        <View style={styles.entryFooter}>
-         <Text style={[styles.totalAmount, { color: colors.text }]}>${item.total_debit.toFixed(2)}</Text>
+         <Text style={[styles.totalAmount, { color: colors.text }]}>${item.TOTAL.DEBIT.toFixed(2)}</Text>
          <Text style={[styles.totalAmount, { color: colors.text }]}>${item.total_credit.toFixed(2)}</Text>
        </View>
     </View>

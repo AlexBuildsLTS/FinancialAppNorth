@@ -1,0 +1,24 @@
+{
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
+    }
+  ],
+  "env": {
+    "EXPO_PUBLIC_SUPABASE_URL": "https://fniujrqxkhepevzvghja.supabase.co",
+    "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuaXVqcnF4a2hlcGV2enZnaGphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NDYyOTAsImV4cCI6MjA3MTIyMjI5MH0.vstJ5T_cSUklV7HEFnygv3H8JZ0ELCcYjQY6xo1YEvc"
+  }
+}

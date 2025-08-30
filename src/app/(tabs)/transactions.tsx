@@ -4,8 +4,9 @@ import { PlusCircle, ArrowUpCircle, ArrowDownCircle, Search, SlidersHorizontal }
 import { useTheme } from '@/context/ThemeProvider';
 import { useTransactions } from '@/hooks/useTransactions';
 import ScreenContainer from '@/components/ScreenContainer';
-import Card from '@/components/common/Card';
 import { Transaction } from '@/types';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 
 // A dedicated component for each transaction item for better organization
 const TransactionListItem = ({ item, colors }: { item: Transaction, colors: any }) => {

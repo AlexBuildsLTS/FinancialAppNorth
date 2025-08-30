@@ -5,10 +5,11 @@ import { PlusCircle, User, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext'; // Keep this line
 import { getAssignedClients } from '@/services/cpaService';
-import { Profile } from '@/types';
+import { Profile, UserRole } from '@/types';
 import ScreenContainer from '@/components/ScreenContainer';
-import Card from '@/components/common/Card';
 import AddClientModal from '@/components/forms/AddClientModal';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 
 const ClientListItem = ({ client, onPress }: { client: Profile, onPress: () => void }) => {
     const { colors } = useTheme();
@@ -43,8 +44,8 @@ export default function ClientsScreen() {
                     id: client.id,
                     display_name: client.name,
                     avatar_url: client.avatarUrl,
-                    email: client.email,
-                    role: 'Customer',
+                    email: client.email, // Assign the correct UserRole enum value
+                    role: UserRole.CLIENT,
                 }));
                 setClients(profileData);
             } catch (error) {

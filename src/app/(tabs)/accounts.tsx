@@ -4,6 +4,7 @@ import { useTheme } from '@/context/ThemeProvider';
 import ScreenContainer from '@/components/ScreenContainer';
 import { Wallet } from 'lucide-react-native';
 
+
 export default function AccountsScreen() {
   const { colors } = useTheme();
 

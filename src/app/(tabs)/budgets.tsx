@@ -8,7 +8,8 @@ import { getBudgets } from '../../services/budgetService';
 import { Budget } from '../../types';
 import ScreenContainer from '../../components/ScreenContainer';
 import CreateBudgetModal from '../../components/forms/CreateBudgetModal';
-
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 const BudgetProgressBar = ({ spent, allocated, color }: { spent: number, allocated: number, color: string }) => {
     const percent = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;
     return (
@@ -20,7 +21,8 @@ const BudgetProgressBar = ({ spent, allocated, color }: { spent: number, allocat
 
 export default function BudgetsScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { session } = useAuth();
+  const user = session?.user;
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setModalVisible] = useState(false);
@@ -43,7 +45,7 @@ export default function BudgetsScreen() {
   }, [fetchBudgets]));
 
   const renderBudgetItem = ({ item }: { item: Budget }) => {
-    const remaining = item.allocated - item.spent;
+    const remaining = item.amount - item.spent;
     const isOverspent = remaining < 0;
     const progressColor = isOverspent ? colors.error : colors.primary;
 
@@ -51,11 +53,11 @@ export default function BudgetsScreen() {
         <View style={[styles.budgetCard, { backgroundColor: colors.surface }]}>
             <View style={styles.budgetHeader}>
                 <Text style={[styles.budgetCategory, { color: colors.text }]}>{item.category}</Text>
-                <Text style={[styles.budgetAllocated, { color: colors.text }]}>
-                    ${item.spent.toFixed(2)} / <Text style={{color: colors.textSecondary}}>${item.allocated.toFixed(2)}</Text>
+                <Text style={[styles.budgetAmount, { color: colors.text }]}>
+                    ${item.spent.toFixed(2)} / <Text style={{color: colors.textSecondary}}>${item.amount.toFixed(2)}</Text>
                 </Text>
             </View>
-            <BudgetProgressBar spent={item.spent} allocated={item.allocated} color={progressColor} />
+            <BudgetProgressBar spent={item.spent} allocated={item.amount} color={progressColor} />
             <Text style={[styles.budgetRemaining, { color: isOverspent ? colors.error : colors.textSecondary }]}>
                 {isOverspent ? `$${Math.abs(remaining).toFixed(2)} Overspent` : `$${remaining.toFixed(2)} Remaining`}
             </Text>
@@ -107,7 +109,7 @@ const styles = StyleSheet.create({
     budgetCard: { borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#333' },
     budgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
     budgetCategory: { fontSize: 18, fontWeight: 'bold' },
-    budgetAllocated: { fontSize: 14, fontFamily: 'monospace' },
+    budgetAmount: { fontSize: 14, fontFamily: 'monospace' },
     progressBarBackground: { height: 8, backgroundColor: '#333', borderRadius: 4, overflow: 'hidden' },
     progressBarFill: { height: '100%', borderRadius: 4 },
     budgetRemaining: { fontSize: 12, textAlign: 'right', marginTop: 8, fontStyle: 'italic' },
