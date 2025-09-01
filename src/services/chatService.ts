@@ -1,184 +1,136 @@
 import { supabase } from '@/lib/supabase';
-import { Conversation, Message } from '@/types';
 
-// Type guards to check if an object has the expected properties
-function hasDisplayName(obj: any): obj is { display_name: string } {
-  return obj && typeof obj === 'object' && 'display_name' in obj;
-}
+/* Simple chat service for frontend use.
+   - getConversations(userId?)
+   - getMessages(conversationId)
+   - uploadAttachment(file)
+   - sendMessage(payload)
+   Adjust bucket/table names to match your DB if needed.
+*/
 
-function hasAvatarUrl(obj: any): obj is { avatar_url: string } {
-  return obj && typeof obj === 'object' && 'avatar_url' in obj;
-}
-
-function hasCreatedAt(obj: any): obj is { created_at: string } {
-  return obj && typeof obj === 'object' && 'created_at' in obj;
-}
-
-export const getConversations = async (userId: string): Promise<Conversation[]> => {
-  // This is a complex query. It finds all conversations a user is a part of.
-  // It then joins to get the other participant's profile and the last message.
-  // This needs a proper database structure to work.
-  // Assuming tables: `conversations`, `conversation_participants`, `messages`, `profiles`
-  
-  // First, get conversation IDs for the user
-  const { data: conversationIdsData, error: conversationIdsError } = await supabase
-    .from('conversation_participants')
-    .select('conversation_id')
-    .eq('user_id', userId);
-
-  if (conversationIdsError) {
-    console.error('Error fetching conversation IDs:', conversationIdsError);
-    throw conversationIdsError;
-  }
-
-  const conversationIds = conversationIdsData?.map(p => p.conversation_id) || [];
-
-  if (conversationIds.length === 0) {
-    return [];
-  }
-
-  // Then get the conversations with participants and last messages
-  // We'll handle ordering and limiting messages separately to avoid deprecated methods
-  const { data, error } = await supabase
-    .from('conversations')
-    .select(`
-      id,
-      last_message: messages ( text, created_at ),
-      participants: conversation_participants ( profile: profiles (id, display_name, avatar_url) )
-    `)
-    .in('id', conversationIds);
-
-  if (error) {
-    console.error('Error fetching conversations:', error);
-    throw error;
-  }
-  
-  // Process the data to match Conversation type
-  return data.map(conv => {
-    // Handle the nested data structure carefully
-    const participants = Array.isArray(conv.participants) ? conv.participants : [];
-    const lastMessages = Array.isArray(conv.last_message) ? conv.last_message : [];
-    
-    // Find the participant that is not the current user
-    // This is a simplified approach - in a real app, you might need a more robust solution
-    let displayName = 'Chat';
-    let avatarUrl = '';
-    
-    if (participants.length > 0) {
-      const firstParticipant = participants[0];
-      if (Array.isArray(firstParticipant.profile) && firstParticipant.profile.length > 0) {
-        const profile = firstParticipant.profile[0];
-        if (hasDisplayName(profile)) {
-          displayName = profile.display_name || 'Chat';
-        }
-        if (hasAvatarUrl(profile)) {
-          avatarUrl = profile.avatar_url || '';
-        }
-      }
+export async function getConversations(userId?: string): Promise<{ conversations: any[]; error?: any }> {
+  try {
+    if (userId) {
+      const { data: parts, error: pErr } = await supabase
+        .from('channel_participants')
+        .select('channel_id')
+        .eq('user_id', userId);
+      if (pErr) return { conversations: [], error: pErr };
+      const channelIds = (parts ?? []).map((r: any) => r.channel_id);
+      if (channelIds.length === 0) return { conversations: [] };
+      const { data, error } = await supabase
+        .from('channels')
+        .select('id, created_by')
+        .in('id', channelIds);
+      if (error) return { conversations: [], error };
+      return {
+        conversations: (data ?? []).map((c: any) => ({
+          id: String(c.id),
+          participants: [],
+          name: `Channel ${c.id}`,
+          avatar_url: null,
+          lastMessage: null,
+          timestamp: null,
+          unread: 0,
+        })),
+      };
+    } else {
+      const { data, error } = await supabase.from('channels').select('id, created_by');
+      if (error) return { conversations: [], error };
+      return { conversations: data ?? [] };
     }
-    
-    // Get the first last message if available (most recent)
-    let lastMessageText = 'No messages yet.';
-    let timestamp = '';
-    
-    // Sort messages by created_at to get the most recent one
-    const sortedMessages = [...lastMessages].sort((a, b) => {
-      if (hasCreatedAt(a) && hasCreatedAt(b)) {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-      return 0;
+  } catch (err) {
+    console.error('chatService.getConversations error', err);
+    return { conversations: [], error: err };
+  }
+}
+
+export async function getMessages(conversationId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('channel_id', conversationId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map((d: any) => ({ ...d, attachments: d.attachments ?? [] }));
+  } catch (err) {
+    console.error('chatService.getMessages error', err);
+    throw err;
+  }
+}
+
+export async function uploadAttachment(file: { uri: string; name?: string; mimeType?: string }) {
+  try {
+    const bucket = 'documents';
+    const filename = file.name ?? `${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
+    const remotePath = `${filename}`;
+
+    const res = await fetch(file.uri);
+    const blob = await res.blob();
+
+    const { data, error } = await supabase.storage.from(bucket).upload(remotePath, blob, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.mimeType ?? undefined,
     });
-    
-    if (sortedMessages.length > 0) {
-      const lastMessage = sortedMessages[0];
-      lastMessageText = lastMessage.text || 'No messages yet.';
-      if (hasCreatedAt(lastMessage) && lastMessage.created_at) {
-        timestamp = new Date(lastMessage.created_at).toLocaleTimeString();
+    if (error) throw error;
+
+    // getPublicUrl returns { data: { publicUrl } } synchronously
+    const publicRes: any = supabase.storage.from(bucket).getPublicUrl(remotePath);
+    let url = publicRes?.data?.publicUrl ?? null;
+
+    if (!url) {
+      const { data: signed, error: signErr } = await supabase.storage.from(bucket).createSignedUrl(remotePath, 60 * 60 * 24);
+      if (signErr) {
+        console.warn('signed url error', signErr);
+      } else {
+        url = signed?.signedUrl ?? null;
       }
     }
-    
-    return {
-      id: conv.id,
-      name: displayName,
-      avatar: avatarUrl,
-      lastMessage: lastMessageText,
-      timestamp: timestamp,
-      unread: 0, // In a real app, this would be calculated based on unread messages
-    };
-  });
-};
 
-export const getMessages = async (conversationId: string): Promise<Message[]> => {
-  const { data, error } = await supabase
-    .from('messages')
-    .select(`id, conversation_id, user_id, text, created_at, sender: profiles (display_name)`)
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching messages:', error);
-    throw error;
+    return { path: data?.path ?? remotePath, url, name: filename, mimeType: file.mimeType };
+  } catch (err) {
+    console.error('chatService.uploadAttachment error', err);
+    throw err;
   }
-  
-  // Process the data to match Message type
-  return data.map(msg => {
-    // Handle the sender data structure carefully
-    let senderDisplayName = '';
-    
-    if (Array.isArray(msg.sender) && msg.sender.length > 0) {
-      const sender = msg.sender[0];
-      if (hasDisplayName(sender)) {
-        senderDisplayName = sender.display_name || '';
+}
+
+export async function sendMessage({
+  conversationId,
+  senderId,
+  text,
+  attachments = [],
+  metadata = {},
+}: {
+  conversationId: string;
+  senderId: string;
+  text?: string;
+  attachments?: Array<{ uri: string; name?: string; mimeType?: string; size?: number }>;
+  metadata?: Record<string, any>;
+}) {
+  try {
+    const uploaded: any[] = [];
+    for (const att of attachments) {
+      try {
+        const u = await uploadAttachment(att);
+        uploaded.push(u);
+      } catch (err) {
+        console.warn('attachment upload failed for', att.name, err);
       }
     }
-    
-    return {
-      id: msg.id,
-      conversation_id: msg.conversation_id,
-      user_id: msg.user_id,
-      text: msg.text,
-      created_at: msg.created_at,
-      sender: { display_name: senderDisplayName }
+    const payload: any = {
+      channel_id: conversationId,
+      user_id: senderId,
+      content: text ?? null,
+      attachments: uploaded.length ? uploaded : null,
+      metadata: Object.keys(metadata).length ? metadata : null,
     };
-  });
-};
-
-export const sendMessage = async (conversationId: string, userId: string, text: string): Promise<Message> => {
-  const { data, error } = await supabase
-    .from('messages')
-    .insert([{ conversation_id: conversationId, user_id: userId, text }])
-    .select(`id, conversation_id, user_id, text, created_at`)
-    .single();
-
-  if (error) {
-    console.error('Error sending message:', error);
-    throw error;
+    const { data, error } = await supabase.from('messages').insert(payload).select();
+    if (error) throw error;
+    return Array.isArray(data) ? data[0] : data;
+  } catch (err) {
+    console.error('chatService.sendMessage error', err);
+    throw err;
   }
-  
-  // Check if data exists
-  if (!data) {
-    throw new Error('No data returned after sending message');
-  }
-  
-  // Transform the data to match Message type
-  return {
-    id: data.id,
-    conversation_id: data.conversation_id,
-    user_id: data.user_id,
-    text: data.text,
-    created_at: data.created_at,
-    sender: { display_name: '' } // Default value since we don't have sender info in insert response
-  };
-};
-
-export const deleteMessage = async (messageId: string): Promise<void> => {
-  const { error } = await supabase
-    .from('messages')
-    .delete()
-    .eq('id', messageId);
-  
-  if (error) {
-    console.error('Error deleting message:', error);
-    throw error;
-  }
-};
+}

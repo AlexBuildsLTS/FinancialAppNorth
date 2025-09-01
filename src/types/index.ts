@@ -1,25 +1,40 @@
 import React from 'react';
-import { LucideProps } from 'lucide-react-native';
-// src/types/index.ts
-
+import type { LucideProps } from 'lucide-react-native';
 
 // --- AUTH & USERS ---
+
+// REFACTORED: Use programmatic keys for logic. This is more robust and aligns with database values.
 export enum UserRole {
-    MEMBER = 'Member',
-    PREMIUM_MEMBER = 'Premium Member',
-    CPA = 'Professional (CPA)',
-    SUPPORT = 'Support',
-    ADMIN = 'Administrator',
-    CLIENT = "CLIENT",
+    MEMBER = 'member',
+    PREMIUM_MEMBER = 'premium',
+    CPA = 'cpa',
+    SUPPORT = 'support',
+    ADMIN = 'admin',
+    CLIENT = "client", // Assuming this is also a role
 }
 
+// NEW: A mapping to get human-readable names for UI display.
+export const UserRoleDisplayNames: { [key in UserRole]: string } = {
+    [UserRole.MEMBER]: 'Member',
+    [UserRole.PREMIUM_MEMBER]: 'Premium Member',
+    [UserRole.CPA]: 'Professional (CPA)',
+    [UserRole.SUPPORT]: 'Support',
+    [UserRole.ADMIN]: 'Administrator',
+    [UserRole.CLIENT]: 'Client',
+};
+
+
 export interface Profile {
-  id: string;
+  status: "active" | "suspended" | "banned" | undefined;
+  id: string; // This is the user's UUID from auth.users
   display_name: string;
+  full_name?: string; // Added full_name
   avatar_url: string | null;
-  email: string;
-  role: UserRole;
+  email?: string; // Email is often retrieved from the session user, can be optional here
+  role: UserRole; // Uses our robust enum
 }
+
+export type User = Profile;
 
 // --- FINANCIAL & ACCOUNTING ---
 type UUID = string;
@@ -137,7 +152,7 @@ export interface Notification {
 export interface Conversation {
   id: string;
   name: string;
-  avatar: string | null;
+  avatar_url: string | null;
   lastMessage: string;
   timestamp: string;
   unread: number;
@@ -149,7 +164,7 @@ export interface Message {
   user_id: string;
   text: string;
   created_at: string;
-  sender: { display_name: string };
+  sender: { display_name: string; avatar_url: string | null };
 }
 
 // --- CPA & CLIENT-SPECIFIC ---
