@@ -1,84 +1,80 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { ChevronRight, KeyRound, Bell, Palette, LogOut, Shield, FileKey } from 'lucide-react-native';
+import React from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
-import { getProfile } from '@/services/profileService';
-import { Profile } from '@/types';
-import ScreenContainer from '@/components/ScreenContainer';
-import { Button } from '@/components/common/Button';
-import { Card } from '@/components/common/Card';
+import ScreenContainer from '@/components/ScreenContainer'; // FIX: Corrected import
+import { Avatar } from '@/components/common/Avatar'; // FIX: Corrected named import
+import { ChevronRight, LogOut, Shield, KeyRound, Palette, User, Users, Star, Briefcase, LifeBuoy, ShieldCheck } from 'lucide-react-native';
+import { Link } from 'expo-router';
+import { UserRoleDisplayNames } from '@/types';
 
+const ProfileOption = ({ href, text, Icon, isLast = false }: { href: any; text: string; Icon: React.ElementType; isLast?: boolean }) => {
+    const { colors } = useTheme();
+    return (
+        <Link href={href} asChild>
+            <Pressable>
+                <View style={[styles.optionRow, { borderBottomWidth: isLast ? 0 : 1, borderBottomColor: colors.border }]}>
+                    <Icon size={20} color={colors.textSecondary} />
+                    <Text style={[styles.optionText, { color: colors.text }]}>{text}</Text>
+                    <ChevronRight size={20} color={colors.textSecondary} />
+                </View>
+            </Pressable>
+        </Link>
+    );
+};
 
-const ProfileMenuItem = ({ icon: Icon, text, onPress, colors }: any) => (
-    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.surface, borderBottomColor: colors.border }]} onPress={onPress}>
-        <Icon color={colors.primary} size={22} />
-        <Text style={[styles.menuItemText, { color: colors.text }]}>{text}</Text>
-        <ChevronRight color={colors.textSecondary} size={22} />
-    </TouchableOpacity>
-);
+const roleMeta: Record<string, { Icon: React.ElementType; color: string; label: string }> = {
+	Member: { Icon: User, color: '#2ecc71', label: 'Member' },
+	'Premium Member': { Icon: Star, color: '#f1c40f', label: 'Premium Member' },
+	Professional: { Icon: Briefcase, color: '#3498db', label: 'Professional (CPA)' },
+	Support: { Icon: LifeBuoy, color: '#9b59b6', label: 'Support' },
+	Administrator: { Icon: ShieldCheck, color: '#e74c3c', label: 'Administrator' },
+	// fallback
+	unknown: { Icon: Users, color: '#7f8c8d', label: 'User' },
+};
 
 export default function ProfileScreen() {
-    const { profile: authProfile, signOut, session } = useAuth(); // Renamed to authProfile to avoid conflict with local state
-    const { colors, isDark, setColorScheme } = useTheme();
-    const router = useRouter();
-    const [profile, setProfile] = useState<Profile | null>(null);
-    const [refreshing, setRefreshing] = useState(false);
+    const { colors } = useTheme();
+    const { profile, signOut } = useAuth();
 
-    const fetchProfileData = useCallback(async () => {
-        if (session?.user.id) {
-            setRefreshing(true);
-            try {
-                const profileData = await getProfile(session.user.id);
-                setProfile(profileData);
-            } catch (error) {
-                console.error("Failed to fetch profile:", error);
-            } finally {
-                setRefreshing(false);
-            }
-        }
-    }, [session]);
+    if (!profile) {
+        return <ScreenContainer><View style={styles.centered}><ActivityIndicator /></View></ScreenContainer>;
+    }
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchProfileData();
-        }, [fetchProfileData])
-    );
-    
-    const menuItems = [
-        { icon: KeyRound, text: 'Edit Profile', path: '/profile/edit' },
-        { icon: Shield, text: 'Security', path: '/profile/security' },
-        { icon: FileKey, text: 'AI Provider API Keys', path: '/profile/api-keys' },
-        { icon: Bell, text: 'Notifications', path: '/settings' }, // Placeholder
-        { icon: Palette, text: 'Appearance', path: '/settings' }, // Placeholder
-    ];
+    const meta = roleMeta[UserRoleDisplayNames[profile.role]] ?? roleMeta.unknown;
 
     return (
         <ScreenContainer>
-            <ScrollView
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchProfileData} tintColor={colors.primary} />}
-            >
-                <View style={styles.header}>
-                    <Image
-                        source={profile?.avatar_url ? { uri: profile.avatar_url } : require('@/assets/images/icon.png')}
-                        style={[styles.avatar, { borderColor: colors.primary }]}
-                    />
-                    <Text style={[styles.name, { color: colors.text }]}>{profile?.display_name || 'User'}</Text>
-                    <Text style={[styles.email, { color: colors.textSecondary }]}>{authProfile?.email}</Text>
-                </View>
+            <ScrollView style={{ backgroundColor: colors.background }}>
+                <View style={styles.container}>
+                    <View style={styles.profileHeader}>
+                        <Avatar url={profile.avatar_url} size={80} />
+                        <View style={styles.profileInfo}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Text style={[styles.displayName, { color: colors.text }]}>{profile.display_name}</Text>
+                                {/* role badge */}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: `${meta.color}22` }}>
+                                    {/* icon */}
+                                    <meta.Icon size={14} color={meta.color} />
+                                    <Text style={{ marginLeft: 6, color: meta.color, fontSize: 12, fontWeight: '600' }}>{meta.label}</Text>
+                                </View>
+                            </View>
+                            <Text style={[styles.email, { color: colors.textSecondary }]}>{UserRoleDisplayNames[profile.role]}</Text>
+                        </View>
+                    </View>
 
-                <View style={[styles.menuSection, { borderColor: colors.border }]}>
-                    {menuItems.map((item) => (
-                        <ProfileMenuItem key={item.text} icon={item.icon} text={item.text} onPress={() => router.push(item.path as any)} colors={colors} />
-                    ))}
-                </View>
+                    <View style={[styles.optionsContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        <ProfileOption href="/(tabs)/profile/edit" text="Edit Profile" Icon={Palette} />
+                        <ProfileOption href="/(tabs)/profile/security" text="Security" Icon={Shield} />
+                        <ProfileOption href="/(tabs)/profile/api-keys" text="API Keys" Icon={KeyRound} isLast={true} />
+                    </View>
 
-                <View style={[styles.menuSection, { borderColor: colors.border }]}>
-                    <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.surface, borderBottomWidth: 0 }]} onPress={signOut}>
-                        <LogOut color={colors.error} size={22} />
-                        <Text style={[styles.menuItemText, { color: colors.error }]}>Sign Out</Text>
-                    </TouchableOpacity>
+                    <Pressable onPress={signOut}>
+                        <View style={[styles.optionRow, styles.logoutButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <LogOut size={20} color={colors.error} />
+                            <Text style={[styles.optionText, { color: colors.error }]}>Sign Out</Text>
+                        </View>
+                    </Pressable>
                 </View>
             </ScrollView>
         </ScreenContainer>
@@ -86,43 +82,14 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-    header: {
-        alignItems: 'center',
-        paddingVertical: 32,
-    },
-    avatar: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        borderWidth: 3,
-        marginBottom: 16,
-    },
-    name: {
-        fontSize: 24,
-        fontWeight: 'bold',
-    },
-    email: {
-        fontSize: 16,
-        marginTop: 4,
-    },
-    menuSection: {
-        marginHorizontal: 16,
-        marginBottom: 20,
-        borderRadius: 12,
-        borderWidth: 1,
-        overflow: 'hidden',
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 18,
-        paddingHorizontal: 16,
-        borderBottomWidth: 1,
-    },
-    menuItemText: {
-        flex: 1,
-        fontSize: 16,
-        marginLeft: 16,
-        fontWeight: '500',
-    },
+    container: { flex: 1, padding: 24, },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    profileHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 32, gap: 20, },
+    profileInfo: { gap: 8, },
+    displayName: { fontSize: 22, fontWeight: 'bold', },
+    email: { fontSize: 16, },
+    optionsContainer: { borderRadius: 12, borderWidth: 1, overflow: 'hidden', },
+    optionRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 16, },
+    optionText: { flex: 1, fontSize: 16, fontWeight: '500', },
+    logoutButton: { marginTop: 24, borderRadius: 12, borderWidth: 1, },
 });

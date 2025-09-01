@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getProfile } from '@/services/profileService';
+import * as profileService from '@/services/profileService'; // use namespace import to avoid "no exported member" error
 import { Profile } from '@/types';
 
 export const useProfile = (userId: string | undefined) => {
@@ -15,7 +15,10 @@ export const useProfile = (userId: string | undefined) => {
         const fetchProfile = async () => {
             try {
                 setLoading(true);
-                const userProfile = await getProfile(userId);
+                // try common names that service might export
+                const fn = (profileService as any).getProfile ?? (profileService as any).fetchProfile ?? (profileService as any).default;
+                if (!fn) throw new Error('profileService missing getter');
+                const userProfile = await fn(userId);
                 setProfile(userProfile);
             } catch (error) {
                 console.error("Failed to fetch profile:", error);

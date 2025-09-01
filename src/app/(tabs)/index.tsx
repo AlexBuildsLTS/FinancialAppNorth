@@ -1,78 +1,94 @@
 // src/app/(tabs)/index.tsx
 
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, ActivityIndicator, RefreshControl, Text } from 'react-native';
-import { Redirect } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
-import { UserRole } from '@/types';
+import React from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
+import { Wallet, PiggyBank, TrendingUp, TrendingDown } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { StatusBar } from 'expo-status-bar';
-
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import ScreenContainer from '@/components/ScreenContainer';
-import { useDashboardData } from '@/hooks/useDashboardData';
-import MetricCard from '@/components/dashboard/MetricCard';
-import LineChart from '@/components/dashboard/LineChart';
-import RecentTransactions from '@/components/dashboard/RecentTransactions';
-import AddTransactionModal from '@/components/forms/AddTransactionModal';
-import { Scale, TrendingUp, TrendingDown } from 'lucide-react-native';
+import {
+    DashboardHeader,
+    MetricsGrid,
+    ChartSection,
+    QuickActions,
+    RecentTransactions,
+} from '@/components/dashboard';
+import { useAuth } from '@/context/AuthContext';
+import { DashboardMetricItem, Transaction } from '@/types';
 
 export default function DashboardScreen() {
-  const { colors, isDark } = useTheme();
-  const { profile } = useAuth();
-  const { metrics, chartData, loading, refreshData } = useDashboardData();
-  const [isModalVisible, setIsModalVisible] = useState(false);
+    const { colors } = useTheme();
+    const { profile } = useAuth();
+    
+    // Dummy data - replace with real data from your services
+    const metrics: DashboardMetricItem[] = [
+        { title: 'Current Balance', value: '$12,545.80', change: 2.5, Icon: Wallet, changeType: 'positive' },
+        { title: 'Income', value: '$5,600.00', change: 10, Icon: TrendingUp, changeType: 'positive' },
+        { title: 'Expenses', value: '$3,450.12', change: 5, Icon: TrendingDown, changeType: 'negative' },
+        { title: 'Savings Rate', value: '25%', change: 1, Icon: PiggyBank, changeType: 'positive' },
+    ];
+    
+    const chartData = {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{ data: [2000, 4500, 2800, 8000, 9900, 4300] }],
+    };
 
-  if (profile?.role === UserRole.CPA) { // FIX: Using correct UPPERCASE enum key
-    return <Redirect href="/(tabs)/clients" />;
-  }
+    const transactions: Transaction[] = [
+        { 
+            id: '1', 
+            user_id: profile?.id || 'user-123', 
+            account_id: 'account-456', 
+            description: 'Grocery Store', 
+            amount: -75.50, 
+            type: 'expense', 
+            date: new Date().toISOString(), 
+            transaction_date: new Date().toISOString(), 
+            category: 'Food', 
+            status: 'cleared', 
+            created_at: new Date().toISOString() 
+        },
+        { 
+            id: '2', 
+            user_id: profile?.id || 'user-123', 
+            account_id: 'account-456', 
+            description: 'Paycheck', 
+            amount: 2500.00, 
+            type: 'income', 
+            date: new Date().toISOString(), 
+            transaction_date: new Date().toISOString(), 
+            category: 'Income', 
+            status: 'cleared', 
+            created_at: new Date().toISOString() 
+        },
+        { 
+            id: '3', 
+            user_id: profile?.id || 'user-123', 
+            account_id: 'account-456', 
+            description: 'Netflix Subscription', 
+            amount: -15.99, 
+            type: 'expense', 
+            date: new Date().toISOString(), 
+            transaction_date: new Date().toISOString(), 
+            category: 'Bills', 
+            status: 'cleared', 
+            created_at: new Date().toISOString() 
+        },
+    ];
 
-  const onTransactionAdded = () => {
-    setIsModalVisible(false);
-    refreshData();
-  };
-
-  return (
-    <ScreenContainer>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <DashboardHeader title="Dashboard" />
-      
-      {loading && !metrics ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : !metrics ? (
-        <View style={styles.loaderContainer}>
-            <Text style={{color: colors.textSecondary}}>No dashboard data available.</Text>
-        </View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshData} tintColor={colors.primary} />}
-        >
-          <View style={styles.metricsGrid}>
-            <MetricCard title="Total Balance" value={`$${metrics.totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`} Icon={Scale} />
-            <MetricCard title="Income (Month)" value={`$${metrics.monthlyIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}`} Icon={TrendingUp} />
-            <MetricCard title="Expenses (Month)" value={`$${metrics.monthlyExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}`} Icon={TrendingDown} />
-          </View>
-          <LineChart title="Monthly Income (Last 6 Months)" data={chartData} />
-          <RecentTransactions transactions={metrics.recentTransactions} onAddTransaction={() => setIsModalVisible(true)} />
-        </ScrollView>
-      )}
-
-      <AddTransactionModal
-        visible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
-        onSuccess={onTransactionAdded} 
-        clientId={null}
-      />
-    </ScreenContainer>
-  );
+    return (
+        <ScreenContainer>
+            <ScrollView contentContainerStyle={styles.container}>
+                <DashboardHeader title={profile?.full_name || 'User'} />
+                <MetricsGrid metricData={metrics} />
+                <ChartSection />
+                <QuickActions onAddTransaction={() => {}} />
+                <RecentTransactions transactions={transactions} onAddTransaction={() => {}} />
+            </ScrollView>
+        </ScreenContainer>
+    );
 }
 
 const styles = StyleSheet.create({
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { padding: 24, paddingBottom: 100, gap: 24 },
-  metricsGrid: { flexDirection: 'row', gap: 16 },
+    container: {
+        padding: 16,
+    },
 });

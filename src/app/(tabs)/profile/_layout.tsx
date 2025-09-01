@@ -1,10 +1,23 @@
-// src/app/(tabs)/profile/_layout.tsx
-
-import { Stack } from 'expo-router';
 import React from 'react';
+import { Stack } from 'expo-router';
+import { useTheme } from '@/context/ThemeProvider';
 
-export default function ProfileLayout() {
-  // This configures the navigator for the screens inside the 'profile' folder.
-  // It hides the header because our screens will provide their own custom header.
-  return <Stack screenOptions={{ headerShown: false }} />;
+export default function ProfileStackLayout() {
+  const { colors } = useTheme();
+
+  return (
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
+        headerShadowVisible: false, // This is correct
+        headerBackTitle: '', // Use headerBackTitle instead of headerBackTitleVisible
+      }}
+    >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="edit" options={{ title: 'Edit Profile' }} />
+      <Stack.Screen name="api-keys" options={{ title: 'API Keys' }} />
+      <Stack.Screen name="security" options={{ headerShown: false, title: 'Security' }} />
+    </Stack>
+  );
 }

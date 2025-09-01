@@ -1,104 +1,120 @@
-import { UserRole } from '@/types';
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, TextInput } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { Profile } from '@/types';
-import { Button } from '@/components/common/Button';
-import Modal from '@/components/common/Modal'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, TextInput, Switch, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { updateUserRole } from '@/services/adminService';
+import { Profile, UserRole, UserRoleDisplayNames } from '@/types';
+import { useTheme } from '@/context/ThemeProvider';
+import { adminService } from '@/services/adminService';
+import { X } from 'lucide-react-native';
 
 interface EditUserModalProps {
-  visible: boolean;
+  user: Profile;
   onClose: () => void;
-  user: Profile | null; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
-  onUserUpdate: () => void;
+  onUserUpdated: (updatedUser: Profile) => void;
 }
 
-const ROLES: Profile['role'][] = [
-    UserRole.MEMBER,
-    UserRole.PREMIUM_MEMBER,
-    UserRole.CPA,
-    UserRole.SUPPORT,
-    UserRole.ADMIN,
-];
-
-export default function EditUserModal({ visible, onClose, user, onUserUpdate }: EditUserModalProps) {
+export default function EditUserModal({ user, onClose, onUserUpdated }: EditUserModalProps) {
   const { colors } = useTheme();
-  const [selectedRole, setSelectedRole] = useState<Profile['role']>(UserRole.MEMBER);
-  const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<UserRole>(user.role);
+  const [status, setStatus] = useState<'active' | 'suspended' | 'banned'>(user.status || 'active');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      setSelectedRole(user.role);
-    }
-  }, [user]);
+  const handleUpdate = async () => {
+    setIsSubmitting(true);
+    const { updatedUser, error } = await adminService.updateUser(user.id, { role, status });
+    setIsSubmitting(false);
 
-  const handleSave = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      await updateUserRole(user.id, selectedRole);
-      Alert.alert('Success', `${user.email}'s role has been updated.`);
-      onUserUpdate();
+    if (error) {
+      Alert.alert('Error', 'Failed to update user: ' + error.message);
+    } else if (updatedUser) {
+      onUserUpdated({ ...user, ...updatedUser });
       onClose();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update user role.');
-      console.error(error);
-    } finally {
-      setLoading(false);
     }
   };
-  
-  if (!user) return null;
 
   return (
-    <Modal visible={visible} onClose={onClose} title="Edit User">
-      <View>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>User Email</Text>
-        <Text style={[styles.emailText, { color: colors.text }]}>{user.email}</Text>
-
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Assign Role</Text>
-        <View style={[styles.pickerContainer, { backgroundColor: colors.background }]}>
-            <Picker
-                selectedValue={selectedRole}
-                onValueChange={(itemValue: string) => setSelectedRole(itemValue as Profile['role'])}
-                style={{ color: colors.text }}
-            >
-                {ROLES.map(role => (
-                    <Picker.Item key={role} label={role} value={role} />
-                ))}
-            </Picker>
+    <View style={styles.modalBackdrop}>
+      <View style={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Edit User</Text>
+          <Pressable onPress={onClose}>
+            <X size={24} color={colors.textSecondary} />
+          </Pressable>
         </View>
 
-        <View style={styles.buttonContainer}>
-          <Button title="Cancel" onPress={onClose} variant="outline" style={{ flex: 1, marginRight: 8 }} />
-          <Button title="Save Changes" onPress={handleSave} isLoading={loading} style={{ flex: 1, marginLeft: 8 }} />
+        <View style={styles.fieldContainer}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Full Name</Text>
+          <TextInput
+            style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
+            value={user.display_name}
+            editable={false}
+          />
+        </View>
+
+        <View style={styles.fieldContainer}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Email</Text>
+          <TextInput
+            style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
+            value={user.email}
+            editable={false}
+          />
+        </View>
+
+        <View style={styles.fieldContainer}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Role</Text>
+          <View style={[styles.pickerContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <Picker selectedValue={role} onValueChange={(itemValue) => setRole(itemValue)} style={{ color: colors.text }}>
+              {Object.values(UserRole).map((r) => (
+                <Picker.Item key={r} label={UserRoleDisplayNames[r]} value={r} />
+              ))}
+            </Picker>
+          </View>
+        </View>
+
+        <View style={styles.fieldContainerRow}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Status</Text>
+          <View style={styles.statusContainer}>
+            <Text style={[styles.statusText, { color: status === 'active' ? colors.success : colors.textSecondary }]}>
+                {status === 'active' ? 'Active' : 'Suspended'}
+            </Text>
+            <Switch
+              value={status === 'active'}
+              onValueChange={(isActive) => setStatus(isActive ? 'active' : 'suspended')}
+              trackColor={{ false: '#767577', true: colors.primary }}
+              thumbColor={'#f4f3f4'}
+            />
+          </View>
+        </View>
+
+        <View style={styles.actions}>
+          <Pressable onPress={onClose} style={[styles.button, styles.cancelButton, { borderColor: colors.border }]}>
+            <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
+          </Pressable>
+          <Pressable onPress={handleUpdate} style={[styles.button, styles.updateButton, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>
+              {isSubmitting ? 'Updating...' : 'Update User'}
+            </Text>
+          </Pressable>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  label: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  emailText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  pickerContainer: {
-    borderRadius: 8,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#444',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
+    modalBackdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+    modalContainer: { width: '90%', maxWidth: 500, borderRadius: 12, padding: 24, elevation: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    headerTitle: { fontSize: 20, fontWeight: 'bold' },
+    fieldContainer: { marginBottom: 16 },
+    fieldContainerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    label: { fontSize: 14, marginBottom: 8 },
+    input: { height: 44, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, fontSize: 16 },
+    pickerContainer: { borderWidth: 1, borderRadius: 8, justifyContent: 'center' },
+    statusContainer: { flexDirection: 'row', alignItems: 'center' },
+    statusText: { marginRight: 8, fontSize: 16, fontWeight: '500' },
+    actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 },
+    button: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginLeft: 12 },
+    cancelButton: { borderWidth: 1 },
+    updateButton: {},
+    buttonText: { fontSize: 16, fontWeight: 'bold' },
 });

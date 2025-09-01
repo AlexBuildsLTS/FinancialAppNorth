@@ -57,7 +57,7 @@ export const DashboardHeader = ({ title = "Dashboard" }: { title?: string }) => 
                         </View>
                     </DropdownMenu>
 
-                    <DropdownMenu trigger={<Avatar profile={profile} size={32} />}>
+                    <DropdownMenu trigger={<Avatar url={profile?.avatar_url} size={32} />}>
                         <MenuItem text="My Profile" icon={User} color={colors.text} onPress={() => router.push('/(tabs)/profile')} />
                         <MenuItem text="Settings" icon={Settings} color={colors.text} onPress={() => router.push('/(tabs)/settings')} />
                         {profile?.role === UserRole.ADMIN && ( // FIX: Using correct uppercase enum value

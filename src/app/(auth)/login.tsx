@@ -53,9 +53,11 @@ export default function LoginScreen() {
             return;
         }
         setLoading(true);
+        console.log('Attempting login with email:', email); // Debug log
         const { error } = await signIn({ email, password });
         setLoading(false);
         if (error) {
+            console.error('Login error:', error); // Debug log
             showToast(error.message, 'error');
         } else {
             if (rememberMe) {
@@ -85,8 +87,9 @@ export default function LoginScreen() {
     };
 
     return (
-        <ScreenContainer style={styles.outerContainer}>
-            <View style={styles.contentContainer}>
+        <ScreenContainer>
+            <View style={styles.outerContainer}>
+                <View style={styles.contentContainer}>
                 <Card padding={32}>
                     <LogIn color={colors.primary} size={40} style={styles.headerIcon} />
                     <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
@@ -118,6 +121,7 @@ export default function LoginScreen() {
                         </Text>
                     </TouchableOpacity>
                 </Card>
+                </View>
             </View>
         </ScreenContainer>
     );

@@ -1,182 +1,121 @@
-// src/app/admin/manage-users.tsx
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import { useTheme } from '@/context/ThemeProvider';
-import { getAllUsers, updateUserRole, deleteUser } from '@/services/adminService';
-import { Profile } from '@/types';
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import ScreenContainer from '@/components/ScreenContainer';
-import { Avatar } from '@/components/common/Avatar';
-import EditUserModal from '@/components/admin/EditUserModal';
-import { SlidersHorizontal, Trash2, Edit } from 'lucide-react-native';
+import { useTheme } from '@/context/ThemeProvider';
+import { supabase, adminChangeUserRole, adminDeactivateUser, adminDeleteUser, subscribe } from '@/lib/supabase';
+import RoleBadge from '@/components/common/RoleBadge';
+import { UserRole } from '@/types';
+import { useRouter } from 'expo-router';
 
-const UserManagementScreen = () => {
+export default function ManageUsersScreen() {
   const { colors } = useTheme();
-  const [users, setUsers] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const router = useRouter();
 
-  const fetchUsers = async () => {
-    setLoading(true);
+  const loadUsers = async () => {
     try {
-      const allUsers = await getAllUsers();
-      setUsers(allUsers);
-      console.log("Fetched users:", allUsers);
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-      // Handle error with a toast message
+      setLoading(true);
+      const { data, error } = await (supabase as any).from('profiles').select('*');
+      if (error) throw error;
+      setUsers(data ?? []);
+    } catch (e) {
+      console.error('Failed to load users', e);
+      Alert.alert('Error', 'Could not load users.');
     } finally {
       setLoading(false);
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchUsers();
-    }, [])
-  );
+  useEffect(() => {
+    loadUsers();
+    // subscribe to realtime changes on profiles to update admin UI live
+    const unsub = subscribe('profiles', (payload: any) => {
+      const { eventType, new: n, old: o } = payload;
+      if (eventType === 'INSERT') {
+        setUsers(prev => [n, ...prev]);
+      } else if (eventType === 'UPDATE') {
+        setUsers(prev => prev.map(u => (u.id === n.id ? n : u)));
+      } else if (eventType === 'DELETE') {
+        setUsers(prev => prev.filter(u => u.id !== o?.id));
+      }
+    });
+    return () => unsub();
+  }, []);
 
-  const filteredUsers = users.filter(user =>
-    user.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleEditUser = (user: Profile) => {
-    setSelectedUser(user);
-    setIsEditModalVisible(true);
+  const onChangeRole = async (userId: string, newRole: UserRole) => {
+    try {
+      // cast to any to avoid Role/UserRole mismatch until types are unified
+      await (adminChangeUserRole as any)(userId, newRole as any);
+      Alert.alert('Success', 'Role changed.');
+      // loadUsers(); // realtime subscription will update list
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to change role.');
+    }
   };
 
-  const handleDeleteUser = (user: Profile) => {
-    Alert.alert(
-      "Confirm Deletion",
-      `Are you sure you want to delete ${user.email}? This action cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            await deleteUser(user.id);
-            fetchUsers(); // Refresh the list
-            Alert.alert("Success", "User deleted successfully.");
-          },
-        },
-      ]
-    );
+  const onToggleDeactivate = async (userId: string) => {
+    try {
+      await (adminDeactivateUser as any)(userId);
+      Alert.alert('Success', 'User deactivated (tokens revoked).');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to deactivate.');
+    }
   };
 
-  const renderUserRow = ({ item }: { item: Profile }) => (
-    <View style={[styles.row, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-      <View style={styles.userInfo}>
-        <Avatar profile={item} size={40} />
-        <View style={{ marginLeft: 12 }}>
-          <Text style={[styles.userName, { color: colors.text }]}>{item.display_name}</Text>
-          <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{item.email}</Text>
-        </View>
+  const onDelete = async (userId: string) => {
+    Alert.alert('Confirm delete', 'Delete user permanently?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await (adminDeleteUser as any)(userId);
+            Alert.alert('Deleted', 'User deleted.');
+          } catch (e) {
+            console.error(e);
+            Alert.alert('Error', 'Delete failed.');
+          }
+        }
+      }
+    ]);
+  };
+
+  const renderItem = ({ item }: { item: any }) => (
+    <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: colors.text, fontWeight: '700' }}>{item.display_name ?? item.id}</Text>
+        <Text style={{ color: colors.textSecondary }}>{item.email}</Text>
       </View>
-      <View style={styles.roleContainer}>
-        <Text style={[styles.roleText, { color: colors.text }]}>{item.role}</Text>
-      </View> 
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleEditUser(item)}>
-          <Edit color={colors.primary} size={20} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleDeleteUser(item)}>
-          <Trash2 color={'#E53E3E'} size={20} />
-        </TouchableOpacity>
+      <View style={{ alignItems: 'flex-end' }}>
+        <RoleBadge role={item.role as UserRole} />
+        <View style={{ flexDirection: 'row', marginTop: 8 }}>
+          {/* cast path to any to satisfy the router typing in this codebase */}
+          <TouchableOpacity onPress={() => router.push((`/admin/edit/${item.id}` as any))} style={styles.actionBtn}><Text style={{ color: colors.primary }}>Edit</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => onToggleDeactivate(item.id)} style={styles.actionBtn}><Text style={{ color: colors.error }}>Block</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => onDelete(item.id)} style={styles.actionBtn}><Text style={{ color: colors.error }}>Delete</Text></TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 
   return (
     <ScreenContainer>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TextInput
-          placeholder="Search by name or email..."
-          placeholderTextColor={colors.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          style={[styles.searchInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
-        />
-        {/* Add Filter Button Here */}
-      </View>
-
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 50 }} size="large" color={colors.primary} />
-      ) : (
+      {loading ? <ActivityIndicator color={colors.primary} /> : (
         <FlatList
-          data={filteredUsers}
-          keyExtractor={(item) => item.id}
-          renderItem={renderUserRow}
-          contentContainerStyle={{ paddingBottom: 24 }}
+          data={users}
+          keyExtractor={(i) => i.id}
+          renderItem={renderItem}
+          contentContainerStyle={{ padding: 16 }}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />
       )}
-      <EditUserModal
-        visible={isEditModalVisible}
-        onClose={() => setIsEditModalVisible(false)}
-        user={selectedUser}
-        onUserUpdate={fetchUsers} // Refresh list after update
-      />
     </ScreenContainer>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  header: {
-    padding: 16,
-    borderBottomWidth: 1,
-  },
-  searchInput: {
-    height: 44,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  userInfo: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  userEmail: {
-    fontSize: 12,
-  },
-  roleContainer: {
-    flex: 1,
-    alignItems: 'flex-start',
-  },
-  roleText: {
-    fontSize: 14,
-    fontWeight: '500',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    overflow: 'hidden', // for iOS
-    // Add background color based on role
-  },
-  actionsContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 16,
-  },
-  actionButton: {
-    padding: 4,
-  },
+  row: { padding: 12, borderRadius: 10, borderWidth: 1, flexDirection: 'row', alignItems: 'center' },
+  actionBtn: { marginLeft: 10 },
 });
-
-export default UserManagementScreen;

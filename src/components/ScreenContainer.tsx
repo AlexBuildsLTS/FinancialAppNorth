@@ -1,51 +1,33 @@
-// src/components/ScreenContainer.tsx
-
-import React, { useMemo } from 'react';
-import { View, StyleSheet, SafeAreaView, StatusBar, ScrollView, ViewStyle } from 'react-native';
+import React, { ReactNode } from 'react';
+import { View, StyleSheet, SafeAreaView, StatusBar, ViewStyle } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 
 interface ScreenContainerProps {
-  children: React.ReactNode;
+  children: ReactNode;
   style?: ViewStyle;
-  scrollable?: boolean;
-  padded?: boolean;
 }
 
-// FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
-export default function ScreenContainer({ children, style, scrollable = false, padded = false }: ScreenContainerProps) {
+const ScreenContainer = ({ children, style }: ScreenContainerProps) => {
   const { colors, isDark } = useTheme();
 
-  const containerStyle = useMemo(() => [
-    styles.baseContainer,
-    { backgroundColor: colors.background },
-    padded && styles.padding,
-    style,
-  ], [colors.background, padded, style]);
-
-  const Content = scrollable ? ScrollView : View;
-
   return (
-    <SafeAreaView style={[styles.flex, { backgroundColor: colors.background }]}>
+    // SafeAreaView is essential for handling notches and system UI elements
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <Content 
-        style={styles.flex} 
-        contentContainerStyle={scrollable ? containerStyle : undefined}
-        keyboardShouldPersistTaps="handled"
-      >
-        {!scrollable ? <View style={containerStyle}>{children}</View> : children}
-      </Content>
+      <View style={[styles.container, style]}>
+        {children}
+      </View>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  flex: {
+  safeArea: {
     flex: 1,
   },
-  baseContainer: {
+  container: {
     flex: 1,
-  },
-  padding: {
-    padding: 16,
   },
 });
+
+export default ScreenContainer;

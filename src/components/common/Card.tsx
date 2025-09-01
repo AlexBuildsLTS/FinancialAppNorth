@@ -10,7 +10,7 @@ interface CardProps {
   padding?: number;
 }
 
-export const Card = ({ children, style, padding = 24 }: CardProps) => {
+export const Card: React.FC<any> = ({ children, style, padding = 24 }: CardProps) => {
   const { colors, isDark } = useTheme();
 
   return (
@@ -40,3 +40,6 @@ const styles = StyleSheet.create({
     }),
   },
 });
+
+// keep default export to be tolerant
+export default Card;

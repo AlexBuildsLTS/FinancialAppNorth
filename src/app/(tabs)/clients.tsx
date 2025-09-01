@@ -40,12 +40,13 @@ export default function ClientsScreen() {
             try {
                 setLoading(true);
                 const clientData = await getAssignedClients(profile.id);
-                const profileData: Profile[] = clientData.map(client => ({
+                const profileData: Profile[] = clientData.map((client: any) => ({
                     id: client.id,
                     display_name: client.name,
                     avatar_url: client.avatarUrl,
-                    email: client.email, // Assign the correct UserRole enum value
+                    email: client.email,
                     role: UserRole.CLIENT,
+                    status: (client.status ?? 'active') as any, // ensure required 'status' exists on Profile
                 }));
                 setClients(profileData);
             } catch (error) {

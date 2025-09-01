@@ -1,174 +1,102 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, ScrollView, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, Alert } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
-import { useToast } from '@/context/ToastProvider';
-import { getProfile, updateProfile, uploadAvatar } from '@/services/profileService';
-import { Profile } from '@/types';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera } from 'lucide-react-native';
-import ScreenContainer from '@/components/ScreenContainer'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
-import { Button } from '@/components/common/Button';
-import { Card } from '@/components/common/Card';
-
-
+import { uploadAvatar } from '@/services/profileService';
+import { Avatar } from '@/components/common/Avatar';
+import { router } from 'expo-router';
+import { supabase } from '@/lib/supabase';
 
 export default function EditProfileScreen() {
-    const { session } = useAuth();
     const { colors } = useTheme();
-    const { showToast } = useToast();
-
-    const [loading, setLoading] = useState(false);
-    const [profile, setProfile] = useState<Profile | null>(null);
+    const { profile, updateProfile } = useAuth();
     const [displayName, setDisplayName] = useState('');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-    const [selectedImage, setSelectedImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        if (session?.user) {
-            setLoading(true);
-            getProfile(session.user.id)
-                .then((data) => {
-                    if (data) {
-                        setProfile(data);
-                        setDisplayName(data.display_name || '');
-                        setAvatarUrl(data.avatar_url || null);
-                    }
-                })
-                .catch((err) => showToast('Failed to load profile.', 'error'))
-                .finally(() => setLoading(false));
+        if (profile) {
+            setDisplayName(profile.display_name || '');
+            setAvatarUrl(profile.avatar_url || null);
         }
-    }, [session?.user]);
+    }, [profile]);
 
     const pickImage = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
+        let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.8,
         });
 
-        if (!result.canceled) {
-            setSelectedImage(result.assets[0]);
-            setAvatarUrl(result.assets[0].uri);
+        if (!result.canceled && profile) {
+            setIsSubmitting(true);
+            const asset = result.assets[0];
+            const { filePath, error } = await uploadAvatar(profile.id, asset);
+
+            if (error) {
+                Alert.alert('Upload Error', error.message);
+            } else if (filePath) {
+                const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+                await updateProfile({ avatar_url: data.publicUrl });
+                setAvatarUrl(data.publicUrl);
+            }
+            setIsSubmitting(false);
         }
     };
 
     const handleUpdateProfile = async () => {
-        if (!session?.user || !profile) return;
+        setIsSubmitting(true);
+        const { error } = await updateProfile({
+            display_name: displayName,
+        });
+        setIsSubmitting(false);
 
-        setLoading(true);
-        try {
-            let finalAvatarUrl = profile.avatar_url;
-
-            if (selectedImage) {
-                const response = await fetch(selectedImage.uri);
-                const blob = await response.blob();
-                const fileName = selectedImage.uri.split('/').pop() || `avatar-${Date.now()}`;
-                finalAvatarUrl = await uploadAvatar(session.user.id, blob, fileName);
-            }
-
-            const updates = {
-                display_name: displayName,
-                avatar_url: finalAvatarUrl,
-                updated_at: new Date().toISOString(),
-            };
-
-            await updateProfile(session.user.id, updates);
-            showToast('Profile updated successfully!', 'success');
-        } catch (error: any) {
-            showToast(error.message || 'Failed to update profile.', 'error');
-        } finally {
-            setLoading(false);
+        if (error) {
+            Alert.alert('Update Error', error.message);
+        } else {
+            Alert.alert('Success', 'Profile updated successfully.');
+            router.back();
         }
     };
 
     return (
-        <ScreenContainer>
-            <ScrollView contentContainerStyle={styles.container}>
-                <View style={styles.avatarContainer}>
-                    <Image
-                        source={avatarUrl ? { uri: avatarUrl } : require('@/assets/images/icon.png')}
-                        style={styles.avatar}
-                    />
-                    <TouchableOpacity style={[styles.cameraButton, { backgroundColor: colors.primary }]} onPress={pickImage}>
-                        <Camera color={colors.primaryContrast} size={24} />
-                    </TouchableOpacity>
-                </View>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <View style={styles.avatarContainer}>
+                <Avatar url={avatarUrl} size={120} />
+                <Pressable onPress={pickImage} disabled={isSubmitting}>
+                    <Text style={[styles.changeText, { color: colors.primary }]}>Change Photo</Text>
+                </Pressable>
+            </View>
 
-                <View style={styles.form}>
-                    <Text style={[styles.label, { color: colors.textSecondary }]}>Display Name</Text>
-                    <TextInput
-                        style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
-                        value={displayName}
-                        onChangeText={setDisplayName}
-                        placeholder="Enter your display name"
-                        placeholderTextColor={colors.textSecondary}
-                    />
-                    
-                    <Text style={[styles.label, { color: colors.textSecondary }]}>Email</Text>
-                    <TextInput
-                        style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.textSecondary, borderColor: colors.border }]}
-                        value={session?.user?.email}
-                        editable={false}
-                    />
+            <View style={styles.inputContainer}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Display Name</Text>
+                <TextInput
+                    value={displayName}
+                    onChangeText={setDisplayName}
+                    style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+                />
+            </View>
 
-                    <Button
-                        title="Save Changes"
-                        onPress={handleUpdateProfile}
-                        isLoading={loading}
-                        disabled={loading}
-                        style={{ marginTop: 20 }}
-                    />
-                </View>
-            </ScrollView>
-        </ScreenContainer>
+            <Pressable
+                style={[styles.button, { backgroundColor: isSubmitting ? colors.textSecondary : colors.primary }]}
+                onPress={handleUpdateProfile}
+                disabled={isSubmitting}
+            >
+                <Text style={styles.buttonText}>{isSubmitting ? 'Saving...' : 'Save Changes'}</Text>
+            </Pressable>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        padding: 24,
-        alignItems: 'center',
-    },
-    avatarContainer: {
-        position: 'relative',
-        marginBottom: 32,
-    },
-    avatar: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        borderWidth: 3,
-        borderColor: '#BB4711FF',
-    },
-    cameraButton: {
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#FFFFFF',
-    },
-    form: {
-        width: '100%',
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: '500',
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    input: {
-        height: 50,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        marginBottom: 16,
-        fontSize: 16,
-        borderWidth: 1,
-    },
+    container: { flex: 1, padding: 24, alignItems: 'center' },
+    avatarContainer: { alignItems: 'center', marginBottom: 32 },
+    changeText: { marginTop: 12, fontSize: 16, fontWeight: 'bold' },
+    inputContainer: { width: '100%', marginBottom: 24 },
+    label: { marginBottom: 8, fontSize: 14 },
+    input: { height: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, fontSize: 16 },
+    button: { width: '100%', height: 50, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
+    buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });
