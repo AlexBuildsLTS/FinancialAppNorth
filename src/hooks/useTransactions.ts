@@ -26,8 +26,9 @@ export function useTransactions() {
 
       if (fetchError) throw fetchError;
       setTransactions(data || []);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError('Could not load transactions.');
+      console.error('useTransactions fetch error', e);
     } finally {
       setIsLoading(false);
     }

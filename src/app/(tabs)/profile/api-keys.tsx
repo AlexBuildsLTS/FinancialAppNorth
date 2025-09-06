@@ -6,7 +6,7 @@ import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastProvider';
 import { saveApiKeys, getApiKeys, testApiKeyConnection } from '@/services/settingsService';
-import ScreenContainer from '@/components/ScreenContainer';
+import ScreenContainer from '@/app/ScreenContainer';
 import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
 

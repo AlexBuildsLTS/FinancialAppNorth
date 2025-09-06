@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Pressable, FlatList, Platform } from 'react-native';
 import { Bell, Check, X } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -92,8 +92,19 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         borderWidth: 1,
         overflow: 'hidden',
-        elevation: 5,
-        shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOpacity: 0.1,
+                shadowRadius: 10,
+            },
+            android: {
+                elevation: 5,
+            },
+            web: {
+                boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.1)',
+            },
+        }),
     },
     header: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

@@ -20,7 +20,7 @@ export async function ensureKeypairForUser(userId: string) {
     const payload = { pubJwk, privJwk };
     await secureSetItem(keyK, JSON.stringify(payload));
     return payload;
-  } catch (e) {
+  } catch (e: unknown) {
     console.warn('ensureKeypairForUser failed', e);
     return null;
   }
@@ -74,10 +74,10 @@ export async function publishPublicJwkIfNeeded(userId: string) {
       await secureSetItem(flagK, '0');
       return false;
     }
-  } catch (e) {
+  } catch (e: unknown) {
     console.warn('publishPublicJwkIfNeeded failed', e);
     // ensure we mark attempted so we don't retry constantly
-    try { await secureSetItem(PUBLISHED_FLAG_KEY(userId), '0'); } catch {}
+    try { await secureSetItem(PUBLISHED_FLAG_KEY(userId), '0'); } catch (err) { console.warn('failed to set publish flag', err); }
     return false;
   }
 }

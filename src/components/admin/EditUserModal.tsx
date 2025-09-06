@@ -1,120 +1,57 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Switch, Alert } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { Profile, UserRole, UserRoleDisplayNames } from '@/types';
-import { useTheme } from '@/context/ThemeProvider';
-import { adminService } from '@/services/adminService';
-import { X } from 'lucide-react-native';
+import * as React from 'react';
+import { JSX } from 'react';
+import { Modal, View, Text, StyleSheet, Button } from 'react-native';
 
-interface EditUserModalProps {
-  user: Profile;
-  onClose: () => void;
-  onUserUpdated: (updatedUser: Profile) => void;
-}
+type Props = {
+  visible?: boolean;
+  onClose?: () => void;
+ 
+};
 
-export default function EditUserModal({ user, onClose, onUserUpdated }: EditUserModalProps) {
-  const { colors } = useTheme();
-  const [role, setRole] = useState<UserRole>(user.role);
-  const [status, setStatus] = useState<'active' | 'suspended' | 'banned'>(user.status || 'active');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleUpdate = async () => {
-    setIsSubmitting(true);
-    const { updatedUser, error } = await adminService.updateUser(user.id, { role, status });
-    setIsSubmitting(false);
-
-    if (error) {
-      Alert.alert('Error', 'Failed to update user: ' + error.message);
-    } else if (updatedUser) {
-      onUserUpdated({ ...user, ...updatedUser });
-      onClose();
-    }
-  };
-
+export default function EditUserModal({ visible = false, onClose = () => {} }: Props): JSX.Element {
   return (
-    <View style={styles.modalBackdrop}>
-      <View style={[styles.modalContainer, { backgroundColor: colors.surface }]}>
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Edit User</Text>
-          <Pressable onPress={onClose}>
-            <X size={24} color={colors.textSecondary} />
-          </Pressable>
-        </View>
-
-        <View style={styles.fieldContainer}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Full Name</Text>
-          <TextInput
-            style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
-            value={user.display_name}
-            editable={false}
-          />
-        </View>
-
-        <View style={styles.fieldContainer}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Email</Text>
-          <TextInput
-            style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
-            value={user.email}
-            editable={false}
-          />
-        </View>
-
-        <View style={styles.fieldContainer}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Role</Text>
-          <View style={[styles.pickerContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <Picker selectedValue={role} onValueChange={(itemValue) => setRole(itemValue)} style={{ color: colors.text }}>
-              {Object.values(UserRole).map((r) => (
-                <Picker.Item key={r} label={UserRoleDisplayNames[r]} value={r} />
-              ))}
-            </Picker>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.backdrop}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Edit User</Text>
+          <Text style={styles.subtitle}>Temporary stub modal — replace with real implementation</Text>
+          <View style={styles.actions}>
+            <Button title="Close" onPress={onClose} />
           </View>
-        </View>
-
-        <View style={styles.fieldContainerRow}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Status</Text>
-          <View style={styles.statusContainer}>
-            <Text style={[styles.statusText, { color: status === 'active' ? colors.success : colors.textSecondary }]}>
-                {status === 'active' ? 'Active' : 'Suspended'}
-            </Text>
-            <Switch
-              value={status === 'active'}
-              onValueChange={(isActive) => setStatus(isActive ? 'active' : 'suspended')}
-              trackColor={{ false: '#767577', true: colors.primary }}
-              thumbColor={'#f4f3f4'}
-            />
-          </View>
-        </View>
-
-        <View style={styles.actions}>
-          <Pressable onPress={onClose} style={[styles.button, styles.cancelButton, { borderColor: colors.border }]}>
-            <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
-          </Pressable>
-          <Pressable onPress={handleUpdate} style={[styles.button, styles.updateButton, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>
-              {isSubmitting ? 'Updating...' : 'Update User'}
-            </Text>
-          </Pressable>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-    modalBackdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-    modalContainer: { width: '90%', maxWidth: 500, borderRadius: 12, padding: 24, elevation: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-    headerTitle: { fontSize: 20, fontWeight: 'bold' },
-    fieldContainer: { marginBottom: 16 },
-    fieldContainerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-    label: { fontSize: 14, marginBottom: 8 },
-    input: { height: 44, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, fontSize: 16 },
-    pickerContainer: { borderWidth: 1, borderRadius: 8, justifyContent: 'center' },
-    statusContainer: { flexDirection: 'row', alignItems: 'center' },
-    statusText: { marginRight: 8, fontSize: 16, fontWeight: '500' },
-    actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 },
-    button: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginLeft: 12 },
-    cancelButton: { borderWidth: 1 },
-    updateButton: {},
-    buttonText: { fontSize: 16, fontWeight: 'bold' },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    width: '90%',
+    maxWidth: 520,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 18,
+    elevation: 6,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 12,
+  },
+  actions: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
 });

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useRouter } from 'expo-router';
-import ScreenContainer from '@/components/ScreenContainer';
+import ScreenContainer from '@/app/ScreenContainer';
 import { Avatar } from '@/components/common/Avatar'; // use named import
 import { getConversations } from '@/services/chatService';
 import { Conversation } from '@/types';

@@ -1,5 +1,3 @@
-// src/app/(tabs)/admin/index.tsx
-
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
@@ -7,11 +5,11 @@ import { useTheme } from '@/context/ThemeProvider';
 import ScreenContainer from '@/components/ScreenContainer';
 import { Users, Settings, MessageSquare, BarChart3, ShieldCheck } from 'lucide-react-native';
 import { Card } from '@/components/common';
-import type { LucideIcon } from 'lucide-react-native'; // Import LucideIcon type
+import type { LucideIcon } from 'lucide-react-native';
 
 interface AdminActionButtonProps {
     title: string;
-    Icon: LucideIcon; // Use LucideIcon for better type safety
+    Icon: LucideIcon;
     onPress: () => void;
     description: string;
 }
@@ -84,10 +82,11 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: 'bold',
         marginBottom: 24,
+        fontFamily: 'Inter_700Bold',
     },
     card: {
         marginBottom: 16,
-        padding: 0, // Remove padding from card to let Pressable handle it
+        padding: 0,
     },
     button: {
         padding: 16,
@@ -105,9 +104,11 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: '600',
+        fontFamily: 'Inter_600SemiBold',
     },
     description: {
         fontSize: 14,
         marginTop: 4,
+        fontFamily: 'Inter_400Regular',
     },
 });

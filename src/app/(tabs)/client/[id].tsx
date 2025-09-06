@@ -21,7 +21,7 @@ import {
   TrendingDown,
   ReceiptText,
 } from 'lucide-react-native';
-import ScreenContainer from '../../../components/ScreenContainer';
+import ScreenContainer from '../../ScreenContainer';
 import { useTheme } from '../../../context/ThemeProvider';
 import { getClientDashboardData } from '../../../services/cpaService';
 import { ClientDashboardData } from '../../../types';

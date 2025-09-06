@@ -8,12 +8,13 @@ interface RoleBadgeProps {
   role: UserRole;
 }
 
-const roleVisuals: Record<string, { Icon: any; color: string }> = {
-  [UserRole.ADMIN]: { Icon: Shield, color: '#ef4444' }, // Red
-  [UserRole.CPA]: { Icon: Briefcase, color: '#3b82f6' }, // Blue
-  [UserRole.MEMBER]: { Icon: User, color: '#64748b' }, // Slate
-  [UserRole.PREMIUM_MEMBER]: { Icon: Star, color: '#8b5cf6' }, // Violet
-  [UserRole.SUPPORT]: { Icon: LifeBuoy, color: '#eab308' }, // Yellow
+type IconComponent = React.ComponentType<{ size?: number; color?: string; style?: Record<string, unknown> | undefined }>;
+const roleVisuals: Record<string, { Icon: IconComponent; color: string }> = {
+  [UserRole.ADMIN]: { Icon: Shield as IconComponent, color: '#ef4444' }, // Red
+  [UserRole.CPA]: { Icon: Briefcase as IconComponent, color: '#3b82f6' }, // Blue
+  [UserRole.MEMBER]: { Icon: User as IconComponent, color: '#64748b' }, // Slate
+  [UserRole.PREMIUM_MEMBER]: { Icon: Star as IconComponent, color: '#8b5cf6' }, // Violet
+  [UserRole.SUPPORT]: { Icon: LifeBuoy as IconComponent, color: '#eab308' }, // Yellow
   // fallback
 };
 

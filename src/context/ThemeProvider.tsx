@@ -1,69 +1,60 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useColorScheme, Appearance } from 'react-native';
+import { darkColors, lightColors } from '@/theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { lightColors, darkColors } from '../theme/colors';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useColorScheme } from 'react-native';
 
-const THEME_STORAGE_KEY = '@theme_preference';
+type Theme = 'light' | 'dark';
 
-export interface ThemeContextType {
-  isDark: boolean;
+interface ThemeContextType {
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
   colors: typeof lightColors;
-  setColorScheme: (scheme: 'light' | 'dark' | 'system') => void;
+  isDark: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const systemScheme = useColorScheme();
-  const [isDark, setIsDark] = useState(systemScheme === 'dark');
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const systemTheme = useColorScheme() ?? 'light';
+  const [theme, setTheme] = useState<Theme>(systemTheme);
 
-  // Load theme from storage on initial app load
   useEffect(() => {
-    const loadThemePreference = async () => {
+    const loadTheme = async () => {
       try {
-        const storedScheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (storedScheme === 'dark' || storedScheme === 'light') {
-          setIsDark(storedScheme === 'dark');
-        } else {
-          // Default to system scheme if nothing is stored
-          setIsDark(systemScheme === 'dark');
-        }
-      } catch (e) {
-        console.error('Failed to load theme preference.', e);
-        setIsDark(systemScheme === 'dark');
+        const savedTheme = (await AsyncStorage.getItem('app-theme')) as Theme | null;
+        setTheme(savedTheme || systemTheme);
+      } catch (error) {
+        console.error("Failed to load theme from storage", error);
+        setTheme(systemTheme);
       }
     };
+    loadTheme();
+  }, [systemTheme]);
 
-    loadThemePreference();
-  }, [systemScheme]);
-  
-  const setColorScheme = async (scheme: 'light' | 'dark' | 'system') => {
+  const handleSetTheme = async (newTheme: Theme) => {
     try {
-      if (scheme === 'system') {
-        setIsDark(systemScheme === 'dark');
-        await AsyncStorage.removeItem(THEME_STORAGE_KEY);
-      } else {
-        setIsDark(scheme === 'dark');
-        await AsyncStorage.setItem(THEME_STORAGE_KEY, scheme);
-      }
-    } catch (e) {
-        console.error('Failed to save theme preference.', e);
+      setTheme(newTheme);
+      await AsyncStorage.setItem('app-theme', newTheme);
+    } catch (error) {
+      console.error("Failed to save theme to storage", error);
     }
   };
-  
-  const colors = isDark ? darkColors : lightColors;
 
-  return (
-    <ThemeContext.Provider value={{ isDark, colors, setColorScheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-};
+  const colors = useMemo(() => (theme === 'light' ? lightColors : darkColors), [theme]);
 
-export const useTheme = () => {
+  const value = { theme, setTheme: handleSetTheme, colors, isDark: theme === 'dark' };
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+// FIX: 'useTheme' is a named export. This resolves all related import errors.
+export const useTheme = (): ThemeContextType => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
-}
+};
+
+// Backwards-compatible default export: many files import `useTheme` as the default.
+export default useTheme;

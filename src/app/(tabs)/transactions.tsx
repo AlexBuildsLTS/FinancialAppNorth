@@ -1,190 +1,408 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
-import { PlusCircle, ArrowUpCircle, ArrowDownCircle, Search, SlidersHorizontal } from 'lucide-react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { useTransactions } from '@/hooks/useTransactions';
-import ScreenContainer from '@/components/ScreenContainer';
-import { Transaction } from '@/types';
-import { Button } from '@/components/common/Button';
-import { Card } from '@/components/common/Card';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  useColorScheme,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import {
+  Search,
+  Filter,
+  Plus,
+  Download,
+  Calendar,
+  ShoppingBag,
+  Car,
+  Chrome as Home,
+  Coffee,
+  Briefcase,
+} from 'lucide-react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
-// A dedicated component for each transaction item for better organization
-const TransactionListItem = ({ item, colors }: { item: Transaction, colors: any }) => {
-    const isIncome = item.type === 'income';
-    const Icon = isIncome ? ArrowUpCircle : ArrowDownCircle;
-    const amountColor = isIncome ? colors.success : colors.text;
-
-    return (
-        <Card style={styles.transactionCard}>
-            <View style={styles.leftContent}>
-                <Icon color={isIncome ? colors.success : colors.error} size={32} />
-                <View style={styles.details}>
-                    <Text style={[styles.description, { color: colors.text }]}>{item.description}</Text>
-                    <Text style={[styles.category, { color: colors.textSecondary }]}>{item.category}</Text>
-                </View>
-            </View>
-            <View style={styles.rightContent}>
-                <Text style={[styles.amount, { color: amountColor }]}>
-                    {isIncome ? '+' : '-'}${Math.abs(item.amount).toFixed(2)}
-                </Text>
-                <Text style={[styles.date, { color: colors.textSecondary }]}>
-                    {new Date(item.date).toLocaleDateString()}
-                </Text>
-            </View>
-        </Card>
-    );
-};
-
-export default function TransactionsScreen() {
-    const { colors } = useTheme();
-    const { transactions } = useTransactions();
-    const [searchQuery, setSearchQuery] = useState('');
-
-    const filteredTransactions = useMemo(() => {
-        if (!searchQuery) {
-            return transactions;
-        }
-        return transactions.filter(t =>
-            t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            t.category?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [transactions, searchQuery]);
-
-    const renderHeader = () => (
-        <>
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.text }]}>Transactions</Text>
-                <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]}>
-                    <PlusCircle color={colors.primaryContrast} size={20} />
-                    <Text style={[styles.addButtonText, { color: colors.primaryContrast }]}>New</Text>
-                </TouchableOpacity>
-            </View>
-             <View style={styles.filterContainer}>
-                <View style={[styles.searchInputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Search color={colors.textSecondary} size={20} />
-                    <TextInput
-                        placeholder="Search transactions..."
-                        placeholderTextColor={colors.textSecondary}
-                        style={[styles.searchInput, { color: colors.text }]}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                </View>
-                <TouchableOpacity style={[styles.filterButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <SlidersHorizontal color={colors.primary} size={20} />
-                </TouchableOpacity>
-            </View>
-        </>
-    );
-
-    return (
-        <ScreenContainer>
-            <FlatList
-                data={filteredTransactions}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => <TransactionListItem item={item} colors={colors} />}
-                ListHeaderComponent={renderHeader}
-                contentContainerStyle={styles.listContainer}
-                ListEmptyComponent={() => (
-                    <View style={styles.emptyContainer}>
-                        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                            No transactions found.
-                        </Text>
-                    </View>
-                )}
-            />
-        </ScreenContainer>
-    );
+interface Transaction {
+  id: string;
+  title: string;
+  category: string;
+  amount: number;
+  date: string;
+  time: string;
+  type: 'income' | 'expense';
+  status: 'completed' | 'pending' | 'failed';
+  icon: React.ReactNode;
 }
 
-const styles = StyleSheet.create({
-    listContainer: { paddingHorizontal: 16, paddingBottom: 24 },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 24,
+export default function TransactionsScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('all');
+
+  const styles = createStyles(isDark);
+
+  const transactions: Transaction[] = [
+    {
+      id: '1',
+      title: 'Whole Foods Market',
+      category: 'Groceries',
+      amount: -156.5,
+      date: 'Jan 15, 2025',
+      time: '2:30 PM',
+      type: 'expense',
+      status: 'completed',
+      icon: <ShoppingBag size={20} color={isDark ? '#64ffda' : '#3b82f6'} />,
     },
-    title: {
-        fontSize: 32,
-        fontWeight: 'bold',
+    {
+      id: '2',
+      title: 'Monthly Salary',
+      category: 'Salary',
+      amount: 5200.0,
+      date: 'Jan 15, 2025',
+      time: '9:00 AM',
+      type: 'income',
+      status: 'completed',
+      icon: <Briefcase size={20} color={isDark ? '#64ffda' : '#10b981'} />,
+    },
+    {
+      id: '3',
+      title: 'Shell Gas Station',
+      category: 'Transportation',
+      amount: -45.2,
+      date: 'Jan 14, 2025',
+      time: '6:45 PM',
+      type: 'expense',
+      status: 'completed',
+      icon: <Car size={20} color={isDark ? '#64ffda' : '#f59e0b'} />,
+    },
+    {
+      id: '4',
+      title: 'Starbucks Coffee',
+      category: 'Food & Dining',
+      amount: -12.75,
+      date: 'Jan 14, 2025',
+      time: '8:15 AM',
+      type: 'expense',
+      status: 'pending',
+      icon: <Coffee size={20} color={isDark ? '#64ffda' : '#8b5cf6'} />,
+    },
+    {
+      id: '5',
+      title: 'Apartment Rent',
+      category: 'Housing',
+      amount: -1200.0,
+      date: 'Jan 1, 2025',
+      time: '12:00 PM',
+      type: 'expense',
+      status: 'completed',
+      icon: <Home size={20} color={isDark ? '#64ffda' : '#ef4444'} />,
+    },
+  ];
+
+  const filteredTransactions = transactions.filter((transaction) => {
+    const matchesSearch =
+      transaction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      transaction.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter =
+      selectedFilter === 'all' || transaction.type === selectedFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+  const renderTransaction = (transaction: Transaction, index: number) => {
+    const isIncome = transaction.type === 'income';
+    const amountColor = isIncome
+      ? isDark
+        ? '#64ffda'
+        : '#10b981'
+      : isDark
+      ? '#fbbf24'
+      : '#ef4444';
+
+    const statusColor =
+      transaction.status === 'completed'
+        ? isDark
+          ? '#64ffda'
+          : '#10b981'
+        : transaction.status === 'pending'
+        ? isDark
+          ? '#fbbf24'
+          : '#f59e0b'
+        : '#ef4444';
+
+    return (
+      <Animated.View
+        key={transaction.id}
+        entering={FadeInUp.delay(index * 50).springify()}
+      >
+        <TouchableOpacity style={styles.transactionItem}>
+          <View style={styles.transactionIcon}>{transaction.icon}</View>
+
+          <View style={styles.transactionContent}>
+            <Text style={styles.transactionTitle}>{transaction.title}</Text>
+            <Text style={styles.transactionCategory}>
+              {transaction.category}
+            </Text>
+            <Text style={styles.transactionDateTime}>
+              {transaction.date} • {transaction.time}
+            </Text>
+          </View>
+
+          <View style={styles.transactionRight}>
+            <Text style={[styles.transactionAmount, { color: amountColor }]}>
+              {isIncome ? '+' : '-'}$
+              {Math.abs(transaction.amount).toLocaleString()}
+            </Text>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: statusColor + '20' },
+              ]}
+            >
+              <Text style={[styles.statusText, { color: statusColor }]}>
+                {transaction.status}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Transactions</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerButton}>
+            <Download size={20} color={isDark ? '#64ffda' : '#3b82f6'} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton}>
+            <Plus size={20} color={isDark ? '#0a192f' : '#ffffff'} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Search and Filters */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchContainer}>
+          <Search size={20} color={isDark ? '#64748b' : '#9ca3af'} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search transactions..."
+            placeholderTextColor={isDark ? '#64748b' : '#9ca3af'}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        <TouchableOpacity style={styles.filterButton}>
+          <Filter size={20} color={isDark ? '#64ffda' : '#3b82f6'} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Filter Tabs */}
+      <View style={styles.filterTabs}>
+        {['all', 'income', 'expense'].map((filter) => (
+          <TouchableOpacity
+            key={filter}
+            style={[
+              styles.filterTab,
+              selectedFilter === filter && styles.activeFilterTab,
+            ]}
+            onPress={() => setSelectedFilter(filter)}
+          >
+            <Text
+              style={[
+                styles.filterTabText,
+                selectedFilter === filter && styles.activeFilterTabText,
+              ]}
+            >
+              {filter.charAt(0).toUpperCase() + filter.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Transactions List */}
+      <ScrollView
+        style={styles.transactionsList}
+        showsVerticalScrollIndicator={false}
+      >
+        {filteredTransactions.map((transaction, index) =>
+          renderTransaction(transaction, index)
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const createStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: isDark ? '#0a192f' : '#f8fafc',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      backgroundColor: isDark ? '#0a192f' : '#ffffff',
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1e293b' : '#e2e8f0',
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: isDark ? '#ffffff' : '#1f2937',
+    },
+    headerActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    headerButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     addButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 30,
-        gap: 8,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: isDark ? '#64ffda' : '#3b82f6',
+      justifyContent: 'center',
+      alignItems: 'center',
     },
-    addButtonText: {
-        fontSize: 16,
-        fontWeight: 'bold',
+    searchSection: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      gap: 12,
     },
-    filterContainer: {
-        flexDirection: 'row',
-        marginBottom: 16,
-        gap: 12,
-    },
-    searchInputContainer: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        borderWidth: 1,
+    searchContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? '#1e293b' : '#ffffff',
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: isDark ? '#334155' : '#e2e8f0',
     },
     searchInput: {
-        height: 48,
-        flex: 1,
-        marginLeft: 8,
-        fontSize: 16,
+      flex: 1,
+      fontSize: 16,
+      color: isDark ? '#ffffff' : '#1f2937',
     },
     filterButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: isDark ? '#1e293b' : '#ffffff',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#334155' : '#e2e8f0',
     },
-    transactionCard: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        marginBottom: 12, // Use margin for spacing between cards
+    filterTabs: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      gap: 8,
+      marginBottom: 16,
     },
-    leftContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
+    filterTab: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
     },
-    details: {},
-    description: {
-        fontSize: 16,
-        fontWeight: '600',
+    activeFilterTab: {
+      backgroundColor: isDark ? '#64ffda' : '#3b82f6',
     },
-    category: {
-        fontSize: 14,
-        marginTop: 4,
+    filterTabText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: isDark ? '#94a3b8' : '#6b7280',
     },
-    rightContent: {
-        alignItems: 'flex-end',
+    activeFilterTabText: {
+      color: isDark ? '#0a192f' : '#ffffff',
     },
-    amount: {
-        fontSize: 16,
-        fontWeight: 'bold',
+    transactionsList: {
+      flex: 1,
+      paddingHorizontal: 20,
     },
-    date: {
-        fontSize: 12,
-        marginTop: 4,
+    transactionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? '#1e293b' : '#ffffff',
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+      shadowColor: isDark ? '#000000' : '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.3 : 0.1,
+      shadowRadius: 8,
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: isDark ? '#334155' : '#e2e8f0',
     },
-    emptyContainer: {
-        marginTop: 80,
-        alignItems: 'center',
+    transactionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: isDark ? '#334155' : '#f1f5f9',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 16,
     },
-    emptyText: {
-        fontSize: 16,
+    transactionContent: {
+      flex: 1,
     },
-});
+    transactionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#1f2937',
+      marginBottom: 2,
+    },
+    transactionCategory: {
+      fontSize: 14,
+      color: isDark ? '#94a3b8' : '#6b7280',
+      marginBottom: 2,
+    },
+    transactionDateTime: {
+      fontSize: 12,
+      color: isDark ? '#64748b' : '#9ca3af',
+    },
+    transactionRight: {
+      alignItems: 'flex-end',
+      marginRight: 8,
+    },
+    transactionAmount: {
+      fontSize: 16,
+      fontWeight: '700',
+      marginBottom: 4,
+    },
+    statusBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 8,
+    },
+    statusText: {
+      fontSize: 10,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+    },
+  });
+7;

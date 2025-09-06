@@ -1,0 +1,33 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install Supabase CLI
+        run: npm i -g supabase
+      - name: Login Supabase CLI
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "${SUPABASE_SERVICE_ROLE_KEY}" > supabase_service_role_key.txt
+          supabase secrets set SUPABASE_SERVICE_ROLE_KEY="$(cat supabase_service_role_key.txt)" --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} || true
+      - name: Deploy Functions
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          for d in supabase/functions/* ; do
+            if [ -d "$d" ]; then
+              name=$(basename "$d")
+              echo "Deploying $name"
+              supabase functions deploy "$name" --project-ref "${SUPABASE_PROJECT_REF}" --no-verify
+            fi
+          done

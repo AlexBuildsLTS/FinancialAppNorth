@@ -245,4 +245,3 @@ CREATE POLICY "Users can send/read messages in channels they are in." ON public.
 
 
 
-

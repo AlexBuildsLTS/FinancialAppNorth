@@ -1,12 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 
-interface ProfitLossStatementProps {
-  data: any; // This should be more specific based on the actual data structure
-}
+type ReportItem = { name: string; balance: number };
+type ProfitLossData = {
+  revenues?: ReportItem[];
+  expenses?: ReportItem[];
+  totalRevenue?: number;
+  totalExpenses?: number;
+  netIncome?: number;
+};
 
-const ProfitLossStatement: React.FC<ProfitLossStatementProps> = ({ data }) => {
+const ProfitLossStatement: React.FC<{ data: ProfitLossData | null }> = ({ data }) => {
   const { colors } = useTheme();
 
   if (!data) {
@@ -19,35 +24,35 @@ const ProfitLossStatement: React.FC<ProfitLossStatementProps> = ({ data }) => {
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Revenue</Text>
-        {data.revenues?.map((item: any) => (
-          <View key={item.name} style={styles.row}>
-            <Text style={[styles.itemText, { color: colors.text }]}>{item.name}</Text>
-            <Text style={[styles.itemValue, { color: colors.text }]}>{item.balance.toFixed(2)}</Text>
-          </View>
-        ))}
+          {data.revenues?.map((item: ReportItem) => (
+            <View key={item.name} style={styles.row}>
+              <Text style={[styles.itemText, { color: colors.text }]}>{item.name}</Text>
+              <Text style={[styles.itemValue, { color: colors.text }]}>{item.balance.toFixed(2)}</Text>
+            </View>
+          ))}
         <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
           <Text style={[styles.totalText, { color: colors.text }]}>Total Revenue</Text>
-          <Text style={[styles.totalValue, { color: colors.text }]}>{data.totalRevenue?.toFixed(2)}</Text>
+            <Text style={[styles.totalValue, { color: colors.text }]}>{(data.totalRevenue ?? 0).toFixed(2)}</Text>
         </View>
       </View>
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Expenses</Text>
-        {data.expenses?.map((item: any) => (
-          <View key={item.name} style={styles.row}>
-            <Text style={[styles.itemText, { color: colors.text }]}>{item.name}</Text>
-            <Text style={[styles.itemValue, { color: colors.text }]}>{item.balance.toFixed(2)}</Text>
-          </View>
-        ))}
+          {data.expenses?.map((item: ReportItem) => (
+            <View key={item.name} style={styles.row}>
+              <Text style={[styles.itemText, { color: colors.text }]}>{item.name}</Text>
+              <Text style={[styles.itemValue, { color: colors.text }]}>{item.balance.toFixed(2)}</Text>
+            </View>
+          ))}
         <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
           <Text style={[styles.totalText, { color: colors.text }]}>Total Expenses</Text>
-          <Text style={[styles.totalValue, { color: colors.text }]}>{data.totalExpenses?.toFixed(2)}</Text>
+            <Text style={[styles.totalValue, { color: colors.text }]}>{(data.totalExpenses ?? 0).toFixed(2)}</Text>
         </View>
       </View>
 
       <View style={[styles.netIncomeSection, { borderTopColor: colors.border }]}>
         <Text style={[styles.netIncomeText, { color: colors.text }]}>Net Income</Text>
-        <Text style={[styles.netIncomeValue, { color: colors.text }]}>{data.netIncome?.toFixed(2)}</Text>
+          <Text style={[styles.netIncomeValue, { color: colors.text }]}>{(data.netIncome ?? 0).toFixed(2)}</Text>
       </View>
     </View>
   );
@@ -58,11 +63,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     marginVertical: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+      },
+    }),
   },
   title: {
     fontSize: 22,

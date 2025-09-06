@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, Image, StyleSheet, Platform, Alert } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, Image, StyleSheet, Platform, Alert, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -21,9 +21,33 @@ export default function ChatDetailScreen() {
   const { colors } = useTheme();
   const { session } = useAuth();
 
-  const [messages, setMessages] = useState<any[]>([]);
-  const [text, setText] = useState('');
-  const [attachments, setAttachments] = useState<Array<any>>([]);
+  type Attachment = { uri?: string; url?: string; name?: string; mimeType?: string; size?: number; fileName?: string; fileSize?: number };
+
+  type RecipientWrapped = { wrappedKey: string; wrapIv: string };
+  type E2EEMetadata = {
+    e2ee?: boolean;
+    sender_public_jwk?: string;
+    recipients_wrapped?: Record<string, RecipientWrapped>;
+    iv?: string;
+    [key: string]: unknown;
+  };
+
+  type ChatMessage = {
+    id?: string;
+    channel_id?: string | null;
+    sender_id?: string;
+    user_id?: string;
+    content?: string | null;
+    text?: string | null;
+    created_at?: string;
+    attachments?: Attachment[];
+    metadata?: E2EEMetadata | null;
+    decrypted_text?: string | null;
+  };
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [text, setText] = useState<string>('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [currency, setCurrency] = useState<string>('USD');
   const flatListRef = useRef<FlatList>(null);
@@ -83,7 +107,7 @@ export default function ChatDetailScreen() {
     return globalThis.btoa(JSON.stringify(kp.pubJwk));
   }
 
-  async function importPeerPublicKeyJwk(peerPubJwk: any) {
+  async function importPeerPublicKeyJwk(peerPubJwk: unknown) {
     // import peer public JWK
     try {
       const key = await (globalThis.crypto.subtle as any).importKey(
@@ -100,7 +124,7 @@ export default function ChatDetailScreen() {
     }
   }
 
-  async function deriveSharedAesKey(peerPubJwkOrBase64: any) {
+  async function deriveSharedAesKey(peerPubJwkOrBase64: unknown) {
     try {
       const kpRaw = await secureGetItem(KEYPAIR_STORAGE_KEY);
       if (!kpRaw) return null;
@@ -162,7 +186,7 @@ export default function ChatDetailScreen() {
   }
 
   // Wrap a raw symmetric key for a recipient by deriving an ECDH key and AES-GCM encrypting the raw key
-  async function wrapSymKeyWithDerivedKey(peerPubJwkOrBase64: any, symRaw: ArrayBuffer) {
+  async function wrapSymKeyWithDerivedKey(peerPubJwkOrBase64: unknown, symRaw: ArrayBuffer) {
     const derived = await deriveSharedAesKey(peerPubJwkOrBase64);
     if (!derived) throw new Error('Could not derive shared key for wrapping');
     const wrapIv = (globalThis.crypto as any).getRandomValues(new Uint8Array(12));
@@ -174,17 +198,17 @@ export default function ChatDetailScreen() {
      Helper: decrypt incoming message if metadata indicates e2ee
      Updated to handle per-recipient wrapped symmetric keys.
   ------------------------ */
-  async function tryDecryptIncoming(msg: any) {
+  async function tryDecryptIncoming(msg: ChatMessage) {
     try {
-      if (!msg?.metadata?.e2ee) return msg;
-      const meta = msg.metadata ?? {};
-      const senderPubBase64 = meta.sender_public_jwk;
+  if (!msg?.metadata?.e2ee) return msg;
+  const meta = (msg.metadata ?? {}) as E2EEMetadata;
+  const senderPubBase64 = meta.sender_public_jwk as string | undefined;
       if (!senderPubBase64) return msg;
       const myId = session?.user?.id;
       if (!myId) return msg;
 
       // recipients_wrapped: { [recipientId]: { wrappedKey, wrapIv } }
-      const wrappedEntry = meta.recipients_wrapped?.[myId];
+  const wrappedEntry = meta.recipients_wrapped?.[myId];
       if (!wrappedEntry) return msg; // not targeted to me
 
       // derive key from sender's public JWK and my private JWK
@@ -192,13 +216,15 @@ export default function ChatDetailScreen() {
       if (!derived) return msg;
 
       // decrypt the wrapped symmetric raw
-      const wrappedBuf = base64ToBuf(wrappedEntry.wrappedKey);
-      const wrapIvBuf = new Uint8Array(base64ToBuf(wrappedEntry.wrapIv));
+  const wrappedBuf = base64ToBuf(wrappedEntry.wrappedKey);
+  const wrapIvBuf = new Uint8Array(base64ToBuf(wrappedEntry.wrapIv));
       const symRaw = await (globalThis.crypto.subtle as any).decrypt({ name: 'AES-GCM', iv: wrapIvBuf }, derived, wrappedBuf);
 
       // import symmetric key and decrypt content
       const symKey = await importSymKeyFromRaw(symRaw);
-      const decrypted = await decryptWithSharedKey(symKey, msg.content, meta.iv);
+  // guard inputs to decrypt: content and iv must be strings
+  if (typeof msg.content !== 'string' || typeof meta.iv !== 'string') return msg;
+  const decrypted = await decryptWithSharedKey(symKey, msg.content, meta.iv);
       if (decrypted != null) {
         return { ...msg, decrypted_text: decrypted, content: decrypted };
       }
@@ -215,14 +241,14 @@ export default function ChatDetailScreen() {
   ------------------------ */
   useEffect(() => {
     if (!conversationId) return;
-    const unsub = subscribe('messages', async (payload: any) => {
+    const unsub = subscribe<ChatMessage>('messages', async (payload) => {
       const { eventType, new: n } = payload;
       if (eventType !== 'INSERT' || !n) return;
       // channel_id can be number or string
       if (String(n.channel_id) !== String(conversationId)) return;
       try {
         const decrypted = await tryDecryptIncoming(n);
-        setMessages(prev => [...prev, decrypted]);
+        setMessages((prev) => [...prev, decrypted]);
         setTimeout(() => flatListRef.current?.scrollToEnd?.(), 200);
       } catch (e) {
         console.error('realtime incoming message handling error', e);
@@ -237,11 +263,11 @@ export default function ChatDetailScreen() {
   const loadMessages = useCallback(async () => {
     if (!conversationId) return;
     try {
-      const data: any = await getMessages(conversationId);
-      const rows = Array.isArray(data) ? data : (data?.messages ?? []);
-      // decrypt any messages that have e2ee metadata
-      const decryptedRows = await Promise.all(rows.map((r: any) => tryDecryptIncoming(r)));
-      setMessages(decryptedRows);
+  const data = (await getMessages(conversationId)) as ChatMessage[] | { messages?: ChatMessage[] } | null;
+  const rows: ChatMessage[] = Array.isArray(data) ? data : (data && 'messages' in data ? (data.messages ?? []) : []);
+  // decrypt any messages that have e2ee metadata
+  const decryptedRows = await Promise.all((rows as ChatMessage[]).map((r) => tryDecryptIncoming(r)));
+  setMessages(decryptedRows as ChatMessage[]);
       setTimeout(() => flatListRef.current?.scrollToEnd?.(), 200);
     } catch (err) {
       console.error('Failed to load messages', err);
@@ -255,9 +281,10 @@ export default function ChatDetailScreen() {
 
   const pickDocument = async () => {
     try {
-      const res = (await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: false })) as any;
-      if (res?.type === 'success') {
-        setAttachments(prev => [...prev, { uri: res.uri, name: res.name, size: res.size, mimeType: res.mimeType || 'application/octet-stream' }]);
+      const res = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: false });
+      if (res && (res as any).type === 'success') {
+        const r = res as any;
+        setAttachments((prev) => [...prev, { uri: r.uri, name: r.name, size: r.size ?? 0, mimeType: r.mimeType ?? 'application/octet-stream' }]);
       }
     } catch (err) {
       console.error('Document pick error', err);
@@ -271,10 +298,10 @@ export default function ChatDetailScreen() {
         Alert.alert('Permission needed', 'Please allow access to your photos to attach images.');
         return;
       }
-      const result = (await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })) as any;
+      const result = (await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })) as ImagePicker.ImagePickerResult;
       if (!result.canceled) {
-        const asset = Array.isArray(result.assets) ? result.assets[0] : result;
-        setAttachments(prev => [...prev, { uri: asset.uri, name: asset.fileName ?? `image-${Date.now()}.jpg`, size: asset.fileSize ?? 0, mimeType: asset.type ? `image/${asset.type}` : 'image/jpeg' }]);
+        const asset = Array.isArray(result.assets) ? result.assets[0] : (result as any);
+        setAttachments((prev) => [...prev, { uri: asset.uri, name: asset.fileName ?? `image-${Date.now()}.jpg`, size: asset.fileSize ?? 0, mimeType: asset.type ? `image/${asset.type}` : 'image/jpeg' }]);
       }
     } catch (err) {
       console.error('Image pick error', err);
@@ -308,7 +335,7 @@ export default function ChatDetailScreen() {
       if (partsErr) {
         console.warn('Could not fetch participants for E2EE, sending plaintext', partsErr);
       }
-      const participants = (parts ?? []).map((p: any) => p.user_id).filter((id: string) => id !== session.user.id);
+  const participants = (parts ?? []).map((p: { user_id: string }) => p.user_id).filter((id: string) => id !== session.user.id);
 
       // If no other participants (e.g., a channel with only you), fallback to plaintext
       let e2eeEnabled = participants.length > 0;
@@ -324,8 +351,8 @@ export default function ChatDetailScreen() {
           console.warn('Could not fetch recipient public_jwk; disabling E2EE for this message', profErr);
           e2eeEnabled = false;
         } else {
-          recipientProfiles = profs ?? [];
-          const missing = participants.filter((id: string) => !recipientProfiles.find(r => r.id === id || r.public_jwk));
+          recipientProfiles = (profs ?? []) as Array<{ id: string; public_jwk?: string }>; 
+          const missing = participants.filter((id: string) => !recipientProfiles.find((r) => r.id === id || (r as any).public_jwk));
           if (missing.length > 0) {
             console.warn('Some recipients lack public_jwk, disabling E2EE for this message', missing);
             e2eeEnabled = false;
@@ -353,7 +380,7 @@ export default function ChatDetailScreen() {
         metadata.iv = bufToBase64(msgIv.buffer);
 
         // 4) for each recipient, derive shared key and wrap symmetric raw
-        const recipients_wrapped: Record<string, { wrappedKey: string; wrapIv: string }> = {};
+          const recipients_wrapped: Record<string, { wrappedKey: string; wrapIv: string }> = {};
         for (const rp of recipientProfiles) {
           const peerPub = rp.public_jwk;
           try {
@@ -368,8 +395,8 @@ export default function ChatDetailScreen() {
         }
 
         if (e2eeEnabled) {
-          metadata.e2ee = true;
-          metadata.recipients_wrapped = recipients_wrapped;
+          (metadata as Record<string, unknown>).e2ee = true;
+          (metadata as Record<string, unknown>).recipients_wrapped = recipients_wrapped;
         } else {
           // fallback: don't include wrapping metadata; send plaintext
           contentToSend = text.trim();
@@ -379,11 +406,16 @@ export default function ChatDetailScreen() {
         }
       }
 
+      // ensure attachments passed to sendMessage have a valid uri
+      const safeAttachments = attachments
+        .filter((a) => typeof (a.uri ?? a.url) === 'string' && (a.uri ?? a.url) !== '')
+        .map((a) => ({ uri: a.uri ?? a.url ?? '', name: a.name, mimeType: a.mimeType, size: a.size }));
+
       await sendMessage({
         conversationId,
         senderId: session.user.id,
         text: contentToSend,
-        attachments,
+        attachments: safeAttachments,
         metadata,
       });
 
@@ -399,9 +431,9 @@ export default function ChatDetailScreen() {
     }
   };
 
-  const renderAttachmentPreview = ({ item, index }: { item: any, index: number }) => (
+  const renderAttachmentPreview = ({ item, index }: { item: Attachment; index: number }) => (
     <View style={[styles.attachmentPreview, { backgroundColor: colors.surface }]}>
-      {item.mimeType?.startsWith?.('image') ? (
+        {item.mimeType?.startsWith?.('image') ? (
         <Image source={{ uri: item.uri }} style={styles.attachmentImage} />
       ) : (
         <View style={styles.attachmentFileIcon}><ImageIcon size={18} color={colors.textSecondary} /></View>
@@ -414,14 +446,14 @@ export default function ChatDetailScreen() {
     </View>
   );
 
-  const renderMessage = ({ item }: { item: any }) => {
+  const renderMessage = ({ item }: { item: ChatMessage }) => {
     const mine = item.sender_id === session?.user?.id;
     return (
       <View style={[styles.messageRow, { alignSelf: mine ? 'flex-end' : 'flex-start', backgroundColor: mine ? colors.primary : colors.surface }]}>
         {item.text ? <Text style={{ color: mine ? colors.primaryContrast : colors.text }}>{item.text}</Text> : null}
-        {Array.isArray(item.attachments) && item.attachments.map((att: any, i: number) => (
-          <TouchableOpacity key={i} onPress={() => att.url && router.push(att.url)}>
-            {att.mimeType?.startsWith?.('image') ? <Image source={{ uri: att.url }} style={styles.messageImage} /> : <View style={styles.messageFile}><Text style={{ color: colors.text }}>{att.name || 'Attachment'}</Text></View>}
+  {Array.isArray(item.attachments) && (item.attachments as Attachment[]).map((att, i: number) => (
+          <TouchableOpacity key={i} onPress={() => att.url ? Linking.openURL(att.url) : undefined}>
+            {att.mimeType?.startsWith?.('image') ? <Image source={{ uri: att.url ?? att.uri }} style={styles.messageImage} /> : <View style={styles.messageFile}><Text style={{ color: colors.text }}>{att.name || 'Attachment'}</Text></View>}
           </TouchableOpacity>
         ))}
         <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 6, alignSelf: 'flex-end' }}>{item.created_at ? new Date(item.created_at).toLocaleString() : ''}</Text>

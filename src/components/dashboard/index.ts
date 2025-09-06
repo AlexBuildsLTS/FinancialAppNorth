@@ -1,5 +1,7 @@
 export { default as ChartSection } from './ChartSection';
-export * from './DashboardHeader';
+// export { DashboardHeader } from '../common/DashboardHeader'; // Removed: module not found
 export { default as MetricsGrid } from './MetricsGrid';
-export { default as QuickActions } from './QuickActions';
-export { default as RecentTransactions } from './RecentTransactions';
+export { QuickActions } from './QuickActions';
+export { RecentTransactions } from './RecentTransactions';
+export { default as MetricCard } from './MetricCard';
+export { default as LineChart } from './LineChart';

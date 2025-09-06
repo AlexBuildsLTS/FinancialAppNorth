@@ -1,33 +1,27 @@
-import { supabase } from '@/lib/supabase';
+// Minimal budget service stub for development. Replace with real API logic.
 
-interface CreateBudgetPayload {
-  user_id: string;
-  category: string;
-  allocated: number;
-  period: string;
+export type Budget = {
+  id?: string;
+  name: string;
+  amount: number;
+  period?: string;
+  [key: string]: any;
+};
+
+export async function createBudget(payload: Partial<Budget>): Promise<{ success: true; budget: Budget } | { success: false; error: string }> {
+  if (!payload || !payload.name) {
+    return { success: false, error: 'Invalid payload' };
+  }
+  // TODO: replace with real server call
+  const budget: Budget = {
+    id: String(Date.now()),
+    name: payload.name as string,
+    amount: payload.amount ?? 0,
+    period: payload.period ?? 'monthly',
+    ...payload,
+  };
+  return { success: true, budget };
 }
 
-export const createBudget = async (payload: CreateBudgetPayload) => {
-  const { data, error } = await supabase
-    .from('budgets')
-    .insert([payload])
-    .select();
-
-  if (error) {
-    throw error;
-  }
-  return data;
-};
-
-
-export const getBudgets = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('budgets')
-    .select('*')
-    .eq('user_id', userId);
-
-  if (error) {
-    throw error;
-  }
-  return data;
-};
+const budgetService = { createBudget };
+export default budgetService;

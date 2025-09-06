@@ -73,5 +73,9 @@
     "react-native-svg-transformer": "^1.5.1",
     "supabase": "^2.34.3",
     "typescript": "~5.8.3"
+  },
+  "resolutions": {
+    "react": "19.0.0",
+    "react-native": "0.79.5"
   }
 }

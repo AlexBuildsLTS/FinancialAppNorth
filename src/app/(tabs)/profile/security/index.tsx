@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { ChevronRight, KeyRound, Lock, ShieldCheck } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
-import ScreenContainer from '@/components/ScreenContainer';
+import ScreenContainer from '@/app/ScreenContainer';
 import { Text } from 'react-native'; // Keep this line
 import { Button } from '@/components/common/Button';
 

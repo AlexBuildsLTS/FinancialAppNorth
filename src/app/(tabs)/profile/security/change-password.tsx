@@ -4,7 +4,7 @@ import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
 import { supabase } from '@/lib/supabase'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
 import { Button } from '@/components/common/Button';
-import ScreenContainer from '@/components/ScreenContainer';
+import ScreenContainer from '@/app/ScreenContainer';
 import PasswordStrengthIndicator from '@/components/common/PasswordStrengthIndicator';
 import { Eye, EyeOff } from 'lucide-react-native';
 

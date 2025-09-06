@@ -1,28 +1,16 @@
 // src/app/(tabs)/admin/manage-users.tsx
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
-import { useFocusEffect } from 'expo-router';
-import ScreenContainer from '@/components/ScreenContainer';
-import { Card, RoleBadge, Avatar } from '@/components/common';
+import ScreenContainer from '@/app/ScreenContainer';
+import { Card } from '@/components/common';
+import RoleBadge from '@/components/common/RoleBadge';
+import Avatar from '@/components/common/Avatar';
 import { User, UserRole } from '@/types';
-import { adminService } from '@/services'; // Assuming you have this service
 import { Edit, Trash2, UserCheck, UserX } from 'lucide-react-native';
-import EditUserModal from '@/components/admin/EditUserModal';
-
-// Mock data - replace with your actual API call
-const fetchUsersFromAPI = async (): Promise<User[]> => {
-    console.log("Fetching users...");
-    // return await adminService.getUsers();
-    return new Promise(resolve => setTimeout(() => resolve([
-        { id: '1', display_name: 'Admin User', full_name: 'Admin User', email: 'admin@northfinance.io', role: UserRole.ADMIN, avatar_url: 'https://i.pravatar.cc/150?u=1', status: 'active' },
-        { id: '2', display_name: 'CPA Professional', full_name: 'CPA Professional', email: 'cpa@accountants.com', role: UserRole.CPA, avatar_url: 'https://i.pravatar.cc/150?u=2', status: 'active' },
-        { id: '3', display_name: 'Premium Client', full_name: 'Premium Client', email: 'premium@example.com', role: UserRole.PREMIUM_MEMBER, avatar_url: 'https://i.pravatar.cc/150?u=3', status: 'banned' },
-        { id: '4', display_name: 'John Doe', full_name: 'John Doe', email: 'john.doe@example.com', role: UserRole.MEMBER, avatar_url: 'https://i.pravatar.cc/150?u=4', status: 'active' },
-    ]), 1000));
-};
-
+import EditUserModal from '@/app/(tabs)/EditUserModal';
+import { adminService } from '@/services/adminService'; // Make sure this is the correct path
 
 interface UserListItemProps {
     user: User;
@@ -31,7 +19,7 @@ interface UserListItemProps {
     onDelete: (userId: string) => void;
 }
 
-const UserListItem = ({ user, onEdit, onToggleStatus, onDelete }: UserListItemProps) => {
+const UserListItem: React.FC<UserListItemProps> = ({ user, onEdit, onToggleStatus, onDelete }) => {
     const { colors } = useTheme();
     const isActive = user.status === 'active';
 
@@ -72,21 +60,19 @@ export default function ManageUsersScreen() {
     const loadUsers = async () => {
         setLoading(true);
         try {
-            const fetchedUsers = await fetchUsersFromAPI();
+            const fetchedUsers = await adminService.getUsers();
             setUsers(fetchedUsers);
         } catch (error) {
             console.error("Failed to fetch users:", error);
-            // Add toast notification here
+            // Add toast notification here if needed
         } finally {
             setLoading(false);
         }
     };
 
-    useFocusEffect(
-        useCallback(() => {
-            loadUsers();
-        }, [])
-    );
+    useEffect(() => {
+        loadUsers();
+    }, []);
 
     const handleEdit = (user: User) => {
         setSelectedUser(user);
@@ -120,21 +106,31 @@ export default function ManageUsersScreen() {
         // Here you would call your service to update the user in the database
         console.log("Saving user:", updatedUser);
         setModalVisible(false);
+        setSelectedUser(null);
         loadUsers(); // Refresh the list
     };
 
+    const handleModalClose = () => {
+        setModalVisible(false);
+        setSelectedUser(null);
+    };
+
     if (loading) {
-        return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
+        return (
+            <View style={styles.centered}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
     }
 
     return (
         <ScreenContainer>
-            <FlatList
+            <FlatList<User>
                 data={users}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <UserListItem 
-                        user={item} 
+                keyExtractor={(item: User) => item.id}
+                renderItem={({ item }: { item: User }) => (
+                    <UserListItem
+                        user={item}
                         onEdit={handleEdit}
                         onToggleStatus={handleToggleStatus}
                         onDelete={handleDelete}
@@ -145,10 +141,11 @@ export default function ManageUsersScreen() {
                 )}
                 contentContainerStyle={{ padding: 16 }}
             />
-            {selectedUser && (
+
+            {selectedUser && isModalVisible && (
                 <EditUserModal
                     user={selectedUser}
-                    onClose={() => setModalVisible(false)}
+                    onClose={handleModalClose}
                     onUserUpdated={handleModalSave}
                 />
             )}
@@ -191,7 +188,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'flex-end',
         borderTopWidth: 1,
-        borderColor: '#eee', // Consider using colors.border
+        borderColor: '#eee',
         paddingTop: 12,
         marginTop: 4,
     },

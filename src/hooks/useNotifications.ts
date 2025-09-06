@@ -19,7 +19,7 @@ export function useNotifications() {
     if (error) console.error("Error fetching notifications:", error);
     else {
       setNotifications(data || []);
-      const unread = data?.filter(n => !n.is_read).length || 0;
+      const unread = (data as Notification[] | undefined)?.filter((n: Notification) => !n.is_read).length || 0;
       setUnreadCount(unread);
     }
   }, [profile]);
@@ -28,9 +28,9 @@ export function useNotifications() {
     fetchNotifications();
     const channel = supabase
       .channel('public:notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
-          fetchNotifications();
-      })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload: { new?: Notification }) => {
+      fetchNotifications();
+    })
       .subscribe();
 
     return () => {

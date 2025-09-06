@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert } from 'react-native';
 import Modal from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
@@ -6,6 +6,8 @@ import { Card } from '@/components/common/Card';
 import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
 import { requestClientAccess } from '@/services/cpaService';
+import { useAuth } from '@/context/AuthContext';
+import { UserRole } from '@/types';
 
 interface AddClientModalProps {
   visible: boolean;
@@ -16,23 +18,40 @@ interface AddClientModalProps {
 export default function AddClientModal({ visible, onClose, onClientAdded }: AddClientModalProps) {
     const { colors } = useTheme();
     const { showToast } = useToast();
+    const { profile } = useAuth();
     const [clientEmail, setClientEmail] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Allowed roles to assign clients: Professional (CPA), Support, Administrator
+    const canAssign = !!profile && [UserRole.CPA, UserRole.SUPPORT, UserRole.ADMIN].includes(profile.role as UserRole);
+
+    useEffect(() => {
+      if (visible && !canAssign) {
+        // If modal is opened incorrectly, close and show message
+        showToast('You do not have permission to assign clients.', 'error');
+        onClose();
+      }
+    }, [visible, canAssign]);
 
     const handleAddClient = async () => {
         if (!clientEmail) {
             Alert.alert('Error', 'Please enter a client email address.');
             return;
         }
+        if (!canAssign) {
+            showToast('Not authorized to assign clients.', 'error');
+            return;
+        }
+
         setLoading(true);
         try {
-            // This service function would send a request for client access to the specified email
-            await addClient(clientEmail);
-            showToast('Client successfully assigned!', 'success');
+            // call the real service which should send an invite/request to client
+            await requestClientAccess(clientEmail);
+            showToast('Client assignment request sent!', 'success');
             onClientAdded(); // Refresh the client list
             onClose(); // Close the modal
         } catch (error: any) {
-            showToast(error.message || 'Failed to add client.', 'error');
+            showToast(error?.message || 'Failed to add client.', 'error');
         } finally {
             setLoading(false);
         }
@@ -76,7 +95,4 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
 });
-function addClient(clientEmail: string) {
-    throw new Error('Function not implemented.');
-}
 

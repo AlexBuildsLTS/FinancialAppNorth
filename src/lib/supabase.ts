@@ -53,17 +53,17 @@ if (!hasService) {
 }
 
 // initialize clients (exported) — create only when keys exist, otherwise use safe proxy
-export const supabase: any = hasAnon
+export const supabase: SupabaseClient | any = hasAnon
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : makeMissingClient('supabase', 'Supabase anon client not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY to enable DB features.');
 
-export const supabaseAdmin: any = hasService
+export const supabaseAdmin: SupabaseClient | any = hasService
   ? createClient(SUPABASE_URL, serviceRoleKey)
   : makeMissingClient('supabaseAdmin', 'Supabase admin client not configured. Set SUPABASE_SERVICE_ROLE_KEY for admin operations.');
 
-// --- ADDED: local any-typed aliases to avoid widespread generic typing issues in the frontend ---
-const _sb: any = supabase;
-const _sbAdmin: any = supabaseAdmin;
+// Local aliases (narrowed from `any`) used across helpers
+const _sb = supabase as SupabaseClient;
+const _sbAdmin = supabaseAdmin as SupabaseClient;
 
 /* --------------------------------------------------------------
    2️⃣ Type definitions – mirrors the public schema
@@ -156,22 +156,28 @@ export async function getCurrentUser(): Promise<{
   id: string;
   role: Role;
 } | null> {
-  // use the any-aliased clients so the editor doesn't complain about generic signatures
-  const { data: { user }, error } = await _sb.auth.getUser();
-  if (error || !user) return null;
+  try {
+    // don't destructure nested `data` directly in case it's undefined
+    const res = await _sb.auth.getUser();
+    const user = (res as any)?.data?.user;
+    if (!user) return null;
 
-  const { data: profile, error: pErr } = await _sb
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+    const { data: profile, error: pErr } = await _sb
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
 
-  if (pErr) {
-    console.error("Profile load error:", pErr);
+    if (pErr) {
+      console.error("Profile load error:", pErr);
+      return null;
+    }
+
+    return { id: user.id, role: (profile?.role ?? 'member') as Role };
+  } catch (err) {
+    console.error('getCurrentUser error:', err);
     return null;
   }
-
-  return { id: user.id, role: profile?.role as Role };
 }
 
 /* --------------------------------------------------------------
@@ -189,19 +195,19 @@ export type RealtimeCallback<T> = (payload: RealtimePayload<T>) => void;
  * Subscribe to *any* public table.
  * Returns an unsubscribe function.
  */
-export function subscribe<T extends Record<string, any>>(
+export function subscribe<T extends Record<string, unknown>>(
   table: string,
   cb: RealtimeCallback<T>
 ): () => void {
-  const channel = _sb
-    .channel(`realtime-${table}`)
+  const channel = (_sb
+    .channel(`realtime-${table}`) as any)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table },
-      (payload: any) => {
-        const { eventType, new: n, old: o } = payload as any;
-        cb({ eventType, new: n as T | null, old: o as T | null });
-      }
+      (payload: RealtimePayload<T>) => {
+          const { eventType, new: n, old: o } = payload as RealtimePayload<T>;
+          cb({ eventType, new: n as T | null, old: o as T | null });
+        }
     )
     .subscribe();
 
@@ -232,7 +238,7 @@ export const api = {
     return data ?? [];
   },
 
-  async createTransaction(tx: any) {
+  async createTransaction(tx: Partial<Transaction>) {
     const { data, error } = await _sb
       .from('transactions')
       .insert([tx])
@@ -242,7 +248,7 @@ export const api = {
     return data as any;
   },
 
-  async updateTransaction(id: string, changes: any) {
+  async updateTransaction(id: string, changes: Partial<Transaction>) {
     const { data, error } = await _sb
       .from('transactions')
       .update(changes)
@@ -317,9 +323,8 @@ export async function adminBroadcast(title: string, body: string, targetRoles: R
 // --- replace: frontend wrappers that call Edge Functions for privileged actions ---
 // helper: get current user's access token (throws if not signed in)
 async function getCurrentAccessToken(): Promise<string> {
-  const { data, error } = await _sb.auth.getSession();
-  if (error) throw error;
-  const session = (data as any)?.session;
+  const sessionRes = await _sb.auth.getSession();
+  const session = (sessionRes as any)?.data?.session;
   if (!session?.access_token) throw new Error('Not authenticated');
   return session.access_token as string;
 }
@@ -415,3 +420,18 @@ export const db = {
   adminBroadcast,
   getMonthlyIncomeSummary,
 };
+
+// EXPORTS: expose simple runtime flags and a diagnostics helper
+export const HAS_ANON = hasAnon;
+export const HAS_SERVICE = hasService;
+
+export function getEnvDiagnostics() {
+  return {
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? 'present' : 'missing',
+    SUPABASE_FUNCTIONS_URL: SUPABASE_FUNCTIONS_URL || null,
+    FRONTEND_ADMIN_API_KEY: FRONTEND_ADMIN_API_KEY ? 'present' : 'missing',
+    HAS_ANON: hasAnon,
+    HAS_SERVICE: hasService,
+  };
+}

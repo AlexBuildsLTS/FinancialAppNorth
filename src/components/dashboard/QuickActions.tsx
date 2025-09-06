@@ -1,70 +1,100 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+} from 'react-native';
+import { Plus, Send, Download, Camera, LucideIcon } from 'lucide-react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeProvider';
-import { Plus, ArrowRightLeft, Upload, FilePieChart } from 'lucide-react-native';
 
-const actions = [
-  { text: 'Add Entry', icon: Plus, color: '#3B82F6', type: 'addTransaction' },
-  { text: 'Transfer', icon: ArrowRightLeft, color: '#10B981', type: 'transfer' },
-  { text: 'Add Bill', icon: Upload, color: '#F97316', type: 'addBill' },
-  { text: 'Reports', icon: FilePieChart, color: '#8B5CF6', type: 'reports' },
-];
+const { width } = Dimensions.get('window');
 
-const ActionButton = ({ action, onPress }: { action: typeof actions[0], onPress?: () => void }) => {
-    const { colors } = useTheme();
-
-    return (
-        <View style={styles.actionContainer}>
-            <TouchableOpacity style={[styles.iconButton, { backgroundColor: action.color }]} onPress={onPress}>
-                <action.icon color="#FFFFFF" size={24} />
-            </TouchableOpacity>
-            <Text style={[styles.actionText, { color: colors.textSecondary }]}>{action.text}</Text>
-        </View>
-    );
+interface Action {
+  title: string;
+  icon: LucideIcon;
+  onPress: () => void;
 }
 
-export default function QuickActions({ onAddTransaction }: { onAddTransaction: () => void }) {
+export function QuickActions() {
+  const { colors, isDark } = useTheme();
+
+  const actions: Action[] = [
+    { title: 'Add Transaction', icon: Plus, onPress: () => console.log('Add') },
+    { title: 'Send Money', icon: Send, onPress: () => console.log('Send') },
+    { title: 'Scan Receipt', icon: Camera, onPress: () => console.log('Scan') },
+    {
+      title: 'Export Data',
+      icon: Download,
+      onPress: () => console.log('Export'),
+    },
+  ];
+
   return (
     <View style={styles.container}>
-      {actions.map((action) => (
-        <ActionButton 
-          key={action.text} 
-          action={action} 
-          onPress={action.type === 'addTransaction' ? onAddTransaction : undefined} 
-        />
-      ))}
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        Quick Actions
+      </Text>
+      <View style={styles.actionsGrid}>
+        {actions.map((action, index) => {
+          const IconComponent = action.icon;
+          return (
+            <Animated.View
+              key={index}
+              entering={FadeInUp.delay(300 + index * 50).springify()}
+            >
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: colors.primary }]}
+                onPress={action.onPress}
+              >
+                <View
+                  style={[
+                    styles.iconContainer,
+                    {
+                      backgroundColor: isDark
+                        ? colors.background
+                        : colors.surface,
+                    },
+                  ]}
+                >
+                  <IconComponent size={20} color={colors.primary} />
+                </View>
+                <Text
+                  style={[
+                    styles.buttonText,
+                    { color: isDark ? colors.background : colors.surface },
+                  ]}
+                >
+                  {action.title}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  container: { paddingTop: 24 },
+  sectionTitle: { fontSize: 22, fontWeight: '700', marginBottom: 16 },
+  actionsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  button: {
+    width: (width - 52) / 2.2,
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingVertical: 16,
   },
-  actionContainer: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  iconButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    // Adding a subtle shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    marginBottom: 12,
   },
-  actionText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
+  buttonText: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
 });

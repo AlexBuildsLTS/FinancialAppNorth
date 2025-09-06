@@ -7,8 +7,9 @@ import { Eye, EyeOff, LogIn, CheckSquare, Square } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
 import { useToast } from '@/context/ToastProvider';
-import ScreenContainer from '@/components/ScreenContainer';
-import { Card, Button } from '@/components/common';
+import ScreenContainer from '@/components/ScreenContainer'; // This is a default export
+import { Card } from '@/components/common'; // Card is a named export
+import { Button } from '@/components/common/Button'; // Button is a named export
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
@@ -28,7 +29,7 @@ export default function LoginScreen() {
     const [rememberMe, setRememberMe] = useState(false);
     const [loading, setLoading] = useState(false);
     
-    const { signIn, sendPasswordResetEmail } = useAuth();
+    const { signIn } = useAuth();
     const { showToast } = useToast();
     const router = useRouter();
     const { colors } = useTheme();
@@ -54,7 +55,7 @@ export default function LoginScreen() {
         }
         setLoading(true);
         console.log('Attempting login with email:', email); // Debug log
-        const { error } = await signIn({ email, password });
+        const { error } = await signIn(email, password);
         setLoading(false);
         if (error) {
             console.error('Login error:', error); // Debug log
@@ -72,25 +73,14 @@ export default function LoginScreen() {
     };
 
     const handlePasswordReset = async () => {
-        if (!email) {
-            showToast('Please enter your email to reset your password.', 'error');
-            return;
-        }
-        setLoading(true);
-        const { error } = await sendPasswordResetEmail(email);
-        setLoading(false);
-        if (error) {
-            showToast(error.message, 'error');
-        } else {
-            showToast('Password reset link sent! Check your email.', 'success');
-        }
+        showToast('Password reset is not implemented.', 'info');
     };
 
     return (
         <ScreenContainer>
             <View style={styles.outerContainer}>
                 <View style={styles.contentContainer}>
-                <Card padding={32}>
+                <Card>
                     <LogIn color={colors.primary} size={40} style={styles.headerIcon} />
                     <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
                     <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Sign in to continue</Text>

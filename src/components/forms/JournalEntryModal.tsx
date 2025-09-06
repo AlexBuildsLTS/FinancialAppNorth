@@ -32,26 +32,31 @@ export default function JournalEntryModal({ visible, onClose, onSuccess, clientI
   }, [visible, clientId]);
   
   useEffect(() => {
-      const debits = lines.reduce((sum, line) => sum + (Number(line.debit_amount) || 0), 0);
-      const credits = lines.reduce((sum, line) => sum + (Number(line.credit_amount) || 0), 0);
-      setTotalDebit(debits);
-      setTotalCredit(credits);
+    const debits = lines.reduce((sum: number, line: Partial<JournalEntryLine>) => sum + (Number(line.debit_amount ?? 0) || 0), 0);
+    const credits = lines.reduce((sum: number, line: Partial<JournalEntryLine>) => sum + (Number(line.credit_amount ?? 0) || 0), 0);
+    setTotalDebit(debits);
+    setTotalCredit(credits);
   }, [lines]);
 
-  const updateLine = (index: number, field: keyof JournalEntryLine, value: any) => {
+  const updateLine = (index: number, field: keyof JournalEntryLine, value: string | number | undefined) => {
     const newLines = [...lines];
-    if (field === 'account_id') {
-        const selectedAccount = accounts.find(a => a.id === value);
-        newLines[index].account_id = selectedAccount?.id;
-        // newLines[index].account_name = selectedAccount?.name; // account_name is not part of JournalEntryLine
-        newLines[index].account_id = selectedAccount?.code;
+  if (field === 'account_id') {
+    const selectedAccount = accounts.find(a => a.id === value || a.code === value);
+    // Ensure account_id is stored as a string
+    const acctId = selectedAccount?.id ?? selectedAccount?.code;
+    newLines[index].account_id = acctId !== undefined && acctId !== null ? String(acctId) : undefined;
     } else {
         // Ensure debit_amount and credit_amount are stored as numbers
-        if (field === 'debit_amount' || field === 'credit_amount') {
-            newLines[index][field] = Number(value) || 0;
-        } else {
-            newLines[index][field] = value;
-        }
+    if (field === 'debit_amount' || field === 'credit_amount') {
+      newLines[index][field] = Number(value ?? 0) || 0;
+    } else {
+      // Narrow assignment based on field expected type
+      if (field === 'description') {
+        newLines[index][field] = String(value ?? '') as any;
+      } else {
+        newLines[index][field] = value as any;
+      }
+    }
     }
     setLines(newLines);
   };
@@ -76,8 +81,6 @@ export default function JournalEntryModal({ visible, onClose, onSuccess, clientI
           entries: lines as JournalEntryLine[],
           status: 'posted',
           created_by: clientId,
-          TOTAL: undefined,
-          total_credit: undefined
         });
         onSuccess();
         onClose();

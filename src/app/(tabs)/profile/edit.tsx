@@ -1,16 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadAvatar } from '@/services/profileService';
 import { Avatar } from '@/components/common/Avatar';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
+async function uploadAvatar(userId: string, asset: any): Promise<{ filePath?: string; error?: any }> {
+    try {
+        const uri = asset.uri;
+        // fetch the file data
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        // determine a filename
+        const fileName = asset.fileName || uri.split('/').pop() || `${Date.now()}.jpg`;
+        const filePath = `${userId}/${fileName}`;
+        // upload to Supabase storage (avatars bucket)
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, blob, { cacheControl: '3600', upsert: true });
+        if (uploadError) return { error: uploadError };
+        return { filePath };
+    } catch (err) {
+        return { error: err };
+    }
+}
+
 export default function EditProfileScreen() {
     const { colors } = useTheme();
-    const { profile, updateProfile } = useAuth();
+    const auth = useAuth();
+    const { profile } = auth;
+    const updateProfile = (auth as any).updateProfile;
     const [displayName, setDisplayName] = useState('');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,7 +43,7 @@ export default function EditProfileScreen() {
 
     const pickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: 'images',
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.8,
@@ -47,9 +66,11 @@ export default function EditProfileScreen() {
     };
 
     const handleUpdateProfile = async () => {
+        if (!profile) return;
+        const nextName = displayName.trim();
         setIsSubmitting(true);
         const { error } = await updateProfile({
-            display_name: displayName,
+            display_name: nextName,
         });
         setIsSubmitting(false);
 
@@ -60,6 +81,14 @@ export default function EditProfileScreen() {
             router.back();
         }
     };
+
+    if (!profile) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', backgroundColor: colors.background }]}>
+                <ActivityIndicator />
+            </View>
+        );
+    }
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -75,6 +104,8 @@ export default function EditProfileScreen() {
                 <TextInput
                     value={displayName}
                     onChangeText={setDisplayName}
+                    placeholder="Enter a display name"
+                    placeholderTextColor={colors.textSecondary}
                     style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
                 />
             </View>

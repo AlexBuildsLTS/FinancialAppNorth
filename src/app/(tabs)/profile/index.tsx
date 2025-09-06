@@ -2,11 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeProvider';
-import ScreenContainer from '@/components/ScreenContainer'; // FIX: Corrected import
+import ScreenContainer from '@/app/ScreenContainer'; // FIX: Corrected import
 import { Avatar } from '@/components/common/Avatar'; // FIX: Corrected named import
 import { ChevronRight, LogOut, Shield, KeyRound, Palette, User, Users, Star, Briefcase, LifeBuoy, ShieldCheck } from 'lucide-react-native';
-import { Link } from 'expo-router';
-import { UserRoleDisplayNames } from '@/types';
+import { Link } from 'expo-router'; // FIX: Corrected import
+import { UserRoleDisplayNames } from '@/components/common/UserRoleDisplayNames'; // FIX: Corrected import path
 
 const ProfileOption = ({ href, text, Icon, isLast = false }: { href: any; text: string; Icon: React.ElementType; isLast?: boolean }) => {
     const { colors } = useTheme();

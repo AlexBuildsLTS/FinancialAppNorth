@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal as RNModal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Modal as RNModal, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { X } from 'lucide-react-native';
 
@@ -49,14 +49,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     width: '90%',
     maxWidth: 500,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 5,
+      },
+      web: {
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.25)',
+      },
+    }),
   },
   header: {
     flexDirection: 'row',

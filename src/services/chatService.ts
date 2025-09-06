@@ -8,7 +8,17 @@ import { supabase } from '@/lib/supabase';
    Adjust bucket/table names to match your DB if needed.
 */
 
-export async function getConversations(userId?: string): Promise<{ conversations: any[]; error?: any }> {
+export interface ConversationMeta {
+  id: string;
+  participants?: string[];
+  name?: string;
+  avatar_url?: string | null;
+  lastMessage?: string | null;
+  timestamp?: string | null;
+  unread?: number;
+}
+
+export async function getConversations(userId?: string): Promise<{ conversations: ConversationMeta[]; error?: unknown }> {
   try {
     if (userId) {
       const { data: parts, error: pErr } = await supabase
@@ -16,24 +26,24 @@ export async function getConversations(userId?: string): Promise<{ conversations
         .select('channel_id')
         .eq('user_id', userId);
       if (pErr) return { conversations: [], error: pErr };
-      const channelIds = (parts ?? []).map((r: any) => r.channel_id);
+  const channelIds = (parts ?? []).map((r: { channel_id: string }) => r.channel_id);
       if (channelIds.length === 0) return { conversations: [] };
       const { data, error } = await supabase
         .from('channels')
         .select('id, created_by')
         .in('id', channelIds);
-      if (error) return { conversations: [], error };
-      return {
-        conversations: (data ?? []).map((c: any) => ({
-          id: String(c.id),
-          participants: [],
-          name: `Channel ${c.id}`,
-          avatar_url: null,
-          lastMessage: null,
-          timestamp: null,
-          unread: 0,
-        })),
-      };
+          if (error) return { conversations: [], error };
+          return {
+            conversations: (data ?? []).map((c: { id: string | number }) => ({
+              id: String(c.id),
+              participants: [],
+              name: `Channel ${c.id}`,
+              avatar_url: null,
+              lastMessage: null,
+              timestamp: null,
+              unread: 0,
+            })),
+          };
     } else {
       const { data, error } = await supabase.from('channels').select('id, created_by');
       if (error) return { conversations: [], error };
@@ -45,15 +55,25 @@ export async function getConversations(userId?: string): Promise<{ conversations
   }
 }
 
-export async function getMessages(conversationId: string) {
+export interface RawMessage {
+  id: string;
+  channel_id: string;
+  user_id: string;
+  content?: string | null;
+  attachments?: Array<{ path?: string; url?: string; name?: string; mimeType?: string }> | null;
+  metadata?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export async function getMessages(conversationId: string): Promise<RawMessage[]> {
   try {
     const { data, error } = await supabase
       .from('messages')
       .select('*')
       .eq('channel_id', conversationId)
       .order('created_at', { ascending: true });
-    if (error) throw error;
-    return (data ?? []).map((d: any) => ({ ...d, attachments: d.attachments ?? [] }));
+  if (error) throw error;
+  return (data ?? []).map((d: RawMessage) => ({ ...d, attachments: d.attachments ?? [] }));
   } catch (err) {
     console.error('chatService.getMessages error', err);
     throw err;
@@ -77,8 +97,8 @@ export async function uploadAttachment(file: { uri: string; name?: string; mimeT
     if (error) throw error;
 
     // getPublicUrl returns { data: { publicUrl } } synchronously
-    const publicRes: any = supabase.storage.from(bucket).getPublicUrl(remotePath);
-    let url = publicRes?.data?.publicUrl ?? null;
+  const publicRes = supabase.storage.from(bucket).getPublicUrl(remotePath);
+  let url = (publicRes as any)?.data?.publicUrl ?? null;
 
     if (!url) {
       const { data: signed, error: signErr } = await supabase.storage.from(bucket).createSignedUrl(remotePath, 60 * 60 * 24);
@@ -110,7 +130,7 @@ export async function sendMessage({
   metadata?: Record<string, any>;
 }) {
   try {
-    const uploaded: any[] = [];
+  const uploaded: Array<{ path?: string; url?: string; name?: string; mimeType?: string }> = [];
     for (const att of attachments) {
       try {
         const u = await uploadAttachment(att);
@@ -119,7 +139,7 @@ export async function sendMessage({
         console.warn('attachment upload failed for', att.name, err);
       }
     }
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       channel_id: conversationId,
       user_id: senderId,
       content: text ?? null,

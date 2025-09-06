@@ -1,9 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 
+type ReportItem = { name: string; balance: number };
+type BalanceSheetData = {
+  assets?: ReportItem[];
+  liabilities?: ReportItem[];
+  equity?: ReportItem[];
+  totalAssets?: number;
+  totalLiabilities?: number;
+  totalEquity?: number;
+};
+
 interface BalanceSheetProps {
-  data: any; // This should be more specific based on the actual data structure
+  data: BalanceSheetData | null;
 }
 
 const BalanceSheet: React.FC<BalanceSheetProps> = ({ data }) => {
@@ -19,7 +29,7 @@ const BalanceSheet: React.FC<BalanceSheetProps> = ({ data }) => {
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Assets</Text>
-        {data.assets?.map((item: any) => (
+  {data.assets?.map((item: ReportItem) => (
           <View key={item.name} style={styles.row}>
             <Text style={[styles.itemText, { color: colors.text }]}>{item.name}</Text>
             <Text style={[styles.itemValue, { color: colors.text }]}>{item.balance.toFixed(2)}</Text>
@@ -33,7 +43,7 @@ const BalanceSheet: React.FC<BalanceSheetProps> = ({ data }) => {
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Liabilities</Text>
-        {data.liabilities?.map((item: any) => (
+  {data.liabilities?.map((item: ReportItem) => (
           <View key={item.name} style={styles.row}>
             <Text style={[styles.itemText, { color: colors.text }]}>{item.name}</Text>
             <Text style={[styles.itemValue, { color: colors.text }]}>{item.balance.toFixed(2)}</Text>
@@ -47,7 +57,7 @@ const BalanceSheet: React.FC<BalanceSheetProps> = ({ data }) => {
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Equity</Text>
-        {data.equity?.map((item: any) => (
+  {data.equity?.map((item: ReportItem) => (
           <View key={item.name} style={styles.row}>
             <Text style={[styles.itemText, { color: colors.text }]}>{item.name}</Text>
             <Text style={[styles.itemValue, { color: colors.text }]}>{item.balance.toFixed(2)}</Text>
@@ -61,7 +71,7 @@ const BalanceSheet: React.FC<BalanceSheetProps> = ({ data }) => {
 
       <View style={[styles.finalTotalRow, { borderTopColor: colors.border }]}>
         <Text style={[styles.finalTotalText, { color: colors.text }]}>Liabilities & Equity</Text>
-        <Text style={[styles.finalTotalValue, { color: colors.text }]}>{(data.totalLiabilities + data.totalEquity)?.toFixed(2)}</Text>
+  <Text style={[styles.finalTotalValue, { color: colors.text }]}>{((data.totalLiabilities || 0) + (data.totalEquity || 0)).toFixed(2)}</Text>
       </View>
     </View>
   );
@@ -72,11 +82,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     marginVertical: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+      },
+    }),
   },
   title: {
     fontSize: 22,

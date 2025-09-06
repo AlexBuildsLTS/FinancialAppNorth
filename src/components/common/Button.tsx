@@ -15,8 +15,8 @@ interface ButtonProps {
   size?: ButtonSize;
   isLoading?: boolean;
   disabled?: boolean;
-  icon?: LucideIcon;
-  style?: ViewStyle;
+  icon?: React.ComponentType<{ color?: string; size?: number; style?: Record<string, unknown> | undefined }> | undefined;
+  style?: ViewStyle | undefined;
 }
 
 export const Button = ({ title, onPress, variant = 'solid', size = 'medium', isLoading = false, disabled = false, icon: Icon, style }: ButtonProps) => {
@@ -34,7 +34,7 @@ export const Button = ({ title, onPress, variant = 'solid', size = 'medium', isL
   };
 
   const getTextStyles = () => {
-    const base: any = { ...styles.textBase, ...styles[`text_${size}`] };
+  const base: Record<string, unknown> = { ...styles.textBase, ...styles[`text_${size}`] } as Record<string, unknown>;
     switch (variant) {
       case 'outline': return { ...base, color: colors.primary };
       case 'ghost': return { ...base, color: colors.textSecondary };

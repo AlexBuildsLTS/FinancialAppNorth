@@ -1,17 +1,15 @@
-// src/components/dashboard/LineChart.tsx
-
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { LineChart as GiftedLineChart, lineDataItem } from 'react-native-gifted-charts';
 import { useTheme } from '@/context/ThemeProvider';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { LineChart as GiftedLineChart, lineDataItem } from 'react-native-gifted-charts';
 
 interface ChartProps {
   title: string;
   data: Array<lineDataItem>;
 }
 
-const LineChart = ({ title, data }: ChartProps) => {
-  const { colors, isDark } = useTheme();
+const LineChart: React.FC<ChartProps> = ({ title, data }) => {
+  const { colors } = useTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -22,8 +20,8 @@ const LineChart = ({ title, data }: ChartProps) => {
         animationDuration={1200}
         color={colors.primary}
         thickness={3}
-        yAxisTextStyle={{ color: colors.textSecondary }}
-        xAxisLabelTextStyle={{ color: colors.textSecondary }}
+        yAxisTextStyle={{ color: colors.textSecondary, fontFamily: 'Inter_400Regular' }}
+        xAxisLabelTextStyle={{ color: colors.textSecondary, fontFamily: 'Inter_400Regular' }}
         rulesColor={colors.border}
         dataPointsColor={colors.primary}
         pointerConfig={{
@@ -37,10 +35,11 @@ const LineChart = ({ title, data }: ChartProps) => {
           activatePointersOnLongPress: true,
           autoAdjustPointerLabelPosition: true,
           pointerLabelComponent: (items: lineDataItem[]) => {
+            if (!items[0]) return null;
             return (
               <View style={[styles.tooltip, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                <Text style={{ color: colors.text, fontWeight: 'bold' }}>{items[0].label}</Text>
-                <Text style={{ color: colors.primary }}> 
+                <Text style={[styles.tooltipLabel, { color: colors.text }]}>{items[0].label}</Text>
+                <Text style={[styles.tooltipValue, { color: colors.primary }]}> 
                   Value: {items[0].value?.toLocaleString()}
                 </Text>
               </View>
@@ -61,7 +60,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Inter_600SemiBold',
     marginBottom: 20,
   },
   tooltip: {
@@ -69,6 +68,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
   },
+  tooltipLabel: {
+    fontFamily: 'Inter_600SemiBold'
+  },
+  tooltipValue: {
+    fontFamily: 'Inter_400Regular',
+    marginTop: 4,
+  }
 });
 
-export default LineChart;
+export default React.memo(LineChart);

@@ -7,17 +7,18 @@ import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types';
 
 export default function AdminStackLayout() {
-  const { colors } = useTheme();
-  const { profile, isAuthenticated, isLoading } = useAuth();
+  useTheme();
+  const { profile, isLoading } = useAuth();
 
   if (isLoading) return null; // let the parent layout show a loader
 
-  if (!isAuthenticated || !profile) {
+  if (!profile) {
     return <Redirect href="/login" />;
   }
 
   if (profile.role !== UserRole.ADMIN) {
     // non-admins should not land here
+    //non admins or any other role ONLY ADMINS CAN SEE THE TAB TO ACCCES IT ALSO!
     return <Redirect href="/(tabs)" />;
   }
 

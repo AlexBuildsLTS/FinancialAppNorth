@@ -9,7 +9,7 @@ interface PasswordStrengthInfo {
   color: string;
 }
 
-const getPasswordStrength = (password: string, colors: any): PasswordStrengthInfo => {
+const getPasswordStrength = (password: string, colors: Record<string, string>): PasswordStrengthInfo => {
     if (!password) return { strength: 'empty', score: 0, color: colors.textSecondary };
     let score = 0;
     if (password.length >= 8) score++;

@@ -1,33 +1,25 @@
-import React, { ReactNode } from 'react';
-import { View, StyleSheet, SafeAreaView, StatusBar, ViewStyle } from 'react-native';
+import React from 'react';
+import { View, StyleSheet, ViewStyle } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeProvider';
 
 interface ScreenContainerProps {
-  children: ReactNode;
+  children: React.ReactNode;
   style?: ViewStyle;
 }
 
-const ScreenContainer = ({ children, style }: ScreenContainerProps) => {
-  const { colors, isDark } = useTheme();
+export default function ScreenContainer({ children, style }: ScreenContainerProps) {
+  const { colors } = useTheme();
 
   return (
-    // SafeAreaView is essential for handling notches and system UI elements
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <View style={[styles.container, style]}>
-        {children}
-      </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }, style]}>
+      {children}
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
 });
-
-export default ScreenContainer;

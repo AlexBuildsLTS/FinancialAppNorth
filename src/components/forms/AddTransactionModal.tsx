@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useTheme } from '@/context/ThemeProvider';
 import { useAuth } from '@/context/AuthContext'; // Import useAuth
-import { addTransaction } from '@/services/transactionService'; // Change to addTransaction
+import { transactionService } from '@/services/transactionService';
 import { Transaction } from '@/types';
 import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
@@ -60,17 +60,18 @@ export default function AddTransactionModal({
         amount: numericAmount,
         category,
         type,
-        client_id: clientId || '',
+        client_id: clientId ?? null,
         account_id: '',
         tags: [],
-        location: '',
-        date: ''
+        location: null,
+        date: new Date().toISOString(),
       };
 
-      const addedTransaction = await addTransaction({ // Change to addTransaction
-        ...newTransactionData, // Add user_id
+      const addedTransaction = await transactionService.addTransaction({
+        ...newTransactionData,
         user_id: session.user.id,
-        transaction_date: new Date().toISOString(), // Current date and time
+        transaction_date: new Date().toISOString(),
+        status: 'cleared',
       });
       
       Alert.alert('Success', 'Transaction added successfully.');
