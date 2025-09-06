@@ -1,4 +1,4 @@
-# NorthFinance: Professional Financial Management
+# NorthFinance: Profesional Financial Management
 
 NorthFinance is a sleek, modern, and feature-rich financial application designed for both personal finance management and professional accounting. Built with **React Native** and **Expo**, it delivers a powerful, cross-platform experience on Android, iOS, and the web. Our target users range from individuals and freelancers to small businesses and the accounting professionals who serve them.
 
