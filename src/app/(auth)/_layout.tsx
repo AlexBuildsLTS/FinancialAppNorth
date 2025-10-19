@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { Stack } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/shared/context/AuthContext';
 import { View, StyleSheet } from 'react-native';
-import ScreenContainer from '@/components/ScreenContainer';
-import AnimatedThemeIcon from '@/components/common/AnimatedThemeIcon';
+import ScreenContainer from '@/shared/components/ScreenContainer';
+import AnimatedThemeIcon from '@/shared/components/AnimatedThemeIcon';
 
 export default function AuthLayout() {
   const { isLoading } = useAuth();

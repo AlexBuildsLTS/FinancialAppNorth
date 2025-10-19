@@ -185,6 +185,32 @@ BEGIN
 END;
 $$;
 
+-- Function to get a summary of income and expenses for the current month.
+CREATE OR REPLACE FUNCTION public.get_monthly_income_summary()
+RETURNS TABLE(total_income NUMERIC, total_expense NUMERIC, net_income NUMERIC)
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_start_date DATE;
+  v_end_date DATE;
+BEGIN
+  v_start_date := date_trunc('month', NOW())::DATE;
+  v_end_date := (date_trunc('month', NOW()) + interval '1 month - 1 day')::DATE;
+
+  RETURN QUERY
+  SELECT
+    COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS total_income,
+    COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS total_expense,
+    COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) AS net_income
+  FROM
+    public.transactions
+  WHERE
+    user_id = auth.uid() AND
+    transaction_date BETWEEN v_start_date AND v_end_date;
+END;
+$$;
+
 
 ----------------------------------------------------------------
 -- PART 5: ROW-LEVEL SECURITY (RLS)
@@ -208,23 +234,27 @@ CREATE POLICY "Users can view their own profile." ON public.profiles FOR SELECT 
 CREATE POLICY "Users can update their own profile." ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 -- ** ACCOUNTS, CATEGORIES, TRANSACTIONS, DOCUMENTS POLICIES **
-CREATE POLICY "Users can manage their own financial data." ON public.accounts FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users can manage their own financial data." ON public.categories FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users can manage their own financial data." ON public.transactions FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users can manage their own financial data." ON public.documents FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own data; admins manage all." ON public.accounts FOR ALL USING ((auth.uid() = user_id) OR (get_my_role() = 'admin'));
+CREATE POLICY "Users can manage their own data; admins manage all." ON public.categories FOR ALL USING ((auth.uid() = user_id) OR (get_my_role() = 'admin'));
+CREATE POLICY "Users can manage their own data; admins manage all." ON public.transactions FOR ALL USING ((auth.uid() = user_id) OR (get_my_role() = 'admin'));
+CREATE POLICY "Users can manage their own data; admins manage all." ON public.documents FOR ALL USING ((auth.uid() = user_id) OR (get_my_role() = 'admin'));
 
--- ** CPA "READ-ONLY" POLICIES FOR CLIENT DATA **
-CREATE POLICY "Assigned CPAs can view client data." ON public.accounts FOR SELECT USING (
-  EXISTS (SELECT 1 FROM cpa_client_assignments WHERE client_user_id = public.accounts.user_id AND cpa_user_id = auth.uid() AND status = 'active')
+-- ** CPA & SUPPORT "READ-ONLY" POLICIES FOR CLIENT DATA **
+CREATE POLICY "Support and assigned CPAs can view client data." ON public.accounts FOR SELECT USING (
+  (get_my_role() = 'support') OR
+  (EXISTS (SELECT 1 FROM cpa_client_assignments WHERE client_user_id = public.accounts.user_id AND cpa_user_id = auth.uid() AND status = 'active'))
 );
-CREATE POLICY "Assigned CPAs can view client data." ON public.categories FOR SELECT USING (
-  EXISTS (SELECT 1 FROM cpa_client_assignments WHERE client_user_id = public.categories.user_id AND cpa_user_id = auth.uid() AND status = 'active')
+CREATE POLICY "Support and assigned CPAs can view client data." ON public.categories FOR SELECT USING (
+  (get_my_role() = 'support') OR
+  (EXISTS (SELECT 1 FROM cpa_client_assignments WHERE client_user_id = public.categories.user_id AND cpa_user_id = auth.uid() AND status = 'active'))
 );
-CREATE POLICY "Assigned CPAs can view client data." ON public.transactions FOR SELECT USING (
-  EXISTS (SELECT 1 FROM cpa_client_assignments WHERE client_user_id = public.transactions.user_id AND cpa_user_id = auth.uid() AND status = 'active')
+CREATE POLICY "Support and assigned CPAs can view client data." ON public.transactions FOR SELECT USING (
+  (get_my_role() = 'support') OR
+  (EXISTS (SELECT 1 FROM cpa_client_assignments WHERE client_user_id = public.transactions.user_id AND cpa_user_id = auth.uid() AND status = 'active'))
 );
-CREATE POLICY "Assigned CPAs can view client data." ON public.documents FOR SELECT USING (
-  EXISTS (SELECT 1 FROM cpa_client_assignments WHERE client_user_id = public.documents.user_id AND cpa_user_id = auth.uid() AND status = 'active')
+CREATE POLICY "Support and assigned CPAs can view client data." ON public.documents FOR SELECT USING (
+  (get_my_role() = 'support') OR
+  (EXISTS (SELECT 1 FROM cpa_client_assignments WHERE client_user_id = public.documents.user_id AND cpa_user_id = auth.uid() AND status = 'active'))
 );
 
 -- ** USER SECRETS POLICY (CRITICAL) **

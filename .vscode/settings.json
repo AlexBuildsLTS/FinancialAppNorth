@@ -1,11 +1,9 @@
 {
   "[typescript]": {
-    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "deno.enable": true,
-  "deno.enablePaths": [
-    "supabase/functions"
-  ],
+  "deno.enablePaths": ["supabase/functions"],
   "deno.lint": true,
   "deno.unstable": [
     "bare-node-builtins",
@@ -22,5 +20,6 @@
     "http",
     "net"
   ],
-  "jigx.isJigxUser": false
+  "jigx.isJigxUser": false,
+  "workbench.colorCustomizations": {}
 }

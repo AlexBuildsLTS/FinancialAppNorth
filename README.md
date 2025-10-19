@@ -13,6 +13,7 @@ Our vision is to create an intuitive and powerful financial management platform 
 The user experience is paramount, designed to be intelligent, responsive, and personalized to each user's specific needs and role.
 
 ### Visual Identity
+
 The application's aesthetic is clean, professional, and accessible, featuring two meticulously crafted visual themes with a seamless, animated toggle.
 
 * **Typography**: The entire interface utilizes the **Inter** font family, chosen for its exceptional legibility on screens of all sizes, ensuring a comfortable and clear reading experience during prolonged use.
@@ -20,17 +21,19 @@ The application's aesthetic is clean, professional, and accessible, featuring tw
 * **Dark Theme**: Perfect for low-light conditions. It features a deep navy blue (`#0A192F`) background and slightly lighter navy (`#172A45`) cards for subtle depth. A vibrant green (`#1DB954`) accent provides a modern, energetic contrast against the dark backdrop.
 
 ### Dynamic & Personalized UI
+
 The interface adapts to the user, providing immediate access to relevant tools and personal information.
 
 * **User Avatar & Profile Dropdown**: The header features the user's avatar as the primary entry point for account management.
-    * **Avatar Logic**: The component displays the user's uploaded `avatar_url`. If no image is present, it automatically generates a temporary avatar with the user's first and last initials (e.g., "JS" for John Smith) against a unique, programmatically generated background color that remains consistent for that user.
-    * **Dropdown Menu**: Clicking the avatar opens a role-aware dropdown menu with icons for quick navigation:
-        * `Edit Profile` (icon: `UserCog`)
-        * `Settings` (icon: `Settings`)
-        * `Sign Out` (icon: `LogOut`)
-        * `Ticket Management` (icon: `HandHelping`) - **This is an exclusive entry point visible only to `Support` and `Administrator` roles for managing the ticket system.**
+  * **Avatar Logic**: The component displays the user's uploaded `avatar_url`. If no image is present, it automatically generates a temporary avatar with the user's first and last initials (e.g., "JS" for John Smith) against a unique, programmatically generated background color that remains consistent for that user.
+  * **Dropdown Menu**: Clicking the avatar opens a role-aware dropdown menu with icons for quick navigation:
+    * `Edit Profile` (icon: `UserCog`)
+    * `Settings` (icon: `Settings`)
+    * `Sign Out` (icon: `LogOut`)
+    * `Ticket Management` (icon: `HandHelping`) - **This is an exclusive entry point visible only to `Support` and `Administrator` roles for managing the ticket system.**
 
 ### Interactive & Insightful Data Visualization
+
 Data is brought to life through a suite of modern, interactive, and smoothly animated charts, rendered with hardware acceleration for fluid performance.
 
 * **Chart Variety**: The dashboard provides a comprehensive financial overview using Ring & Donut Charts, Line Charts, Bar Charts, and advanced Heat Maps & Tree Maps.
@@ -41,6 +44,7 @@ Data is brought to life through a suite of modern, interactive, and smoothly ani
 ## Feature Suite
 
 ### For Personal Finance (Member & Premium)
+
 Core tools designed to empower individuals and small businesses to manage their finances effectively.
 
 * **Intelligent Document Scanning**: The `Scan` tab (`ScanEye` icon) transforms the device's camera into a powerful financial scanner. Using a cloud-based OCR service, it automatically extracts key information—vendor, date, total amount—from physical receipts and invoices, dramatically reducing manual data entry.
@@ -49,6 +53,7 @@ Core tools designed to empower individuals and small businesses to manage their 
 * **Bookkeeping & Reconciliation**: The foundation of the app. Users can accurately record all financial transactions following double-entry principles and manage multiple sets of books (e.g., separating personal and business finances).
 
 #### Premium Member Upgrades
+
 Subscribed `Premium` users unlock powerful enhancements within the existing interface, designed for those who need more control and insight.
 
 * **In-depth Analytics & Multi-year Forecasting**: The `Reports` tab is upgraded with advanced analytics tools, allowing users to compare financial data across multiple years and generate sophisticated forecast models.
@@ -58,6 +63,7 @@ Subscribed `Premium` users unlock powerful enhancements within the existing inte
 * **Scheduled Reporting**: Automate financial oversight by scheduling core reports (P&L, Balance Sheet) to be automatically generated and emailed on a recurring basis.
 
 ### For Professional Accounting (CPA)
+
 A dedicated suite of tools for accounting professionals, centered around client management.
 
 * **Client Management Dashboard**: The `Clients` tab (`UsersRound` icon) is the central hub for CPAs. It provides a comprehensive overview of all assigned clients, pending requests, and key client alerts.
@@ -65,17 +71,19 @@ A dedicated suite of tools for accounting professionals, centered around client 
 * **Brandable Reporting**: CPAs can generate professional reports for their clients that can be customized with the CPA's own firm logo and branding, enhancing their professional image.
 
 ### Universal Support Ticket System
+
 A comprehensive ticketing system is integrated to handle all user support requests, accessible to everyone via the main `Support` tab.
 
 * **User-Facing View**: The `Support` screen for non-staff users presents two clear options: **`Create New Ticket`** and **`View My Tickets`**. This allows users to easily submit new requests (with Topic and Description) and track the history and status of their existing tickets.
 * **Staff-Facing View**: For `Support` and `Administrator` roles, the `Support` tab transforms into a powerful management dashboard. It displays a master list of all tickets from all users, with robust filtering, sorting, and a private section for **Internal Notes** visible only to other staff members.
 
 ---
+
 ## Core User Experience
 
-The user experience is paramount, designed to be intelligent, responsive, and personalized to each user's specific needs and role.
-
+The user experience is paramount, designed to be intelligent, responsive, and personalized to each user's specific needs and role
 ### Visual Identity
+
 The application's aesthetic is clean, professional, and accessible, featuring two meticulously crafted visual themes with a seamless, animated toggle.
 
 * **Typography**: The entire interface utilizes the **Inter** font family, chosen for its exceptional legibility on screens of all sizes, ensuring a comfortable and clear reading experience during prolonged use.
@@ -83,17 +91,19 @@ The application's aesthetic is clean, professional, and accessible, featuring tw
 * **Dark Theme**: Perfect for low-light conditions. It features a deep navy blue (`#0A192F`) background and slightly lighter navy (`#172A45`) cards for subtle depth. A vibrant green (`#1DB954`) accent provides a modern, energetic contrast against the dark backdrop.
 
 ### Dynamic & Personalized UI
+
 The interface adapts to the user, providing immediate access to relevant tools and personal information.
 
 * **User Avatar & Profile Dropdown**: The header features the user's avatar as the primary entry point for account management.
-    * **Avatar Logic**: The component displays the user's uploaded `avatar_url`. If no image is present, it automatically generates a temporary avatar with the user's first and last initials (e.g., "JS" for John Smith) against a unique, programmatically generated background color that remains consistent for that user.
-    * **Dropdown Menu**: Clicking the avatar opens a role-aware dropdown menu with icons for quick navigation:
-        * `Edit Profile` (icon: `UserCog`)
-        * `Settings` (icon: `Settings`)
-        * `Sign Out` (icon: `LogOut`)
-        * `Ticket Management` (icon: `HandHelping`) - **This is an exclusive entry point visible only to `Support` and `Administrator` roles for managing the ticket system.**
+  * **Avatar Logic**: The component displays the user's uploaded `avatar_url`. If no image is present, it automatically generates a temporary avatar with the user's first and last initials (e.g., "JS" for John Smith) against a unique, programmatically generated background color that remains consistent for that user.
+  * **Dropdown Menu**: Clicking the avatar opens a role-aware dropdown menu with icons for quick navigation:
+    * `Edit Profile` (icon: `UserCog`)
+    * `Settings` (icon: `Settings`)
+    * `Sign Out` (icon: `LogOut`)
+    * `Ticket Management` (icon: `HandHelping`) - **This is an exclusive entry point visible only to `Support` and `Administrator` roles for managing the ticket system.**
 
 ### A Living Interface: The Philosophy of Animation
+
 Animations are a core component of the user experience, providing feedback, guiding focus, and creating a sense of quality.
 
 * **Component & Screen Transitions**: New screens slide in with native, physics-based transitions. Data-heavy screens first display shimmering skeleton loaders that precisely match the layout of the content, which then gracefully fade out as the real data fades in.
@@ -116,6 +126,7 @@ Security is not an afterthought; it is a foundational pillar of NorthFinance.
 ## Feature Suite
 
 ### For Personal Finance (Member & Premium)
+
 Core tools designed to empower individuals and small businesses to manage their finances effectively.
 
 * **Intelligent Document Scanning**: The `Scan` tab (`ScanEye` icon) transforms the device's camera into a powerful financial scanner. Using a cloud-based OCR service, it automatically extracts key information from physical receipts and invoices, dramatically reducing manual data entry.
@@ -125,6 +136,7 @@ Core tools designed to empower individuals and small businesses to manage their 
 * **Bookkeeping & Reconciliation**: The foundation of the app. Users can accurately record all financial transactions following double-entry principles and manage multiple sets of books (e.g., separating personal and business finances).
 
 #### Premium Member Upgrades
+
 Subscribed `Premium` users unlock powerful enhancements within the existing interface, designed for those who need more control and insight.
 
 * **In-depth Analytics & Multi-year Forecasting**: The `Reports` tab is upgraded with advanced analytics tools, allowing users to compare financial data across multiple years and generate sophisticated forecast models.
@@ -134,6 +146,7 @@ Subscribed `Premium` users unlock powerful enhancements within the existing inte
 * **Scheduled Reporting**: Automate financial oversight by scheduling core reports to be automatically generated and emailed on a recurring basis.
 
 ### For Professional Accounting (CPA)
+
 A dedicated suite of tools for accounting professionals, centered around client management.
 
 * **Client Management Dashboard**: The `Clients` (`UsersRound` icon) tab is the central hub for CPAs. It provides a comprehensive overview of all assigned clients, pending requests, and key client alerts.
@@ -141,12 +154,14 @@ A dedicated suite of tools for accounting professionals, centered around client 
 * **Brandable Reporting**: CPAs can generate professional reports for their clients that can be customized with the CPA's own firm logo and branding.
 
 ### Universal Support Ticket System
+
 A comprehensive ticketing system is integrated to handle all user support requests, accessible to everyone via the main `Support` tab.
 
 * **User-Facing View**: The `Support` screen for non-staff users presents two clear options: **`Create New Ticket`** and **`View My Tickets`**. This allows users to easily submit new requests (with Topic and Description) and track the history and status of their existing tickets.
 * **Staff-Facing View**: For `Support` and `Administrator` roles, the `Support` tab transforms into a powerful management dashboard, showing a master list of all tickets with filtering, status updates, and a private section for **Internal Notes**.
 
 ### Localization & Internationalization
+
 The application is designed for a global user base, with features that adapt to the user's region.
 
 * **Country & Currency Selection**: In `Settings`, users can select their country and preferred currency (initially supporting `SEK`, `EUR`, `GBP`).
@@ -191,17 +206,17 @@ The primary navigation is a dynamic bottom tab bar that adapts based on the user
 Connecting a user with an accounting professional is a secure and managed process with two distinct pathways:
 
 * **1. Administrator-Led Assignment**:
-    1.  An `Administrator` navigates to the User Management section in the `Admin Panel`.
-    2.  They select a `Member` or `Premium Member` user to edit.
-    3.  Using a searchable dropdown of all registered CPAs, they assign a professional to the user.
-    4.  The connection is established instantly.
+    1. An `Administrator` navigates to the User Management section in the `Admin Panel`.
+    2. They select a `Member` or `Premium Member` user to edit.
+    3. Using a searchable dropdown of all registered CPAs, they assign a professional to the user.
+    4. The connection is established instantly.
 
 * **2. User-Initiated Request**:
-    1.  A `Member` or `Premium Member` navigates to the "Find an Accountant" section in their `Settings`.
-    2.  They browse or search a public list of available CPAs.
-    3.  The user clicks "Request Connection," which sends a secure notification to the CPA.
-    4.  The request appears in the CPA's `Clients` dashboard as "Pending."
-    5.  The CPA can then review the request and **Accept** or **Decline** it. The user is notified of the outcome.
+    1. A `Member` or `Premium Member` navigates to the "Find an Accountant" section in their `Settings`.
+    2. They browse or search a public list of available CPAs.
+    3. The user clicks "Request Connection," which sends a secure notification to the CPA.
+    4. The request appears in the CPA's `Clients` dashboard as "Pending."
+    5. The CPA can then review the request and **Accept** or **Decline** it. The user is notified of the outcome.
 
 ---
 
@@ -215,10 +230,9 @@ Connecting a user with an accounting professional is a secure and managed proces
 
 ## Platform Notes
 
-- **Environment Variables**: For web builds, Expo uses the `extra` field in `app.config.js`. Ensure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and other keys are set in your environment before running.
-- **Secure Storage**: Mobile builds use `expo-secure-store` for hardware-backed security. Web falls back to `localStorage` for development convenience. Production-grade key storage on the web should consider server-backed solutions.
-- **Crypto Polyfill (React Native)**: For native builds, `window.crypto.subtle` is not available by default and requires polyfills like `react-native-get-random-values` and `react-native-quick-crypto`.
-
+* **Environment Variables**: For web builds, Expo uses the `extra` field in `app.config.js`. Ensure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and other keys are set in your environment before running.
+* **Secure Storage**: Mobile builds use `expo-secure-store` for hardware-backed security. Web falls back to `localStorage` for development convenience. Production-grade key storage on the web should consider server-backed solutions.
+* **Crypto Polyfill (React Native)**: For native builds, `window.crypto.subtle` is not available by default and requires polyfills like `react-native-get-random-values` and `react-native-quick-crypto`.
 
 ```
 FinanceNorthStarV5/
@@ -521,7 +535,9 @@ FinanceNorthStarV5/
 ├─ tsconfig.json
 └─ vercel.json
 ```
+
 ---
+
 ## Advanced Role-Based Access Control (RBAC)
 
 The application is built on a robust, role-based permission system. `Premium Member` is a direct upgrade for personal use, while `Professional (CPA)` is a distinct track for client management.
@@ -559,21 +575,20 @@ The primary navigation is a dynamic bottom tab bar that adapts based on the user
 Connecting a user with an accounting professional is a secure and managed process with two distinct pathways:
 
 * **1. Administrator-Led Assignment**:
-    1.  An `Administrator` navigates to the User Management section in the `Admin Panel`.
-    2.  They select a `Member` or `Premium Member` user to edit.
-    3.  Using a searchable dropdown of all registered CPAs, they assign a professional to the user.
-    4.  The connection is established instantly.
+    1. An `Administrator` navigates to the User Management section in the `Admin Panel`.
+    2. They select a `Member` or `Premium Member` user to edit.
+    3. Using a searchable dropdown of all registered CPAs, they assign a professional to the user.
+    4. The connection is established instantly.
 
 * **2. User-Initiated Request**:
-    1.  A `Member` or `Premium Member` navigates to the "Find an Accountant" section in their `Settings`.
-    2.  They browse or search a public list of available CPAs.
-    3.  The user clicks "Request Connection," which sends a secure notification to the CPA.
-    4.  The request appears in the CPA's `Clients` dashboard as "Pending."
-    5.  The CPA can then review the request and **Accept** or **Decline** it. The user is notified of the outcome.
+    1. A `Member` or `Premium Member` navigates to the "Find an Accountant" section in their `Settings`.
+    2. They browse or search a public list of available CPAs.
+    3. The user clicks "Request Connection," which sends a secure notification to the CPA.
+    4. The request appears in the CPA's `Clients` dashboard as "Pending."
+    5. The CPA can then review the request and **Accept** or **Decline** it. The user is notified of the outcome.
 
 ---
 
-## Technical Architecture
 
 * **Frontend**: React Native & Expo (SDK 53) with TypeScript. Navigation is handled by **Expo Router** for a file-based, native-like routing experience.
 * **Backend**: **Supabase** was chosen for its integrated suite of tools. We utilize its PostgreSQL database, Auth (with RLS), Realtime capabilities for live data synchronization, and Edge Functions for serverless logic.

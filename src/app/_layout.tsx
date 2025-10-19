@@ -1,82 +1,74 @@
 // src/app/_layout.tsx
-
 import React, { useEffect } from 'react';
-import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { ThemeProvider } from '@/context/ThemeProvider';
-import { ToastProvider } from '@/context/ToastProvider';
-import { Slot, SplashScreen, useRouter, useSegments } from 'expo-router';
+import { AuthProvider, useAuth } from '@/shared/context/AuthContext';
+import { ThemeProvider } from '@/shared/context/ThemeProvider';
+import { ToastProvider } from '@/shared/context/ToastProvider';
+import { Stack, SplashScreen } from 'expo-router';
 import { useFonts } from 'expo-font';
-import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
-import { View, ActivityIndicator } from 'react-native';
-import { UserRole } from '@/types';
-import { publishPublicJwkIfNeeded } from '@/lib/e2eeKeys';
-import { initDevErrorHandlers } from '@/lib/devErrors';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useTheme } from '@/shared/context/ThemeProvider';
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+});
 
+
+// Prevents the splash screen from hiding until we are ready.
 SplashScreen.preventAutoHideAsync();
-initDevErrorHandlers();
 
-// This is the new brain of your app's navigation.
-// It decides where a user should go based on their role.
+const queryClient = new QueryClient();
+
+// This component is the new, simple brain of your app.
 function RootNavigationController() {
-    const { profile, isLoading, isAuthenticated } = useAuth();
-    const segments = useSegments();
-    const router = useRouter();
+    const { session, isLoading } = useAuth();
 
+    // Load the single, efficient variable font file. All other font files are unnecessary.
     const [fontsLoaded, fontError] = useFonts({
-        Inter_400Regular,
-        Inter_600SemiBold,
-        Inter_700Bold,
+        'Inter': require('../assets/fonts/Inter-VariableFont_opsz,wght.ttf'),
     });
 
     useEffect(() => {
-        if (isLoading || !fontsLoaded) return;
-
-        SplashScreen.hideAsync();
-
-        const inAuthGroup = segments[0] === '(auth)';
-        const inApp = segments.length > 0 && !inAuthGroup;
-
-        if (isAuthenticated && profile) {
-            const userRole = profile.role;
-            const inTabsGroup = segments[0] === '(tabs)';
-            const inAdminGroup = segments[0] === 'admin';
-
-            // --- ADDED: publish public JWK to profile on first login/onboarding ---
-            // best-effort; does not block navigation
-            (async () => {
-              try {
-                await publishPublicJwkIfNeeded(profile.id);
-              } catch (e) {
-                console.warn('publishPublicJwkIfNeeded error', e);
-              }
-            })();
-
-            if (userRole === UserRole.ADMIN && !inAdminGroup) {
-                router.replace('/(tabs)/admin'); // admin default can point to admin user management
-            } else if (userRole !== UserRole.ADMIN && !inTabsGroup) {
-                router.replace('/(tabs)');
-            }
-        } else if (!isAuthenticated && inApp) {
-            router.replace('/login');
+        if (fontError) throw fontError;
+        // Hide the splash screen ONLY when fonts are loaded AND auth state is known.
+        if (fontsLoaded && !isLoading) {
+            SplashScreen.hideAsync();
         }
+    }, [fontsLoaded, isLoading, fontError]);
 
-    }, [isLoading, fontsLoaded, isAuthenticated, profile, segments]);
-
-    if (isLoading || !fontsLoaded) {
-        return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator /></View>;
+    // While loading, the splash screen remains visible. Return nothing.
+    if (!fontsLoaded || isLoading) {
+        return null;
     }
 
-    return <Slot />;
+    return (
+        <Stack screenOptions={{ headerShown: false }}>
+            {session && session.user ? (
+                // USER IS LOGGED IN: Show the main application.
+                <Stack.Screen name="(main)" />
+            ) : (
+                // USER IS LOGGED OUT: Show the authentication screens.
+                <Stack.Screen name="(auth)" />
+            )}
+            <Stack.Screen name="+not-found" />
+        </Stack>
+    );
 }
 
+// This is the root of your entire application. It wraps everything in the necessary providers.
 export default function RootLayout() {
     return (
-        <AuthProvider>
-            <ThemeProvider>
-                <ToastProvider>
-                    <RootNavigationController />
-                </ToastProvider>
-            </ThemeProvider>
-        </AuthProvider>
+        <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+                <ThemeProvider>
+                    <ToastProvider>
+                        <RootNavigationController />
+                    </ToastProvider>
+                </ThemeProvider>
+            </AuthProvider>
+        </QueryClientProvider>
     );
 }

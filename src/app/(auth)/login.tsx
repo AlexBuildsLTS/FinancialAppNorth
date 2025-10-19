@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Eye, EyeOff, LogIn, CheckSquare, Square } from 'lucide-react-native';
-import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeProvider';
-import { useToast } from '@/context/ToastProvider';
-import ScreenContainer from '@/components/ScreenContainer';
-import { Card, Button } from '@/components/common';
+import { useAuth } from '@/shared/context/AuthContext';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { useToast } from '@/shared/context/ToastProvider';
+import ScreenContainer from '@/shared/components/ScreenContainer';
+import { Card, Button } from '@/shared/components';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 

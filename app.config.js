@@ -10,7 +10,7 @@ module.exports = ({ config }) => {
       SUPABASE_URL: process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
       SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
       SUPABASE_FUNCTIONS_URL: process.env.SUPABASE_FUNCTIONS_URL ?? '',
-      ADMIN_API_KEY: process.env.ADMIN_API_KEY ?? '',
+      SUPABASE_ROLE_KEY: process.env.SUPABASE_ROLE_KEY ?? '',
     },
   };
 };
