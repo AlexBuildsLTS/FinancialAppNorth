@@ -1,23 +1,17 @@
+// src/shared/components/TabIcon.tsx
 import React from 'react';
-import { Platform } from 'react-native';
-import * as LucideIcons from 'lucide-react-native';
-import * as LucideReactIcons from 'lucide-react';
-import { SvgProps } from 'react-native-svg';
-
-// A helper function to convert kebab-case to PascalCase
-const toPascalCase = (str: string) => {
-  return str.replace(/(^\w|-\w)/g, (g) => g.replace(/-/, '').toUpperCase());
-};
+import { LucideIcon } from 'lucide-react-native';
 
 type TabIconProps = {
-  icon: React.ElementType;
-  color?: string;
-  size?: number;
-  focused?: boolean;
+  icon: LucideIcon;
+  color: string;
+  focused: boolean;
 };
 
-export default function TabIcon({ icon: Icon, color = '#000', size = 24, focused = false }: TabIconProps) {
+// This component is now simple and correct. It receives an Icon Component and renders it.
+export function TabIcon({ icon: Icon, color, focused }: TabIconProps) {
   if (!Icon) return null;
 
-  return <Icon color={color} size={size} />;
+  // Give the focused icon a slightly larger size for a subtle "pop" effect.
+  return <Icon color={color} size={focused ? 26 : 24} />;
 }

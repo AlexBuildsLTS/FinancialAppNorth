@@ -1,69 +1,72 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useColorScheme, Appearance } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { lightColors, darkColors } from '@/shared/theme/theme';
+// src/shared/context/ThemeProvider.tsx
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import { useColorScheme } from 'react-native';
+import { lightTheme, darkTheme, AppTheme } from '@/shared/theme/theme';
 
-const THEME_STORAGE_KEY = '@theme_preference';
-
-export interface ThemeContextType {
+interface ThemeContextType {
+  theme: AppTheme & { name: 'light' | 'dark' };
   isDark: boolean;
-  colors: typeof lightColors;
-  setColorScheme: (scheme: 'light' | 'dark' | 'system') => void;
+  toggleTheme: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+export const ThemeContext = createContext<ThemeContextType>({
+  theme: { ...lightTheme, name: 'light' },
+  isDark: false,
+  toggleTheme: () => {},
+});
 
-export const ThemeProvider = ({ children }: { children: ReactNode }) => {
+export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const systemScheme = useColorScheme();
   const [isDark, setIsDark] = useState(systemScheme === 'dark');
 
-  // Load theme from storage on initial app load
-  useEffect(() => {
-    const loadThemePreference = async () => {
-      try {
-        const storedScheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (storedScheme === 'dark' || storedScheme === 'light') {
-          setIsDark(storedScheme === 'dark');
-        } else {
-          // Default to system scheme if nothing is stored
-          setIsDark(systemScheme === 'dark');
-        }
-      } catch (e) {
-        console.error('Failed to load theme preference.', e);
-        setIsDark(systemScheme === 'dark');
-      }
+  useEffect(() => { setIsDark(systemScheme === 'dark'); }, [systemScheme]);
+
+    const toggleTheme = () => setIsDark(prev => !prev);
+
+  const theme = useMemo(() => {
+    const baseTheme = isDark ? darkTheme : lightTheme;
+
+    // Define fallback values for colors and spacing
+    const fallbackColors = {
+      primary: '#000',
+      accent: '#000', 
+      background: '#fff', 
+      surface: '#eee', 
+      text: '#000',
+      textPrimary: '#000', 
+      textSecondary: '#555', 
+      border: '#ccc', 
+      success: '#0f0', 
+      warning: '#ff0', 
+      error: '#f00', 
+      primaryContrast: '#fff',
+      surfaceContrast: '#000'
     };
+    const fallbackSpacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 40 };
 
-    loadThemePreference();
-  }, [systemScheme]);
-  
-  const setColorScheme = async (scheme: 'light' | 'dark' | 'system') => {
-    try {
-      if (scheme === 'system') {
-        setIsDark(systemScheme === 'dark');
-        await AsyncStorage.removeItem(THEME_STORAGE_KEY);
-      } else {
-        setIsDark(scheme === 'dark');
-        await AsyncStorage.setItem(THEME_STORAGE_KEY, scheme);
-      }
-    } catch (e) {
-        console.error('Failed to save theme preference.', e);
-    }
-  };
-  
-  const colors = isDark ? darkColors : lightColors;
+    // Ensure we have a valid theme object, defaulting to a structure with fallback colors/spacing if baseTheme is null/undefined.
+    // This ensures that 'currentTheme' will always have 'colors' and 'spacing' properties,
+    // even if baseTheme is null, undefined, or an empty object.
+    const currentTheme = baseTheme ?? { colors: fallbackColors, spacing: fallbackSpacing };
 
+    // Ensure colors and spacing are present, using fallback if they are missing from the current theme object.
+    // This handles cases where currentTheme might be an object like { name: 'light' } without colors/spacing.
+    const finalColors = currentTheme.colors ?? fallbackColors;
+    const finalSpacing = currentTheme.spacing ?? fallbackSpacing;
+
+    // Construct the final theme object, ensuring it conforms to the expected interface.
+    const constructedTheme: AppTheme & { name: 'light' | 'dark' } = {
+      colors: finalColors,
+      spacing: finalSpacing,
+      name: isDark ? 'dark' : 'light',
+    };
+    return constructedTheme;
+  }, [isDark]);
   return (
-    <ThemeContext.Provider value={{ isDark, colors, setColorScheme }}>
+    <ThemeContext.Provider value={{ theme, isDark, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
 };
 
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
-}
+export const useTheme = () => useContext(ThemeContext);

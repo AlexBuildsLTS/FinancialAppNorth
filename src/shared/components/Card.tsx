@@ -11,7 +11,7 @@ interface CardProps {
 }
 
 export const Card: React.FC<any> = ({ children, style, padding = 24 }: CardProps) => {
-  const { colors, isDark } = useTheme();
+  const { theme: { colors }, isDark } = useTheme();
 
   return (
     <View style={[
@@ -19,7 +19,6 @@ export const Card: React.FC<any> = ({ children, style, padding = 24 }: CardProps
       { 
         backgroundColor: colors.surface, 
         borderColor: colors.border,
-        shadowColor: isDark ? '#000' : '#555',
         padding: padding,
       },
       style

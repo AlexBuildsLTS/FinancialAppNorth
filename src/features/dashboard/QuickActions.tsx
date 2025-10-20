@@ -12,8 +12,8 @@ const actions = [
 ];
 
 const ActionButton = ({ action, onPress }: { action: typeof actions[0], onPress?: () => void }) => {
-    const { colors } = useTheme();
-
+    const { theme: { colors } } = useTheme();
+    
     return (
         <TouchableOpacity style={styles.actionContainer} onPress={onPress}>
             <View style={[styles.iconButton, { backgroundColor: action.color }]}>
@@ -25,10 +25,10 @@ const ActionButton = ({ action, onPress }: { action: typeof actions[0], onPress?
 }
 
 export default function QuickActions({ onAddTransaction }: { onAddTransaction: () => void }) {
-    const { colors } = useTheme();
+    const { theme: { colors } } = useTheme();
   return (
     <Card style={styles.container}>
-        <Text style={[styles.title, { color: colors.text }]}>Quick Actions</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Quick Actions</Text>
         <View style={styles.actionsGrid}>
             {actions.map((action) => (
                 <ActionButton 
@@ -71,10 +71,7 @@ const styles = StyleSheet.create({
         borderRadius: 34,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
         elevation: 5,
     },
     actionText: {

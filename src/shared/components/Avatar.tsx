@@ -9,7 +9,7 @@ interface AvatarProps {
 }
 
 export const Avatar: React.FC<{ url?: string | null; size?: number }> = ({ url, size = 40 }) => {
-  const { colors } = useTheme();
+  const { theme: { colors } } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -37,7 +37,7 @@ export const Avatar: React.FC<{ url?: string | null; size?: number }> = ({ url, 
       />
       {isLoading && (
         <View style={styles.loader}>
-          <ActivityIndicator color={colors.primary} />
+ <ActivityIndicator color={colors.accent} />
         </View>
       )}
     </View>

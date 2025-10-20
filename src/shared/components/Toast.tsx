@@ -1,9 +1,8 @@
 import React, { useEffect } from 'react';
 import { Text, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
-import { useTheme } from '@/shared/context/ThemeProvider';
 import { CheckCircle, AlertCircle, Info } from 'lucide-react-native';
-
+import { useTheme } from '@/shared/context/ThemeProvider';
 interface ToastProps {
   message: string;
   type: 'success' | 'error' | 'info';
@@ -11,7 +10,7 @@ interface ToastProps {
 }
 
 export default function Toast({ message, type, onHide }: ToastProps) {
-  const { colors } = useTheme();
+  const { theme: { colors } } = useTheme();
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(-20);
 
@@ -42,7 +41,7 @@ export default function Toast({ message, type, onHide }: ToastProps) {
       case 'error': return { backgroundColor: colors.error, icon: <AlertCircle color="white" size={20} /> };
       case 'info':
       default:
-        return { backgroundColor: colors.primary, icon: <Info color="white" size={20} /> };
+        return { backgroundColor: colors.accent, icon: <Info color="white" size={20} /> };
     }
   };
 
@@ -63,10 +62,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
     elevation: 5,
     marginBottom: 10,
     gap: 12,

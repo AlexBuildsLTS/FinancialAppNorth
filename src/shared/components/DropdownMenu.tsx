@@ -4,15 +4,15 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, Platform, Modal } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useTheme } from '@/shared/context/ThemeProvider';
-
 type DropdownMenuProps = {
   trigger: React.ReactNode;
   children: React.ReactNode;
 };
 
-export const DropdownMenu = ({ trigger, children }: DropdownMenuProps) => {
-  const { colors } = useTheme();
-  const [isOpen, setIsOpen] = useState(false);
+export const DropdownMenu = ({ trigger, children }: DropdownMenuProps) => { 
+  const { theme: { colors } } = useTheme();  
+  
+    const [isOpen, setIsOpen] = useState(false);    
 
   const toggleMenu = () => {
     setIsOpen(prev => !prev);

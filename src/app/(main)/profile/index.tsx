@@ -8,8 +8,7 @@ import { ChevronRight, LogOut, Shield, KeyRound, Palette, User, Users, Star, Bri
 import { Link } from 'expo-router';
 import { UserRoleDisplayNames } from '@/shared/types';
 
-const ProfileOption = ({ href, text, Icon, isLast = false }: { href: any; text: string; Icon: React.ElementType; isLast?: boolean }) => {
-    const { colors } = useTheme();
+const ProfileOption = ({ href, text, Icon, isLast = false, colors }: { href: any; text: string; Icon: React.ElementType; isLast?: boolean, colors: any }) => {
     return (
         <Link href={href} asChild>
             <Pressable>
@@ -34,7 +33,8 @@ const roleMeta: Record<string, { Icon: React.ElementType; color: string; label: 
 };
 
 export default function ProfileScreen() {
-    const { colors } = useTheme();
+    const { theme } = useTheme();
+    const { colors } = theme;
     const { profile, signOut } = useAuth();
 
     if (!profile) {
@@ -64,9 +64,9 @@ export default function ProfileScreen() {
                     </View>
 
                     <View style={[styles.optionsContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <ProfileOption href="/(tabs)/profile/edit" text="Edit Profile" Icon={Palette} />
-                        <ProfileOption href="/(tabs)/profile/security" text="Security" Icon={Shield} />
-                        <ProfileOption href="/(tabs)/profile/api-keys" text="API Keys" Icon={KeyRound} isLast={true} />
+                        <ProfileOption href="/(tabs)/profile/edit" text="Edit Profile" Icon={Palette} colors={colors} />
+                        <ProfileOption href="/(tabs)/profile/security" text="Security" Icon={Shield} colors={colors} />
+                        <ProfileOption href="/(tabs)/profile/api-keys" text="API Keys" Icon={KeyRound} isLast={true} colors={colors} />
                     </View>
 
                     <Pressable onPress={signOut}>

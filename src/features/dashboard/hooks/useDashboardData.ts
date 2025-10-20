@@ -55,9 +55,9 @@ export const useDashboardData = () => {
       ]);
 
       // --- Process results ---
-      const totalBalance = totalBalanceResult.data?.reduce((sum, acc) => sum + acc.balance, 0) || 0;
-      const monthlyIncome = monthlyIncomeResult.data?.reduce((sum, t) => sum + t.amount, 0) || 0;
-      const monthlyExpenses = monthlyExpensesResult.data?.reduce((sum, t) => sum + t.amount, 0) || 0;
+      const totalBalance = totalBalanceResult.data?.reduce((sum: number, acc: { balance: number }) => sum + acc.balance, 0) || 0;
+      const monthlyIncome = monthlyIncomeResult.data?.reduce((sum: number, t: { amount: number }) => sum + t.amount, 0) || 0;
+      const monthlyExpenses = monthlyExpensesResult.data?.reduce((sum: number, t: { amount: number }) => sum + t.amount, 0) || 0;
       const recentTransactions = (recentTransactionsResult.data as Transaction[]) || [];
       
       const formattedChartData = chartDataResult.data?.map((d: { month: string; total: number }) => ({

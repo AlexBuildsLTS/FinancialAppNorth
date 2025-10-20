@@ -3,12 +3,12 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useAuth } from '@/shared/context/AuthContext';
-import { getMonthlyCashFlow, ChartDataPoint } from '@/shared/services/analyticsService';
+import { getMonthlyCashFlow, ChartDataPoint } from '@/features/dashboard/services/analyticsService';
 import { Card } from '@/shared/components';
 import { BarChart3 } from 'lucide-react-native';
 
 export default function ChartSection({ userId }: { userId?: string }) {
-    const { colors, isDark } = useTheme();
+    const { theme: { colors }, isDark } = useTheme();
     const { session } = useAuth();
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [loading, setLoading] = useState(true);
@@ -24,13 +24,13 @@ export default function ChartSection({ userId }: { userId?: string }) {
         }
     }, [session, userId]);
 
-    const chartColor = isDark ? colors.primary : colors.secondary;
+    const chartColor = isDark ? colors.accent : colors.accent;
 
     return (
         <Card style={styles.container}>
             <View style={styles.header}>
                 <BarChart3 color={colors.textSecondary} size={22} />
-                <Text style={[styles.title, { color: colors.text }]}>Cash Flow Analysis</Text>
+                <Text style={[styles.title, { color: colors.textPrimary }]}>Cash Flow Analysis</Text>
             </View>
             {loading ? (
                 <View style={styles.placeholder}>
@@ -44,7 +44,7 @@ export default function ChartSection({ userId }: { userId?: string }) {
                     initialSpacing={15}
                     endSpacing={15}
                     color1={chartColor}
-                    textColor1={colors.text}
+                    textColor1={colors.textPrimary}
                     textShiftY={-8}
                     textShiftX={-10}
                     textFontSize={13}

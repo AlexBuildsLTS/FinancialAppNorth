@@ -9,7 +9,8 @@ import { router } from 'expo-router';
 import { supabase } from '@/shared/lib/supabase';
 
 export default function EditProfileScreen() {
-    const { colors } = useTheme();
+    const { theme } = useTheme();
+    const { colors } = theme;
     const { profile, updateProfile } = useAuth();
     const [displayName, setDisplayName] = useState('');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);

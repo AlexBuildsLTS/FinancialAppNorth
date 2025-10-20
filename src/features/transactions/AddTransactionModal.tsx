@@ -27,8 +27,8 @@ export default function AddTransactionModal({
   onClose,
   onSuccess,
   clientId,
-}: AddTransactionModalProps) {
-  const { colors } = useTheme();
+}: AddTransactionModalProps) { 
+  const { theme: { colors } } = useTheme();
   const { session } = useAuth(); // Use the useAuth hook
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -37,8 +37,8 @@ export default function AddTransactionModal({
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!title || !amount || !category) {
-      Alert.alert('Error', 'Please fill out all fields.');
+    if (!title || !amount) { // Category is no longer required here as we can't handle it
+      Alert.alert('Error', 'Please fill out title and amount.');
       return;
     }
     const numericAmount = parseFloat(amount);
@@ -55,23 +55,19 @@ export default function AddTransactionModal({
         return;
       }
 
-      const newTransactionData: Omit<Transaction, 'id' | 'created_at' | 'status' | 'user_id' | 'transaction_date'> = {
+      // TODO: This modal needs a way to select an account and a category.
+      // account_id is a required foreign key.
+      // category_id is optional, but the UI has a text input for category name.
+      const newTransactionData = {
         description: title,
         amount: numericAmount,
-        category,
         type,
-        client_id: clientId || '',
-        account_id: '',
-        tags: [],
-        location: '',
-        date: ''
+        account_id: '', // FIXME: This needs to be a valid account ID.
+        user_id: session.user.id,
+        transaction_date: new Date().toISOString(),
       };
 
-      const addedTransaction = await addTransaction({ // Change to addTransaction
-        ...newTransactionData, // Add user_id
-        user_id: session.user.id,
-        transaction_date: new Date().toISOString(), // Current date and time
-      });
+      const addedTransaction = await addTransaction(newTransactionData as any);
       
       Alert.alert('Success', 'Transaction added successfully.');
       onSuccess(addedTransaction); // Pass the new transaction to the callback
@@ -93,28 +89,28 @@ export default function AddTransactionModal({
       <View style={styles.container}>
         <View style={styles.typeSelector}>
           <TouchableOpacity
-            style={[styles.typeButton, type === 'expense' && styles.activeTypeButton, { backgroundColor: type === 'expense' ? colors.primary : colors.surface }]}
+            style={[styles.typeButton, type === 'expense' && styles.activeTypeButton, { backgroundColor: type === 'expense' ? colors.accent : colors.surface }]}
             onPress={() => setType('expense')}
           >
-            <Text style={[styles.typeButtonText, { color: type === 'expense' ? 'white' : colors.text }]}>Expense</Text>
+            <Text style={[styles.typeButtonText, { color: type === 'expense' ? 'white' : colors.textPrimary }]}>Expense</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.typeButton, type === 'income' && styles.activeTypeButton, { backgroundColor: type === 'income' ? colors.success : colors.surface }]}
             onPress={() => setType('income')}
           >
-            <Text style={[styles.typeButtonText, { color: type === 'income' ? 'white' : colors.text }]}>Income</Text>
+            <Text style={[styles.typeButtonText, { color: type === 'income' ? 'white' : colors.textPrimary }]}>Income</Text>
           </TouchableOpacity>
         </View>
 
         <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
           placeholder="Title (e.g., Groceries)"
           placeholderTextColor={colors.textSecondary}
           value={title}
           onChangeText={setTitle}
         />
         <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
           placeholder="Amount"
           placeholderTextColor={colors.textSecondary}
           value={amount}
@@ -122,7 +118,7 @@ export default function AddTransactionModal({
           keyboardType="numeric"
         />
         <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
           placeholder="Category (e.g., Food)"
           placeholderTextColor={colors.textSecondary}
           value={category}

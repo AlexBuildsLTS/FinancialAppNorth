@@ -36,7 +36,8 @@ const TransactionListItem = ({ item, colors }: { item: Transaction, colors: any 
 };
 
 export default function TransactionsScreen() {
-    const { colors } = useTheme();
+    const { theme } = useTheme();
+    const { colors } = theme;
     const { transactions } = useTransactions();
     const [searchQuery, setSearchQuery] = useState('');
 

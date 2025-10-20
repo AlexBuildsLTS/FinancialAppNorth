@@ -11,7 +11,7 @@ interface MetricsGridProps {
 }
 
 const MetricCard = ({ title, value, change, Icon, changeType }: DashboardMetricItem) => {
-    const { colors } = useTheme();
+    const { theme: { colors } } = useTheme();
     const isPositive = changeType === 'positive';
     const changeColor = isPositive ? colors.success : colors.error;
 
@@ -21,7 +21,7 @@ const MetricCard = ({ title, value, change, Icon, changeType }: DashboardMetricI
                 <Text style={[styles.metricTitle, { color: colors.textSecondary }]}>{title}</Text>
                 <Icon color={colors.textSecondary} size={22} />
             </View>
-            <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
+            <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{value}</Text>
             {change !== undefined && ( // Conditionally render change text
                 <Text style={[styles.metricChange, { color: changeColor }]}>
                     {isPositive ? '▲' : '▼'} {change.toFixed(1)}% from last month

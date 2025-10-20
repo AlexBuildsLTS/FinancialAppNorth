@@ -12,7 +12,7 @@ import { Button, Card } from '@/shared/components';
 import PasswordStrengthIndicator from '@/shared/components/PasswordStrengthIndicator';
 
 const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => {
-    const { colors } = useTheme();
+    const { theme: { colors } } = useTheme();
     const Icon = met ? CheckCircle2 : Circle;
     const color = met ? colors.success : colors.textSecondary;
     return (
@@ -38,7 +38,7 @@ export default function RegisterScreen() {
 
     const router = useRouter();
     const { signUp } = useAuth();
-    const { colors } = useTheme();
+    const { theme: { colors } } = useTheme();
     const { showToast } = useToast();
 
     useEffect(() => {
@@ -77,22 +77,22 @@ export default function RegisterScreen() {
             <View style={styles.contentContainer}>
                 <Card>
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                        <UserPlus color={colors.primary} size={40} style={styles.headerIcon} />
-                        <Text style={[styles.title, { color: colors.text }]}>Create an Account</Text>
+                        <UserPlus color={colors.accent} size={40} style={styles.headerIcon} />
+                        <Text style={[styles.title, { color: colors.textPrimary }]}>Create an Account</Text>    
 
-                        <TextInput style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]} placeholder="Display Name (Optional)" placeholderTextColor={colors.textSecondary} value={displayName} onChangeText={setDisplayName} />
-                        <TextInput style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: emailError ? colors.error : colors.border }]} placeholder="Email" placeholderTextColor={colors.textSecondary} value={email} onChangeText={(t) => { setEmail(t); setEmailError(''); }} keyboardType="email-address" autoCapitalize="none" />
+                        <TextInput style={[styles.input, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]} placeholder="Display Name (Optional)" placeholderTextColor={colors.textSecondary} value={displayName} onChangeText={setDisplayName} />
+                        <TextInput style={[styles.input, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: emailError ? colors.error : colors.border }]} placeholder="Email" placeholderTextColor={colors.textSecondary} value={email} onChangeText={(t) => { setEmail(t); setEmailError(''); }} keyboardType="email-address" autoCapitalize="none" />
                         {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
                         
                         <View style={styles.passwordContainer}>
-                            <TextInput style={[styles.input, { flex: 1, marginBottom: 0, backgroundColor: colors.background, color: colors.text, borderColor: passwordError ? colors.error : colors.border }]} placeholder="Password" placeholderTextColor={colors.textSecondary} value={password} onChangeText={(t) => { setPassword(t); setPasswordError(''); }} secureTextEntry={!showPassword} />
+                            <TextInput style={[styles.input, { flex: 1, marginBottom: 0, backgroundColor: colors.background, color: colors.textPrimary, borderColor: passwordError ? colors.error : colors.border }]} placeholder="Password" placeholderTextColor={colors.textSecondary} value={password} onChangeText={(t) => { setPassword(t); setPasswordError(''); }} secureTextEntry={!showPassword} />
                             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                                 {showPassword ? <Eye color={colors.textSecondary} size={20} /> : <EyeOff color={colors.textSecondary} size={20} />}
                             </TouchableOpacity>
                         </View>
                         
-                        <View style={styles.passwordContainer}>
-                            <TextInput style={[styles.input, { flex: 1, marginBottom: 0, backgroundColor: colors.background, color: colors.text, borderColor: passwordError && !passwordsMatch ? colors.error : colors.border }]} placeholder="Confirm Password" placeholderTextColor={colors.textSecondary} value={confirmPassword} onChangeText={(t) => { setConfirmPassword(t); setPasswordError(''); }} secureTextEntry={!showConfirmPassword} />
+                        <View style={styles.passwordContainer}> 
+                            <TextInput style={[styles.input, { flex: 1, marginBottom: 0, backgroundColor: colors.background, color: colors.textPrimary, borderColor: passwordError && !passwordsMatch ? colors.error : colors.border }]} placeholder="Confirm Password" placeholderTextColor={colors.textSecondary} value={confirmPassword} onChangeText={(t) => { setConfirmPassword(t); setPasswordError(''); }} secureTextEntry={!showConfirmPassword} />
                             <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
                                 {showConfirmPassword ? <Eye color={colors.textSecondary} size={20} /> : <EyeOff color={colors.textSecondary} size={20} />}
                             </TouchableOpacity>
@@ -110,13 +110,13 @@ export default function RegisterScreen() {
                         </View>
 
                         <TouchableOpacity style={styles.checkboxContainer} onPress={() => setTermsAccepted(!termsAccepted)}>
-                            {termsAccepted ? <CheckCircle2 color={colors.primary} size={24} /> : <Circle color={colors.textSecondary} size={24} />}
-                            <Text style={[styles.checkboxLabel, { color: colors.text }]}>I accept the terms and conditions</Text>
+                            {termsAccepted ? <CheckCircle2 color={colors.accent} size={24} /> : <Circle color={colors.textSecondary} size={24} />}
+                            <Text style={[styles.checkboxLabel, { color: colors.textPrimary }]}>I accept the terms and conditions</Text>
                         </TouchableOpacity>
 
                         <Button title="Create Account" onPress={handleRegister} isLoading={loading} disabled={loading || !termsAccepted || !allRequirementsMet || !passwordsMatch} style={styles.button} />
                         <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-                            <Text style={[styles.link, { color: colors.textSecondary }]}>Already have an account? <Text style={{fontWeight: 'bold', color: colors.primary}}>Login</Text></Text>
+                            <Text style={[styles.link, { color: colors.textSecondary }]}>Already have an account? <Text style={{fontWeight: 'bold', color: colors.accent}}>Login</Text></Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </Card>

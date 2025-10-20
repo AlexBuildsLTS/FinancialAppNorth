@@ -1,14 +1,13 @@
 import React, { ReactNode } from 'react';
 import { View, StyleSheet, SafeAreaView, StatusBar, ViewStyle } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
-
 interface ScreenContainerProps {
   children: ReactNode;
   style?: ViewStyle;
 }
 
 const ScreenContainer = ({ children, style }: ScreenContainerProps) => {
-  const { colors, isDark } = useTheme();
+  const { theme: { colors }, isDark } = useTheme();
 
   return (
     // SafeAreaView is essential for handling notches and system UI elements

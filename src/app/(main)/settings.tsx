@@ -11,7 +11,7 @@ const SettingsListItem = ({ icon: Icon, text, onPress, rightContent, colors, isF
   <TouchableOpacity
     style={[
       styles.listItem,
-      { borderBottomColor: colors.border },
+      { borderBottomColor: colors.border, backgroundColor: colors.surface },
       isFirst && styles.isFirst,
       isLast && styles.isLast,
     ]}
@@ -24,7 +24,8 @@ const SettingsListItem = ({ icon: Icon, text, onPress, rightContent, colors, isF
 );
 
 export default function SettingsScreen() {
-  const { colors, isDark, setColorScheme } = useTheme();
+  const { theme, isDark, toggleTheme } = useTheme();
+  const { colors } = theme;
   const { signOut } = useAuth();
   const router = useRouter();
 
@@ -51,12 +52,12 @@ export default function SettingsScreen() {
           <SettingsListItem
             icon={Palette}
             text="Dark Mode"
-            onPress={() => setColorScheme(isDark ? 'light' : 'dark')}
+            onPress={toggleTheme}
             rightContent={
               <Switch
                 trackColor={{ false: '#767577', true: colors.primary }}
-                thumbColor={isDark ? colors.surface : '#f4f3f4'}
-                onValueChange={() => setColorScheme(isDark ? 'light' : 'dark')}
+                thumbColor={isDark ? colors.surface : '#0328cfff'}
+                onValueChange={toggleTheme}
                 value={isDark}
               />
             }
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 18,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF', // Assuming light theme surface color, will be overridden by theme
+
     borderBottomWidth: 1,
   },
   isFirst: {

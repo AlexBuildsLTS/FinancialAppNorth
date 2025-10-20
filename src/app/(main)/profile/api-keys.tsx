@@ -13,8 +13,7 @@ import { Card } from '@/shared/components/Card';
 type Provider = 'openai' | 'gemini' | 'claude';
 type TestStatus = 'untested' | 'testing' | 'success' | 'failure';
 
-const ApiKeyInput = ({ provider, value, onChange, onTest, testStatus }: any) => {
-    const { colors } = useTheme();
+const ApiKeyInput = ({ provider, value, onChange, onTest, testStatus, colors }: any) => {
     return (
         <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>{provider.toUpperCase()} API Key</Text>
@@ -39,7 +38,8 @@ const ApiKeyInput = ({ provider, value, onChange, onTest, testStatus }: any) => 
 };
 
 export default function ApiKeysScreen() {
-    const { colors } = useTheme();
+    const { theme } = useTheme();
+    const { colors } = theme;
     const { profile } = useAuth();
     const { showToast } = useToast();
     const [keys, setKeys] = useState({ openai_key: '', gemini_key: '', claude_key: '' });
@@ -98,9 +98,9 @@ export default function ApiKeysScreen() {
     return (
         <ScreenContainer>
             <ScrollView contentContainerStyle={styles.container}>
-                <ApiKeyInput provider="openai" value={keys.openai_key} onChange={(text: string) => setKeys({ ...keys, openai_key: text })} onTest={() => handleTest('openai')} testStatus={testStatuses.openai} />
-                <ApiKeyInput provider="gemini" value={keys.gemini_key} onChange={(text: string) => setKeys({ ...keys, gemini_key: text })} onTest={() => handleTest('gemini')} testStatus={testStatuses.gemini} />
-                <ApiKeyInput provider="claude" value={keys.claude_key} onChange={(text: string) => setKeys({ ...keys, claude_key: text })} onTest={() => handleTest('claude')} testStatus={testStatuses.claude} />
+                <ApiKeyInput provider="openai" value={keys.openai_key} onChange={(text: string) => setKeys({ ...keys, openai_key: text })} onTest={() => handleTest('openai')} testStatus={testStatuses.openai} colors={colors} />
+                <ApiKeyInput provider="gemini" value={keys.gemini_key} onChange={(text: string) => setKeys({ ...keys, gemini_key: text })} onTest={() => handleTest('gemini')} testStatus={testStatuses.gemini} colors={colors} />
+                <ApiKeyInput provider="claude" value={keys.claude_key} onChange={(text: string) => setKeys({ ...keys, claude_key: text })} onTest={() => handleTest('claude')} testStatus={testStatuses.claude} colors={colors} />
                 <Button title="Save Keys" onPress={handleSave} isLoading={loading} style={{ marginTop: 24 }} />
             </ScrollView>
         </ScreenContainer>

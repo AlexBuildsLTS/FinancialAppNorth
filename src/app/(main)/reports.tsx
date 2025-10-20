@@ -13,7 +13,8 @@ import BalanceSheet from '@/features/reports/BalanceSheet'; // We will create th
 type ReportType = 'profit_loss' | 'balance_sheet'; // Cash flow is not supported by generateFinancialStatement
 
 export default function ReportsScreen() {
-  const { colors } = useTheme();
+  const { theme } = useTheme();
+  const { colors } = theme;
   const { session } = useAuth();
   const [reportType, setReportType] = useState<ReportType>('profit_loss');
   const [reportData, setReportData] = useState<FinancialStatement | null>(null);

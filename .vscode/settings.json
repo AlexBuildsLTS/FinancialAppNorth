@@ -21,5 +21,20 @@
     "net"
   ],
   "jigx.isJigxUser": false,
-  "workbench.colorCustomizations": {}
+  "workbench.colorCustomizations": {
+    "activityBar.background": "#000000",
+    "activityBar.foreground": "#FFFCFC",
+    "titleBar.activeBackground": "#890910",
+    "titleBar.activeForeground": "#FFFCFC",
+    "titleBar.inactiveBackground": "#450408",
+    "titleBar.inactiveForeground": "#FFFCFC",
+    "tab.inactiveBackground": "#000000",
+    "tab.activeBackground": "#000000",
+    "tab.hoverBackground": "#000000",
+    "tab.unfocusedHoverBackground": "#000000",
+    "editorGroupHeader.tabsBackground": "#000000",
+    "titleBar.border": "#000000",
+    "sideBarTitle.background": "#000000",
+    "statusBar.background": "#000000"
+  }
 }

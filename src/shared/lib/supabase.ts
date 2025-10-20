@@ -52,7 +52,7 @@ if (!hasAnon) {
   console.warn('Supabase anon client not configured: SUPABASE_URL or SUPABASE_ANON_KEY missing. Certain features will throw when used.');
 }
 if (!hasService) {
-  console.warn('Supabase admin client not configured: SUPABASE_SERVICE_ROLE_KEY missing. Admin operations will throw when used.');
+
 }
 
 // initialize clients (exported) — create only when keys exist, otherwise use safe proxy

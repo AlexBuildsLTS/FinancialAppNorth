@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, Alert } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useToast } from '@/shared/context/ToastProvider';
-import { createBudget } from '@/shared/services/budgetService';
+import { createBudget } from '@/features/budgets/services/budgetService';
 import Modal from '@/shared/components/Modal';
 import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
@@ -15,7 +15,8 @@ interface CreateBudgetModalProps {
 }
 
 export default function CreateBudgetModal({ visible, onClose, onSuccess }: CreateBudgetModalProps) {
-  const { colors } = useTheme();
+  const { theme } = useTheme();
+  const { colors } = theme;
   const { session } = useAuth();
   const { showToast } = useToast();
   const [category, setCategory] = useState('');

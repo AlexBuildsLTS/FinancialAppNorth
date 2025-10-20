@@ -5,7 +5,7 @@ import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useToast } from '@/shared/context/ToastProvider';
-import { requestClientAccess } from '@/features/client-management/cpaService';
+import { requestClientAccess } from '@/shared/services/cpaService';
 
 interface AddClientModalProps {
   visible: boolean;
@@ -14,7 +14,8 @@ interface AddClientModalProps {
 }
 
 export default function AddClientModal({ visible, onClose, onClientAdded }: AddClientModalProps) {
-    const { colors } = useTheme();
+    const { theme } = useTheme();
+    const { colors } = theme;
     const { showToast } = useToast();
     const [clientEmail, setClientEmail] = useState('');
     const [loading, setLoading] = useState(false);
@@ -27,7 +28,7 @@ export default function AddClientModal({ visible, onClose, onClientAdded }: AddC
         setLoading(true);
         try {
             // This service function would send a request for client access to the specified email
-            await addClient(clientEmail);
+            await requestClientAccess(clientEmail); // Use the imported service function
             showToast('Client successfully assigned!', 'success');
             onClientAdded(); // Refresh the client list
             onClose(); // Close the modal
@@ -76,7 +77,4 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
 });
-function addClient(clientEmail: string) {
-    throw new Error('Function not implemented.');
-}
 

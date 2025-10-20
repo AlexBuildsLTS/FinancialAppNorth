@@ -15,7 +15,7 @@ interface RecentTransactionsProps {
 }
 
 const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transactions, onAddTransaction }) => {
-  const { colors } = useTheme();
+  const { theme: { colors } } = useTheme();
 
   const renderItem = ({ item }: { item: Transaction }) => (
     <View style={[styles.itemContainer, { borderBottomColor: colors.border }]}>
@@ -23,7 +23,7 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transactions, o
         {item.type === 'income' ? <ArrowUpRight color={colors.success} size={22} /> : <ArrowDownLeft color={colors.error} size={22} />}
       </View>
       <View style={styles.detailsContainer}>
-        <Text style={[styles.description, { color: colors.text }]}>{item.description}</Text>
+        <Text style={[styles.description, { color: colors.textPrimary }]}>{item.description}</Text>
         <Text style={[styles.date, { color: colors.textSecondary }]}>{format(new Date(item.transaction_date), 'MMM d, yyyy')}</Text>
       </View>
       <Text style={[styles.amount, { color: item.type === 'income' ? colors.success : colors.error }]}>
@@ -35,10 +35,10 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transactions, o
   return (
     <Card style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Recent Transactions</Text>
-        <TouchableOpacity style={styles.addButton} onPress={onAddTransaction}>
-          <PlusCircle color={colors.primary} size={22} />
-          <Text style={[styles.addButtonText, { color: colors.primary }]}>Add New</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Recent Transactions</Text>
+        <TouchableOpacity style={styles.addButton} onPress={onAddTransaction} accessibilityLabel="Add new transaction">
+          <PlusCircle color={colors.accent} size={22} />
+          <Text style={[styles.addButtonText, { color: colors.accent }]}>Add Transaction</Text>
         </TouchableOpacity>
       </View>
       <FlatList

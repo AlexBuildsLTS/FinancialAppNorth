@@ -7,7 +7,8 @@ interface ProfitLossStatementProps {
 }
 
 const ProfitLossStatement: React.FC<ProfitLossStatementProps> = ({ data }) => {
-  const { colors } = useTheme();
+  const { theme } = useTheme();
+  const { colors } = theme;
 
   if (!data) {
     return <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 20 }}>No data available for Profit & Loss Statement.</Text>;
@@ -58,10 +59,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     marginVertical: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   title: {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList } from 'react-native';
 import { Bell, Check, X } from 'lucide-react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
+
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 // Replace with your actual notification type and data fetching
@@ -12,7 +13,7 @@ const notifications = [
 ];
 
 export default function NotificationDropdown() {
-    const { colors } = useTheme();
+    const { theme: { colors } } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
     const unreadCount = notifications.filter(n => !n.read).length;
     
@@ -52,19 +53,19 @@ export default function NotificationDropdown() {
             
             <Animated.View style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.border }, animatedStyle]}>
                 <View style={styles.header}>
-                    <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
-                    <Pressable>
-                        <Text style={[styles.markAllRead, { color: colors.primary }]}>Mark all as read</Text>
+                    <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Notifications</Text>
+                    <Pressable onPress={() => { /* Handle mark all as read */ }}>
+                        <Text style={[styles.markAllRead, { color: colors.accent }]}>Mark all as read</Text>
                     </Pressable>
                 </View>
                 <FlatList
                     data={notifications}
                     keyExtractor={item => item.id}
-                    renderItem={({ item }) => (
+                    renderItem={({ item }) => ( // Fix: Changed 'colors.primary' to 'colors.accent'
                         <View style={[styles.item, { borderBottomColor: colors.border }]}>
-                            <View style={[styles.dot, { backgroundColor: item.read ? 'transparent' : colors.primary }]} />
-                            <View style={styles.itemContent}>
-                                <Text style={[styles.itemMessage, { color: colors.text }]}>{item.message}</Text>
+                            <View style={[styles.dot, { backgroundColor: item.read ? 'transparent' : colors.accent }]} /> {/* Changed 'colors.primary' to 'colors.accent' */}
+                            <View style={styles.itemContent}> 
+                                <Text style={[styles.itemMessage, { color: colors.textPrimary }]}>{item.message}</Text>
                                 <Text style={[styles.itemTimestamp, { color: colors.textSecondary }]}>{item.timestamp}</Text>
                             </View>
                         </View>
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         overflow: 'hidden',
         elevation: 5,
-        shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10,
+        boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)',
     },
     header: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

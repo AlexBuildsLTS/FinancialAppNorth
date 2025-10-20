@@ -4,7 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import { PiggyBank, Plus } from 'lucide-react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useAuth } from '@/shared/context/AuthContext';
-import { getBudgets } from '@/shared/services/budgetService';
+import { getBudgets } from '@/features/budgets/services/budgetService';
 import { Budget } from '@/shared/types';
 import ScreenContainer from '@/shared/components/ScreenContainer';
 import CreateBudgetModal from '@/features/budgets/components/CreateBudgetModal';
@@ -20,7 +20,8 @@ const BudgetProgressBar = ({ spent, allocated, color }: { spent: number, allocat
 };
 
 export default function BudgetsScreen() {
-  const { colors } = useTheme();
+  const { theme } = useTheme();
+  const { colors } = theme;
   const { session } = useAuth();
   const user = session?.user;
   const [budgets, setBudgets] = useState<Budget[]>([]);

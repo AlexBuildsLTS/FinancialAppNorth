@@ -60,20 +60,19 @@ export interface Account {
 }
 
 export interface Transaction {
-  date: ISODateString; // Standardized to ISO string for consistency and JSON serialization
+  category: string;
+  date: ISODateString; // Standardized  
   id: UUID;
   user_id: UUID;
   account_id: UUID;
-  description: string;
+  category_id?: UUID;
+  document_id?: UUID;
+  description?: string;
   amount: number;
   type: 'income' | 'expense';
-  transaction_date: ISODateString; // Standardized
-  category: string;
+  transaction_date: ISODateString;
   status: 'pending' | 'cleared' | 'cancelled';
-  created_at: ISODateString; // Standardized
-  tags?: string[];
-  location?: string;
-  client_id?: UUID; // Standardized
+  created_at: ISODateString;
 }
 
 export interface Budget {

@@ -3,7 +3,8 @@ import { Stack } from 'expo-router';
 import { useTheme } from '@/shared/context/ThemeProvider';
 
 export default function ProfileStackLayout() {
-  const { colors } = useTheme();
+  const { theme } = useTheme();
+  const { colors } = theme;
 
   return (
     <Stack

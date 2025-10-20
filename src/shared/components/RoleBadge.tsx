@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
 import { UserRole, UserRoleDisplayNames } from '@/shared/types';
 import { Shield, User, Briefcase, LifeBuoy, Star } from 'lucide-react-native';
+import { useTheme } from '@/shared/context/ThemeProvider';
 
 interface RoleBadgeProps {
   role: UserRole;

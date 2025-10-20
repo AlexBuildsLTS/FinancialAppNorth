@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useTheme } from '@/shared/context/ThemeProvider';
-
 interface PasswordStrengthInfo {
   strength: 'empty' | 'weak' | 'medium' | 'strong' | 'very-strong';
   score: number;
@@ -31,7 +30,7 @@ interface Props {
 }
 
 export default function PasswordStrengthIndicator({ password = '', onStrengthChanged }: Props) {
-  const { colors } = useTheme();
+  const { theme: { colors } } = useTheme();
   const { strength, score, color } = getPasswordStrength(password, colors);
 
   React.useEffect(() => {
@@ -42,8 +41,8 @@ export default function PasswordStrengthIndicator({ password = '', onStrengthCha
     <View style={styles.container}>
       <View style={styles.barContainer}>
         {Array.from({ length: 4 }).map((_, index) => {
-            const animatedStyle = useAnimatedStyle(() => ({
-                backgroundColor: withTiming(index < score ? color : colors.surfaceVariant, { duration: 300 }),
+            const animatedStyle = useAnimatedStyle(() => ({ // Use colors.border as a fallback for surfaceVariant
+                backgroundColor: withTiming(index < score ? color : colors.border, { duration: 300 }),
             }));
             return <Animated.View key={index} style={[ styles.barSegment, animatedStyle ]} />
         })}

@@ -12,7 +12,9 @@ interface MetricCardProps {
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({ title, value, Icon }) => {
-  const { colors } = useTheme();
+  const { theme: { colors } } = useTheme();
+  const IconComponent = Icon;
+
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -20,7 +22,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, Icon }) => {
         <Icon color={colors.textSecondary} size={24} />
       </View>
       <Text style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
-      <Text style={[styles.value, { color: colors.text }]}>{value}</Text>
+      <Text style={[styles.value, { color: colors.textPrimary }]}>{value}</Text>  
     </View>
   );
 };

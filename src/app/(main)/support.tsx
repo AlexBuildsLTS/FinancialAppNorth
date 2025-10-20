@@ -51,7 +51,8 @@ interface SupportMessage {
 }
 
 export default function SupportScreen() {
-  const { colors } = useTheme();
+  const { theme } = useTheme();
+  const { colors } = theme;
   const { profile } = useAuth();
   const router = useRouter();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);

@@ -3,12 +3,12 @@ import { Stack } from 'expo-router';
 import { useTheme } from '@/shared/context/ThemeProvider';
 
 export default function SecurityStackLayout() {
-  const { colors } = useTheme();
+  const { theme } = useTheme();
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.text,
+        headerStyle: { backgroundColor: theme.colors.surface },
+        headerTintColor: theme.colors.text,
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >

@@ -17,7 +17,8 @@ import { getUserDocuments, deleteDocument, ScannedDocument } from '@/shared/serv
 import ScreenContainer from '@/shared/components/ScreenContainer';
 
 export default function DocumentsScreen() {
-  const { colors } = useTheme();
+  const { theme } = useTheme();
+  const { colors } = theme;
   const { session } = useAuth();
   const router = useRouter();
   const [documents, setDocuments] = useState<ScannedDocument[]>([]);

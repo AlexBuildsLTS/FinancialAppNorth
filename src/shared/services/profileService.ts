@@ -40,34 +40,51 @@ export const getProfile = async (userId: string): Promise<{ profile: Profile | n
 
 export const uploadAvatar = async (userId: string, file: any): Promise<{ filePath: string | null; error: Error | null }> => {
   try {
-    const fileExt = file.uri.split('.').pop();
-    const fileName = `${userId}.${fileExt}`;
-    const filePath = `${Date.now()}_${fileName}`;
+    const fileExt = file.uri.split('.').pop() || 'png';
+    const path = `${userId}/avatar.${fileExt}`;
 
     if (Platform.OS === 'web') {
-        const response = await fetch(file.uri);
-        const blob = await response.blob();
+        const blob = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.onload = function () {
+                resolve(xhr.response);
+            };
+            xhr.onerror = function (e) {
+                console.error(e);
+                reject(new TypeError("Network request failed"));
+            };
+            xhr.responseType = "blob";
+            xhr.open("GET", file.uri, true);
+            xhr.send(null);
+        });
+
         const { error: uploadError } = await supabase.storage
             .from('avatars')
-            .upload(filePath, blob, {
+            .upload(path, blob as Blob, {
                 cacheControl: '3600',
                 upsert: true,
                 contentType: file.mimeType,
             });
-        if (uploadError) throw new Error(uploadError.message);
+
+        if (uploadError) {
+            throw new Error(uploadError.message);
+        }
     } else {
-        const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
-        const { error: uploadError } = await supabase.storage
-            .from('avatars')
-            .upload(filePath, decode(base64), {
-                cacheControl: '3600',
-                upsert: true,
-                contentType: file.mimeType,
-            });
-        if (uploadError) throw new Error(uploadError.message);
+      const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, decode(base64), {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: file.mimeType,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
     }
 
-    return { filePath, error: null };
+    return { filePath: path, error: null };
   } catch (error: any) {
     return { filePath: null, error: new Error(error.message || 'An unknown error occurred during upload.') };
   }

@@ -11,23 +11,23 @@ interface ChartProps {
 }
 
 const LineChart = ({ title, data }: ChartProps) => {
-  const { colors, isDark } = useTheme();
+  const { theme: { colors } } = useTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
       <GiftedLineChart
         data={data}
         isAnimated
         animationDuration={1200}
-        color={colors.primary}
+        color={colors.accent}
         thickness={3}
         yAxisTextStyle={{ color: colors.textSecondary }}
         xAxisLabelTextStyle={{ color: colors.textSecondary }}
         rulesColor={colors.border}
-        dataPointsColor={colors.primary}
+        dataPointsColor={colors.accent}
         pointerConfig={{
-          pointerStripColor: colors.primary,
+          pointerStripColor: colors.accent,
           pointerStripWidth: 2,
           strokeDashArray: [2, 5],
           pointerColor: colors.background,
@@ -39,8 +39,8 @@ const LineChart = ({ title, data }: ChartProps) => {
           pointerLabelComponent: (items: lineDataItem[]) => {
             return (
               <View style={[styles.tooltip, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                <Text style={{ color: colors.text, fontWeight: 'bold' }}>{items[0].label}</Text>
-                <Text style={{ color: colors.primary }}> 
+                <Text style={{ color: colors.textPrimary, fontWeight: 'bold' }}>{items[0].label}</Text>
+                <Text style={{ color: colors.accent }}> 
                   Value: {items[0].value?.toLocaleString()}
                 </Text>
               </View>

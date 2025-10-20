@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, ActivityIndicator, View } from 'react-native';
 import { Wallet, PiggyBank, TrendingUp, TrendingDown } from 'lucide-react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
@@ -13,30 +13,41 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { useDashboardData } from '@/features/dashboard/hooks/useDashboardData';
 import { DashboardMetricItem } from '@/shared/types';
 import { useRouter } from 'expo-router';
+import AddTransactionModal from '@/features/transactions/AddTransactionModal';
 
 export default function DashboardScreen() {
-    const { colors } = useTheme();
+    const { theme: { colors } } = useTheme();
     const { profile } = useAuth();
     const { metrics, chartData, loading, refreshData } = useDashboardData();
     const router = useRouter();
+    const [isAddTransactionModalVisible, setIsAddTransactionModalVisible] = useState(false);
 
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
+                <ActivityIndicator size="large" color={colors.accent} />
             </View>
         );
     }
 
     const dashboardMetrics: DashboardMetricItem[] = [
-        { title: 'Current Balance', value: `$${metrics?.totalBalance?.toFixed(2) ?? '0.00'}`, Icon: Wallet },
-        { title: 'Monthly Income', value: `$${metrics?.monthlyIncome?.toFixed(2) ?? '0.00'}`, Icon: TrendingUp },
-        { title: 'Monthly Expenses', value: `$${metrics?.monthlyExpenses?.toFixed(2) ?? '0.00'}`, Icon: TrendingDown },
+        { title: 'Current Balance', value: `${metrics?.totalBalance?.toFixed(2) ?? '0.00'}`, Icon: Wallet },
+        { title: 'Monthly Income', value: `${metrics?.monthlyIncome?.toFixed(2) ?? '0.00'}`, Icon: TrendingUp },
+        { title: 'Monthly Expenses', value: `${metrics?.monthlyExpenses?.toFixed(2) ?? '0.00'}`, Icon: TrendingDown },
         { title: 'Savings Rate', value: 'N/A', Icon: PiggyBank }, // Placeholder
     ];
 
     const handleAddTransaction = () => {
-        router.push('/(main)/camera');
+        setIsAddTransactionModalVisible(true);
+    };
+
+    const handleModalClose = () => {
+        setIsAddTransactionModalVisible(false);
+    };
+
+    const handleTransactionAdded = () => {
+        refreshData();
+        handleModalClose();
     };
 
     return (
@@ -47,6 +58,12 @@ export default function DashboardScreen() {
                 <QuickActions onAddTransaction={handleAddTransaction} />
                 <RecentTransactions transactions={metrics?.recentTransactions || []} onAddTransaction={handleAddTransaction} />
             </ScrollView>
+            <AddTransactionModal
+                visible={isAddTransactionModalVisible}
+                onClose={handleModalClose}
+                onSuccess={handleTransactionAdded}
+                clientId={null} // Assuming personal transaction for now
+            />
         </ScreenContainer>
     );
 }

@@ -7,7 +7,7 @@ import { useFocusEffect } from 'expo-router';
 import ScreenContainer from '@/shared/components/ScreenContainer';
 import { Card, RoleBadge, Avatar } from '@/shared/components';
 import { User, UserRole } from '@/shared/types';
-import { adminService } from '@/shared/services/adminService';
+import { adminService } from '@/features/admin/services/adminService';
 import { Edit, Trash2, UserCheck, UserX } from 'lucide-react-native';
 import EditUserModal from '@/features/admin/components/EditUserModal';
 
@@ -29,10 +29,10 @@ interface UserListItemProps {
     onEdit: (user: User) => void;
     onToggleStatus: (userId: string, isActive: boolean) => void;
     onDelete: (userId: string) => void;
+    colors: any;
 }
 
-const UserListItem = ({ user, onEdit, onToggleStatus, onDelete }: UserListItemProps) => {
-    const { colors } = useTheme();
+const UserListItem = ({ user, onEdit, onToggleStatus, onDelete, colors }: UserListItemProps) => {
     const isActive = user.status === 'active';
 
     return (
@@ -63,7 +63,8 @@ const UserListItem = ({ user, onEdit, onToggleStatus, onDelete }: UserListItemPr
 };
 
 export default function ManageUsersScreen() {
-    const { colors } = useTheme();
+    const { theme } = useTheme();
+    const { colors } = theme;
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -138,6 +139,7 @@ export default function ManageUsersScreen() {
                         onEdit={handleEdit}
                         onToggleStatus={handleToggleStatus}
                         onDelete={handleDelete}
+                        colors={colors}
                     />
                 )}
                 ListHeaderComponent={() => (

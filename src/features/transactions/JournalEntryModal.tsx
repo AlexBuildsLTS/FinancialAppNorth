@@ -17,7 +17,7 @@ interface JournalEntryModalProps {
 }
 
 export default function JournalEntryModal({ visible, onClose, onSuccess, clientId }: JournalEntryModalProps) {
-  const { colors } = useTheme();
+  const { theme: { colors } } = useTheme();
   const [description, setDescription] = useState('');
   const [lines, setLines] = useState<Partial<JournalEntryLine>[]>([{ debit_amount: 0, credit_amount: 0 }, { debit_amount: 0, credit_amount: 0 }]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -114,7 +114,7 @@ export default function JournalEntryModal({ visible, onClose, onSuccess, clientI
         )}
       />
 
-      <TouchableOpacity onPress={addLine} style={styles.addLineButton}><Plus size={16} color={colors.primary} /><Text style={{ color: colors.primary }}>Add Line</Text></TouchableOpacity>
+      <TouchableOpacity onPress={addLine} style={styles.addLineButton}><Plus size={16} color={colors.accent} /><Text style={{ color: colors.accent }}>Add Line</Text></TouchableOpacity>
 
       <View style={styles.totalsRow}>
         <Text style={styles.totalText}>Totals</Text>

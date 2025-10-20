@@ -14,10 +14,10 @@ interface AdminActionButtonProps {
     Icon: LucideIcon; // Use LucideIcon for better type safety
     onPress: () => void;
     description: string;
+    colors: any;
 }
 
-const AdminActionButton = ({ title, Icon, onPress, description }: AdminActionButtonProps) => {
-    const { colors } = useTheme();
+const AdminActionButton = ({ title, Icon, onPress, description, colors }: AdminActionButtonProps) => {
     return (
         <Card style={styles.card}>
             <Pressable style={styles.button} onPress={onPress}>
@@ -34,7 +34,8 @@ const AdminActionButton = ({ title, Icon, onPress, description }: AdminActionBut
 };
 
 export default function AdminDashboardScreen() {
-    const { colors } = useTheme();
+    const { theme } = useTheme();
+    const { colors } = theme;
     
     return (
         <ScreenContainer>
@@ -46,30 +47,35 @@ export default function AdminDashboardScreen() {
                     description="Edit roles, manage access, and view all users."
                     Icon={Users}
                     onPress={() => router.push('/(main)/admin/manage-users')}
+                    colors={colors}
                 />
                 <AdminActionButton
                     title="System Analytics"
                     description="View application usage and health metrics."
                     Icon={BarChart3}
                     onPress={() => { /* Navigate to system analytics */ }}
+                    colors={colors}
                 />
                 <AdminActionButton
                     title="Global Messaging"
                     description="Send announcements to all users."
                     Icon={MessageSquare}
                     onPress={() => { /* Navigate to global messaging */ }}
+                    colors={colors}
                 />
                 <AdminActionButton
                     title="Security & Roles"
                     description="Configure role permissions and security settings."
                     Icon={ShieldCheck}
                     onPress={() => { /* Navigate to roles config */ }}
+                    colors={colors}
                 />
                  <AdminActionButton
                     title="System Settings"
                     description="Configure application-wide settings and integrations."
                     Icon={Settings}
                     onPress={() => { /* Navigate to system settings */ }}
+                    colors={colors}
                 />
             </ScrollView>
         </ScreenContainer>

@@ -1,34 +1,133 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { Camera as ExpoCamera } from 'expo-camera';
+import { MaterialIcons } from '@expo/vector-icons';
 import ScreenContainer from '@/shared/components/ScreenContainer';
 import { useTheme } from '@/shared/context/ThemeProvider';
 
 export default function CameraScreen() {
-    const { colors } = useTheme();
+    const { theme } = useTheme();
+    const { colors } = theme;
+    const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+    const [type, setType] = useState('back');
+    const [capturedImage, setCapturedImage] = useState<string | null>(null);
+    const cameraRef = useRef<ExpoCamera>(null);
+
+    useEffect(() => {
+        (async () => {
+            const { status } = await ExpoCamera.getCameraPermissionsAsync();
+            setHasPermission(status === 'granted');
+        })();
+    }, []);
+
+    const requestPermission = async () => {
+        const { status } = await ExpoCamera.requestCameraPermissionsAsync();
+        setHasPermission(status === 'granted');
+    };
+
+    const takePicture = async () => {
+        if (cameraRef.current) {
+            const photo = await cameraRef.current.takePictureAsync();
+            setCapturedImage(photo.uri);
+        }
+    };
+
+    if (hasPermission === null) {
+        return <View />;
+    }
+    if (hasPermission === false) {
+        return (
+            <ScreenContainer>
+                <View style={styles.permissionContainer}>
+                    <Text style={[styles.permissionText, { color: colors.text }]}>We need access to your camera to scan documents.</Text>
+                    <TouchableOpacity style={[styles.controlButton, { backgroundColor: colors.primary }]} onPress={requestPermission}>
+                        <Text style={styles.controlText}>Grant Permission</Text>
+                    </TouchableOpacity>
+                </View>
+            </ScreenContainer>
+        );
+    }
+
+    if (capturedImage) {
+        return (
+            <ScreenContainer>
+                <Image source={{ uri: capturedImage }} style={styles.fullScreen} />
+                <View style={styles.previewControls}>
+                    <TouchableOpacity style={styles.controlButton} onPress={() => setCapturedImage(null)}>
+                        <Text style={styles.controlText}>Retake</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.controlButton} onPress={() => Alert.alert('Image Saved', 'The image has been saved.')}>
+                        <Text style={styles.controlText}>Use Photo</Text>
+                    </TouchableOpacity>
+                </View>
+            </ScreenContainer>
+        );
+    }
+
     return (
         <ScreenContainer>
-            <View style={[styles.container, { backgroundColor: colors.background }]}>
-                <Text style={[styles.text, { color: colors.text }]}>Camera Screen</Text>
-                <Text style={[styles.subText, { color: colors.textSecondary }]}>This is a placeholder for the camera functionality.</Text>
-            </View>
+            <ExpoCamera style={styles.fullScreen} type={type as any} ref={cameraRef}>
+                <View style={styles.cameraControls}>
+                    <TouchableOpacity style={styles.controlButton} onPress={() => {
+                        setType(type === 'back' ? 'front' : 'back');
+                    }}>
+                        <MaterialIcons name="flip-camera-ios" size={36} color="white" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.captureButton} onPress={takePicture} />
+                    <View style={{ width: 60 }} />{/* Placeholder for spacing */}
+                </View>
+            </ExpoCamera>
         </ScreenContainer>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    permissionContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
     },
-    text: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 10,
-    },
-    subText: {
-        fontSize: 16,
+    permissionText: {
+        fontSize: 18,
         textAlign: 'center',
+        marginBottom: 20,
+    },
+    fullScreen: {
+        flex: 1,
+    },
+    cameraControls: {
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+    },
+    previewControls: {
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+    },
+    captureButton: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: 'white',
+        borderWidth: 5,
+        borderColor: '#ccc',
+    },
+    controlButton: {
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        padding: 15,
+        borderRadius: 10,
+    },
+    controlText: {
+        color: 'white',
+        fontSize: 18,
     },
 });

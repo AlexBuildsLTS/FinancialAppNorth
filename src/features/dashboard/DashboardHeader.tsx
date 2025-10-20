@@ -19,7 +19,7 @@ const MenuItem = ({ text, icon: Icon, onPress, color }: { text: string, icon: Re
 );
 
 export const DashboardHeader = ({ title = "Dashboard" }: { title?: string }) => {
-    const { colors } = useTheme();
+    const { theme: { colors } } = useTheme();
     const router = useRouter();
     const { profile, signOut } = useAuth();
     
@@ -38,13 +38,13 @@ export const DashboardHeader = ({ title = "Dashboard" }: { title?: string }) => 
     return (
         <SafeAreaView style={{ backgroundColor: colors.surface }} edges={['top']}>
             <View style={[styles.container, { borderBottomColor: colors.border }]}>
-                <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+                <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
                 
                 <View style={styles.rightContainer}>
                     <DropdownMenu trigger={<MessageCircle color={colors.textSecondary} size={24} />}>
                         <View style={styles.dropdownContent}>
                             {messages.length > 0 ? messages.map(msg => (
-                                <MenuItem key={msg.id} text={`${msg.name}: ${msg.lastMessage}`} icon={MessageCircle} color={colors.text} onPress={() => router.push({ pathname: '/(main)/support', params: { conversationId: msg.id }})} />
+                                <MenuItem key={msg.id} text={`${msg.name}: ${msg.lastMessage}`} icon={MessageCircle} color={colors.textPrimary} onPress={() => router.push({ pathname: '/(main)/support', params: { conversationId: msg.id }})} />
                             )) : <Text style={[styles.emptyText, {color: colors.textSecondary}]}>No new messages</Text>}
                         </View>
                     </DropdownMenu>
@@ -52,16 +52,16 @@ export const DashboardHeader = ({ title = "Dashboard" }: { title?: string }) => 
                     <DropdownMenu trigger={<Bell color={colors.textSecondary} size={24} />}>
                          <View style={styles.dropdownContent}>
                             {notifications.length > 0 ? notifications.map(notif => (
-                                <MenuItem key={notif.id} text={notif.message} icon={Bell} color={colors.text} onPress={() => { /* Handle notification click */ }} />
+                                <MenuItem key={notif.id} text={notif.message} icon={Bell} color={colors.textPrimary} onPress={() => { /* Handle notification click */ }} />
                             )) : <Text style={[styles.emptyText, {color: colors.textSecondary}]}>No new notifications</Text>}
                         </View>
                     </DropdownMenu>
 
                     <DropdownMenu trigger={<Avatar url={profile?.avatar_url} size={32} />}>
-                        <MenuItem text="My Profile" icon={User} color={colors.text} onPress={() => router.push('/(main)/profile')} />
-                        <MenuItem text="Settings" icon={Settings} color={colors.text} onPress={() => router.push('/(main)/settings')} />
+                            <MenuItem text="Edit Profile" icon={User} color={colors.textPrimary} onPress={() => router.push('/(main)/profile/edit')} />
+                            <MenuItem text="Settings" icon={Settings} color={colors.textPrimary} onPress={() => router.push('/(main)/settings')} />
                         {profile?.role === UserRole.ADMIN && ( // FIX: Using correct uppercase enum value
-                            <MenuItem text="Admin Panel" icon={Shield} color={colors.text} onPress={() => router.push('/admin')} />
+                            <MenuItem text="Admin Panel" icon={Shield} color={colors.textPrimary} onPress={() => router.push('/admin')} />
                         )}
                         <View style={[styles.divider, { backgroundColor: colors.border }]} />
                         <MenuItem text="Sign Out" icon={LogOut} color={colors.error} onPress={handleSignOut} />

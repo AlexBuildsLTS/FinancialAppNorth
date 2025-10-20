@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
 import { LucideIcon } from 'lucide-react-native';
+import { useTheme } from '@/shared/context/ThemeProvider';
 
 type ButtonVariant = 'solid' | 'outline' | 'ghost';
 type ButtonSize = 'small' | 'medium' | 'large';
@@ -20,23 +20,23 @@ interface ButtonProps {
 }
 
 export const Button = ({ title, onPress, variant = 'solid', size = 'medium', isLoading = false, disabled = false, icon: Icon, style }: ButtonProps) => {
-  const { colors } = useTheme();
+  const { theme: { colors } } = useTheme();
   const isDisabled = isLoading || disabled;
 
   const getButtonStyles = () => {
     const base: ViewStyle = { ...styles.buttonBase, ...styles[size] };
     switch (variant) {
-      case 'outline': return { ...base, borderColor: colors.primary, borderWidth: 1 };
+      case 'outline': return { ...base, borderColor: colors.accent, borderWidth: 1 };
       case 'ghost': return { ...base, backgroundColor: 'transparent' };
       case 'solid':
-      default: return { ...base, backgroundColor: colors.primary };
+      default: return { ...base, backgroundColor: colors.accent };
     }
   };
 
   const getTextStyles = () => {
     const base: any = { ...styles.textBase, ...styles[`text_${size}`] };
     switch (variant) {
-      case 'outline': return { ...base, color: colors.primary };
+      case 'outline': return { ...base, color: colors.accent };
       case 'ghost': return { ...base, color: colors.textSecondary };
       case 'solid':
       default: return { ...base, color: '#FFFFFF' };

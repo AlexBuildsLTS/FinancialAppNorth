@@ -11,7 +11,7 @@ interface ModalProps {
 }
 
 export default function Modal({ visible, onClose, title, children }: ModalProps) {
-  const { colors } = useTheme();
+  const { theme: { colors } } = useTheme();
 
   return (
     <RNModal
@@ -22,8 +22,8 @@ export default function Modal({ visible, onClose, title, children }: ModalProps)
     >
       <View style={styles.centeredView}>
         <View style={[styles.modalView, { backgroundColor: colors.surface }]}>
-          <View style={[styles.header, { borderBottomColor: colors.background }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
+          <View style={[styles.header, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{title}</Text>
             <TouchableOpacity onPress={onClose}>
               <X color={colors.textSecondary} size={24} />
             </TouchableOpacity>
@@ -49,13 +49,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     width: '90%',
     maxWidth: 500,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.25)',
     elevation: 5,
   },
   header: {

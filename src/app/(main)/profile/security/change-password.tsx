@@ -9,7 +9,7 @@ import PasswordStrengthIndicator from '@/shared/components/PasswordStrengthIndic
 import { Eye, EyeOff } from 'lucide-react-native';
 
 export default function ChangePasswordScreen() {
-  const { colors } = useTheme();
+  const { theme } = useTheme();
   const { showToast } = useToast();
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -78,48 +78,48 @@ export default function ChangePasswordScreen() {
   return (
     <ScreenContainer>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={[styles.title, { color: colors.text }]}>Change Password</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>Change Password</Text>
         
         <View style={styles.inputContainer}>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+            style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text, borderColor: theme.colors.border }]}
             placeholder="Current Password"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={theme.colors.textSecondary}
             value={currentPassword}
             onChangeText={setCurrentPassword}
             secureTextEntry={!showCurrentPassword}
           />
           <TouchableOpacity onPress={() => setShowCurrentPassword(!showCurrentPassword)} style={styles.eyeIcon}>
-            {showCurrentPassword ? <EyeOff color={colors.textSecondary} size={20} /> : <Eye color={colors.textSecondary} size={20} />}
+            {showCurrentPassword ? <EyeOff color={theme.colors.textSecondary} size={20} /> : <Eye color={theme.colors.textSecondary} size={20} />}
           </TouchableOpacity>
         </View>
 
         <View style={styles.inputContainer}>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+            style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text, borderColor: theme.colors.border }]}
             placeholder="New Password"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={theme.colors.textSecondary}
             value={newPassword}
             onChangeText={setNewPassword}
             secureTextEntry={!showNewPassword}
           />
           <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)} style={styles.eyeIcon}>
-            {showNewPassword ? <EyeOff color={colors.textSecondary} size={20} /> : <Eye color={colors.textSecondary} size={20} />}
+            {showNewPassword ? <EyeOff color={theme.colors.textSecondary} size={20} /> : <Eye color={theme.colors.textSecondary} size={20} />}
           </TouchableOpacity>
         </View>
         <PasswordStrengthIndicator password={newPassword} onStrengthChanged={handlePasswordStrengthChange} />
         
         <View style={styles.inputContainer}>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+            style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text, borderColor: theme.colors.border }]}
             placeholder="Confirm New Password"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={theme.colors.textSecondary}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry={!showConfirmPassword}
           />
            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-            {showConfirmPassword ? <EyeOff color={colors.textSecondary} size={20} /> : <Eye color={colors.textSecondary} size={20} />}
+            {showConfirmPassword ? <EyeOff color={theme.colors.textSecondary} size={20} /> : <Eye color={theme.colors.textSecondary} size={20} />}
           </TouchableOpacity>
         </View>
          <PasswordStrengthIndicator password={confirmPassword} />

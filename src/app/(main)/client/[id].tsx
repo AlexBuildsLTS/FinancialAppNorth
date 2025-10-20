@@ -32,7 +32,8 @@ import MetricsGrid from '@/features/dashboard/MetricsGrid';
 import RecentTransactions from '@/features/dashboard/RecentTransactions';
 
 export default function ClientDashboardScreen() {
-  const { colors } = useTheme();
+  const { theme } = useTheme();
+  const { colors } = theme;
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const clientId = Array.isArray(id) ? id[0] : id;

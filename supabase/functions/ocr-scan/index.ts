@@ -1,149 +1,129 @@
-/* ocr-scan.ts – Supabase Edge Function */
-import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.38.3";
+import { createClient } from '@supabase/supabase-js';
+const supabaseUrl = process.env.SUPABASE_URL ?? ""; // Declare SUPABASE_URL
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
-/* --------------------------------------------------------------
-   1️⃣  Initialise Supabase client with Service Role (secure)
-   -------------------------------------------------------------- */
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-);
+// Create Supabase client with admin privileges
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-/* --------------------------------------------------------------
-   2️⃣  Simple OCR helper – replace with your provider
-   -------------------------------------------------------------- */
-async function callOcrProvider(imageUrl: string): Promise<string> {
-  // Example: Google Cloud Vision API (you must set GOOGLE_API_KEY)
-  const apiKey = Deno.env.get("GOOGLE_API_KEY");
-  if (!apiKey) throw new Error("Missing GOOGLE_API_KEY env var");
-
-  const requestBody = {
-    requests: [
-      {
-        image: { source: { imageUri: imageUrl } },
-        features: [{ type: "TEXT_DETECTION", maxResults: 1 }],
-      },
-    ],
-  };
-
-  const resp = await fetch(
-    `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-    }
-  );
-
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`OCR failed: ${resp.status} ${txt}`);
-  }
-
-  const result = await resp.json();
-  const annotation =
-    result.responses?.[0]?.fullTextAnnotation?.text ?? "";
-  return annotation;
+// Check if environment variables are missing
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.');
+  // Throw an error to prevent the function from running without the required environment variables
+  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.');
 }
-
-/* --------------------------------------------------------------
-   3️⃣  Handler – expects JSON:
-        {
-          documentId: string,      // row in public.documents
-          storagePath: string       // full public URL to the image
-        }
-   -------------------------------------------------------------- */
 serve(async (req: Request) => {
-  try {
-    const { documentId, storagePath } = await req.json();
-
-    if (!documentId || !storagePath) {
-      return new Response(
-        JSON.stringify({ error: "documentId and storagePath required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+  try {    
+    // Extract authorization token from header
+    const authorizationHeader = req.headers.get('authorization');
+    if (!authorizationHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    // NEW: check for OCR provider API key early and fail gracefully
-    const apiKey = Deno.env.get("GOOGLE_API_KEY");
-    if (!apiKey) {
-      // mark document as errored and store a helpful message
-      await supabase
-        .from("documents")
-        .update({ status: "error", processed_data: { error: "OCR provider not configured (GOOGLE_API_KEY missing)" } })
-        .eq("id", documentId);
+    const token = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.slice(7) : null;
 
-      // notify user if possible
-      const { data: doc } = await supabase
-        .from("documents")
-        .select("user_id")
-        .eq("id", documentId)
-        .single();
-
-      if (doc?.user_id) {
-        await supabase.from("notifications").insert([
-          {
-            user_id: doc.user_id,
-            title: "Document processing failed",
-            body: "OCR is not configured. Please contact support or try again later.",
-            is_read: false,
-          },
-        ]);
-      }
-
-      return new Response(JSON.stringify({ error: "OCR not configured" }), { status: 503, headers: { "Content-Type": "application/json" } });
+    // Check if token is missing
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization Bearer token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    // 1️⃣ Pull OCR text
-    const extracted = await callOcrProcessor(storagePath);
+    // Validate the token against Supabase Auth
+    const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-    // 2️⃣ Update the document row (status & processed_data)
-    const { error: updErr } = await supabase
-      .from("documents")
-      .update({
-        status: "processed",
-        processed_data: { ocr_text: extracted },
-      })
-      .eq("id", documentId);
+    // Check if token is invalid
+    if (!userResponse.ok) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }    
+    const userJson = await userResponse.json();
+    const callerId = userJson?.id;
 
-    if (updErr) throw updErr;
+    // Check if user ID is missing
+    if (!callerId) {
+      return new Response(JSON.stringify({ error: 'Unable to resolve user from token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-    // 3️⃣ Notify the user (optional – push a notification row)
-    const { data: doc } = await supabase
-      .from("documents")
-      .select("user_id")
-      .eq("id", documentId)
+    // Fetch the caller's profile and role from the 'profiles' table
+    const { data: callerProfile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', callerId)
       .single();
 
-    if (doc?.user_id) {
-      await supabase.from("notifications").insert([
-        {
-          user_id: doc.user_id,
-          title: "Document processed",
-          body: `Your receipt ${documentId} is now searchable.`,
-          is_read: false,
-        },
-      ]);
+    if (profileError) {
+      console.error('Error fetching caller profile:', profileError);
+      return new Response(JSON.stringify({ error: 'Failed to fetch caller profile' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
+    // Check if the caller has admin privileges
+    if (!callerProfile || callerProfile?.role !== 'admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Extract the user ID to be deleted from the request body
+    const body = await req.json();
+    if (!body || !body.userId) {
+      return new Response(JSON.stringify({ error: 'userId required in request body' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const { userId } = body;
+
+    // Use Supabase Admin Auth API to delete the user
+    const adminAuth: any = (supabaseAdmin.auth as any)?.admin;
+
+    // Check if the deleteUser function is available
+    if (!adminAuth?.deleteUser) {
+      return new Response(JSON.stringify({ error: 'deleteUser not available in this runtime' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Delete the user
+    const { error: deleteError } = await adminAuth.deleteUser(userId);
+
+    // If there's an error during user deletion, throw the error
+    if (deleteError) {
+      console.error('Error deleting user:', deleteError);
+      return new Response(JSON.stringify({ error: 'Failed to delete user' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }    
+    // If the user is successfully deleted, return a success response
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (e) {
+    // Handle any errors that occur during the process
     console.error(e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: e instanceof Error ? e.message : 'An unexpected error occurred' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 });
-
-/* --------------------------------------------------------------
-   Helper – wraps the OCR provider call (kept separate for testability)
-   -------------------------------------------------------------- */
-async function callOcrProcessor(url: string): Promise<string> {
-  // you can swap out the implementation above; keep the name stable
-  return await callOcrProvider(url);
+function serve(arg0: (req: Request) => Promise<Response>) {
+  throw new Error('Function not implemented.');
 }

@@ -11,8 +11,7 @@ import AddClientModal from '@/features/client-management/components/AddClientMod
 import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
 
-const ClientListItem = ({ client, onPress }: { client: Profile, onPress: () => void }) => {
-    const { colors } = useTheme();
+const ClientListItem = ({ client, onPress, colors }: { client: Profile, onPress: () => void, colors: any }) => {
     return (
         <TouchableOpacity onPress={onPress}>
             <Card style={styles.clientCard}>
@@ -27,7 +26,8 @@ const ClientListItem = ({ client, onPress }: { client: Profile, onPress: () => v
 };
 
 export default function ClientsScreen() {
-    const { colors } = useTheme();
+    const { theme } = useTheme();
+    const { colors } = theme;
     const { profile } = useAuth();
     const router = useRouter();
 
@@ -79,6 +79,7 @@ export default function ClientsScreen() {
                     <ClientListItem
                         client={item}
                         onPress={() => router.push(`/client/${item.id}`)}
+                        colors={colors}
                     />
                 )}
                 contentContainerStyle={styles.listContainer}

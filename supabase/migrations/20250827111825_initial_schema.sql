@@ -67,7 +67,7 @@ CREATE TABLE public.transactions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   account_id UUID NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
-  category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE RESTRICT,
+  category_id UUID REFERENCES public.categories(id) ON DELETE RESTRICT,
   document_id UUID REFERENCES public.documents(id) ON DELETE SET NULL,
   description TEXT,
   amount NUMERIC(15, 2) NOT NULL,
@@ -186,18 +186,12 @@ END;
 $$;
 
 -- Function to get a summary of income and expenses for the current month.
-CREATE OR REPLACE FUNCTION public.get_monthly_income_summary()
+CREATE OR REPLACE FUNCTION public.get_monthly_income_summary(month_start date, month_end date)
 RETURNS TABLE(total_income NUMERIC, total_expense NUMERIC, net_income NUMERIC)
 LANGUAGE plpgsql
 SECURITY INVOKER
-AS $$
-DECLARE
-  v_start_date DATE;
-  v_end_date DATE;
+AS $
 BEGIN
-  v_start_date := date_trunc('month', NOW())::DATE;
-  v_end_date := (date_trunc('month', NOW()) + interval '1 month - 1 day')::DATE;
-
   RETURN QUERY
   SELECT
     COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS total_income,
@@ -207,9 +201,9 @@ BEGIN
     public.transactions
   WHERE
     user_id = auth.uid() AND
-    transaction_date BETWEEN v_start_date AND v_end_date;
+    transaction_date BETWEEN month_start AND month_end;
 END;
-$$;
+$;
 
 
 ----------------------------------------------------------------

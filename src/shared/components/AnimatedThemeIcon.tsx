@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 export default function AnimatedThemeIcon() {
-  const { isDark, setColorScheme } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
   const rotation = useSharedValue(0);
   
   // Use a shared value to smoothly transition between states
@@ -23,7 +23,7 @@ export default function AnimatedThemeIcon() {
   const handlePress = () => {
     // Rotate the icon when pressed
     rotation.value = withTiming(rotation.value + 360, { duration: 500 });
-    setColorScheme(isDark ? 'light' : 'dark');
+    toggleTheme();
   };
 
   const animatedStyle = useAnimatedStyle(() => {

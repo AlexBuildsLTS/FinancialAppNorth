@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Modal, Alert, View, Text, TextInput, Button } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { Profile, UserRole, UserRoleDisplayNames } from '@/shared/types';
-import { adminService } from '@/shared/services/adminService';
+import { adminService } from '@/features/admin/services/adminService';
 import DropDownPicker from 'react-native-dropdown-picker';
 
 interface EditUserModalProps {
@@ -13,7 +13,8 @@ interface EditUserModalProps {
 }
 
 export default function EditUserModal({ visible, onClose, user, onUserUpdated }: EditUserModalProps) {
-    const { colors } = useTheme();
+    const { theme } = useTheme();
+    const { colors } = theme;
     const [displayName, setDisplayName] = useState('');
     const [email, setEmail] = useState('');
     const [role, setRole] = useState<UserRole | null>(null);

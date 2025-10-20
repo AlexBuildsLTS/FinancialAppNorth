@@ -4,14 +4,14 @@ import { StyleSheet, View, Text } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 
 export default function NotFoundScreen() {
-  const { colors } = useTheme();
+  const { theme: { colors } } = useTheme();
   return (
     <>
       <Stack.Screen options={{ title: 'Oops!' }} />
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <Text style={[styles.title, {color: colors.text}]}>Screen Not Found</Text>
+        <Text style={[styles.title, {color: colors.textPrimary}]}>Screen Not Found</Text>
         <Link href="/(main)" style={styles.link}>
-          <Text style={[styles.linkText, {color: colors.primary}]}>Go to home screen</Text>
+          <Text style={[styles.linkText, {color: colors.accent}]}>Go to home screen</Text>
         </Link>
       </View>
     </>
