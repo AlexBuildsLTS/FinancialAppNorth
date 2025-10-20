@@ -1,3 +1,4 @@
+// Configures the primary tab navigation for authenticated users, dynamically rendering tabs based on user role.
 // src/app/(main)/_layout.tsx
 import React from 'react';
 import { Tabs, useRouter, Redirect } from 'expo-router';

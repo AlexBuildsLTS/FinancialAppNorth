@@ -1,3 +1,4 @@
+// Defines the layout for the (auth) group, providing a stack navigator for login and register screens.
 // src/app/(auth)/_layout.tsx
 
 import React from 'react';

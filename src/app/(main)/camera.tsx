@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
-import { Camera as ExpoCamera } from 'expo-camera';
+import { Camera, CameraView } from 'expo-camera';
 import { MaterialIcons } from '@expo/vector-icons';
 import ScreenContainer from '@/shared/components/ScreenContainer';
 import { useTheme } from '@/shared/context/ThemeProvider';
@@ -11,17 +11,17 @@ export default function CameraScreen() {
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
     const [type, setType] = useState('back');
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
-    const cameraRef = useRef<ExpoCamera>(null);
+    const cameraRef = useRef<CameraView>(null);
 
     useEffect(() => {
         (async () => {
-            const { status } = await ExpoCamera.getCameraPermissionsAsync();
+            const { status } = await Camera.getCameraPermissionsAsync();
             setHasPermission(status === 'granted');
         })();
     }, []);
 
     const requestPermission = async () => {
-        const { status } = await ExpoCamera.requestCameraPermissionsAsync();
+        const { status } = await Camera.requestCameraPermissionsAsync();
         setHasPermission(status === 'granted');
     };
 
@@ -66,7 +66,7 @@ export default function CameraScreen() {
 
     return (
         <ScreenContainer>
-            <ExpoCamera style={styles.fullScreen} type={type as any} ref={cameraRef}>
+            <CameraView style={styles.fullScreen} facing={type as any} ref={cameraRef}>
                 <View style={styles.cameraControls}>
                     <TouchableOpacity style={styles.controlButton} onPress={() => {
                         setType(type === 'back' ? 'front' : 'back');
@@ -76,7 +76,7 @@ export default function CameraScreen() {
                     <TouchableOpacity style={styles.captureButton} onPress={takePicture} />
                     <View style={{ width: 60 }} />{/* Placeholder for spacing */}
                 </View>
-            </ExpoCamera>
+            </CameraView>
         </ScreenContainer>
     );
 }

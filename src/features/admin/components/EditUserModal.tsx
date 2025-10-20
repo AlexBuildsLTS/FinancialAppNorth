@@ -114,7 +114,7 @@ export default function EditUserModal({ visible, onClose, user, onUserUpdated }:
 
                     <View style={{ flexDirection: 'row', justifyContent: 'flex-end', width: '100%', marginTop: 20, zIndex: -1 }}>
                         <View style={{ marginRight: 10 }}>
-                            <Button title="Cancel" onPress={onClose} color={colors.secondary} />
+                            <Button title="Cancel" onPress={onClose} color={colors.textSecondary} />
                         </View>
                         <Button title={isLoading ? 'Saving...' : 'Save'} onPress={handleSave} disabled={isLoading} />
                     </View>

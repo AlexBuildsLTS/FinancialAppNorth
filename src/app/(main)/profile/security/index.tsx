@@ -19,7 +19,7 @@ const SecurityListItem = ({ icon: Icon, text, onPress, colors }: any) => (
 
 
 export default function SecurityScreen() {
-    const { colors } = useTheme();
+    const { theme: { colors } } = useTheme();
     const { showToast } = useToast();
     const router = useRouter();
     const [checkPassword, setCheckPassword] = useState('');

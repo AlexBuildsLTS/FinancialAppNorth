@@ -7,7 +7,6 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { UserRole } from '@/shared/types';
 
 export default function AdminStackLayout() {
-  const { colors } = useTheme();
   const { profile, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) return null; // let the parent layout show a loader
