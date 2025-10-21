@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "north-star-app",
+    "slug": "north-star-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./src/assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#111827"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/icon.png",
+        "backgroundColor": "#111827"
+      },
+      "package": "com.northstar.financeapp"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./src/assets/images/icon.png",
+      "scheme": null
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-build-properties",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "470fb4b6-b97a-4adb-9fea-917ebc37acec"
+      }
+    }
+  }
+}
