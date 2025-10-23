@@ -1,6 +1,5 @@
 import { supabase } from '@/shared/lib/supabase';
 import { Profile as UserProfileType } from '@/shared/types';
-import { AuthChangeEvent, AuthError, Session, SignInWithPasswordCredentials, SignUpWithPasswordCredentials, User } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
 
@@ -17,23 +16,23 @@ export type Profile = UserProfileType & {
 };
 
 type AuthContextType = {
-  session: Session | null;
-  user: User | null;
+  session: any | null;
+  user: any | null;
   profile: Profile | null; // Use the corrected Profile type
   isLoading: boolean;
   isAuthenticated: boolean; // Added for convenience
-  signIn: (credentials: SignInWithPasswordCredentials) => Promise<{ data: any; error: AuthError | null }>;
-  signUp: (credentials: SignUpWithPasswordCredentials & { firstName?: string; lastName?: string }) => Promise<{ data: any; error: AuthError | null }>;
-  signOut: () => Promise<{ error: AuthError | null }>;
+  signIn: (credentials: any) => Promise<{ data: any; error: any | null }>;
+  signUp: (credentials: any & { firstName?: string; lastName?: string }) => Promise<{ data: any; error: any | null }>;
+  signOut: () => Promise<{ error: any | null }>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
-  sendPasswordResetEmail: (email: string) => Promise<{ data: any; error: AuthError | null }>; // Added
+  sendPasswordResetEmail: (email: string) => Promise<{ data: any; error: any | null }>; // Added
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<any | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,7 +51,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     fetchSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, session: Session | null) => {
+      async (event: any, session: any | null) => {
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -88,7 +87,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   };
 
-  const signIn = async (credentials: SignInWithPasswordCredentials) => {
+  const signIn = async (credentials: any) => {
     const result = await supabase.auth.signInWithPassword(credentials);
     
     if (!result.error && result.data.user) {
@@ -105,7 +104,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return result;
   };
 
-  const signUp = async (credentials: SignUpWithPasswordCredentials & { firstName?: string; lastName?: string }) => {
+  const signUp = async (credentials: any & { firstName?: string; lastName?: string }) => {
     const { firstName, lastName, ...authCredentials } = credentials;
     
     // Pass firstName and lastName to the trigger via raw_user_meta_data

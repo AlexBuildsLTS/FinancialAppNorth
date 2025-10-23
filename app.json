@@ -4,7 +4,7 @@
     "slug": "north-star-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/images/icon.png",
+    "icon": "./src/assets/images/favicon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -17,7 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/images/icon.png",
+        "foregroundImage": "./src/assets/images/favicon.png",
         "backgroundColor": "#111827"
       },
       "package": "com.northstar.financeapp"
@@ -25,7 +25,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./src/assets/images/icon.png",
+      "favicon": "./src/assets/images/favicon.png",
       "scheme": null
     },
     "plugins": [
