@@ -16,10 +16,10 @@ import { useTheme } from '@/shared/context/ThemeProvider';
 // Define route constants for better maintainability
 const ROUTES = {
     home: '/(main)' as RelativePathString,
-    messages: '/(main)/support' as RelativePathString,
+    messages: '/(main)/ai-chat' as RelativePathString, // Changed to AI Chat for private messages
     profile: '/(main)/profile' as RelativePathString,
     settings: '/(main)/settings' as RelativePathString,
-    support: '/(main)/support' as RelativePathString,
+    support: '/(main)/support' as RelativePathString, // This is for support tickets
 };
 
 interface MainHeaderProps {
@@ -56,7 +56,9 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ title }) => {    const {
     }, [profile, signOut]); // Dependencies for useMemo
 
     // Determine logo source based on theme name
-    const logoSource = theme.name === 'dark' ? require('@/assets/images/NorthFinanceTextdark.png') : require('@/assets/images/NorthFinancetext.png');
+    const logoSource = theme.name === 'dark'
+        ? require('@/assets/images/NorthFinanceTextdark.png') // Dark theme logo
+        : require('@/assets/images/Northiconlight.png'); // Light theme logo
 
     return (
         <View style={[styles.container, {
@@ -151,4 +153,3 @@ const styles = StyleSheet.create({
         // Add any specific styles for dropdown menu text here if needed
     },
 });
-

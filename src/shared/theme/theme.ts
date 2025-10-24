@@ -3,30 +3,30 @@
 // This is your exact color palette, mapped to semantic names.
 const lightColors = {
   primary: '#BB4711',
-  accent: '#BB4711',
-  background: '#F0F2F5',
-  surface: '#FFFFFF',
-  text: '#0A192F',
-  textPrimary: '#0A192F',
-  textSecondary: '#6c757d',
-  border: '#E0E0E0',
+  accent: '#2e9256ff',
+  background: '#ffffffff',
+  surface: '#333333',
+  text: '#658d5bff',
+  textPrimary: '#bb4711',
+  textSecondary: '#72eb82ff',
+  border: '#D8DEE2',
   success: '#2E7D32',
   warning: '#ED6C02',
   error: '#D32F2F',
   primaryContrast: '#FFFFFF',
-  surfaceContrast: '#FFFFFF', // For text on accent-colored buttons
+  surfaceContrast: '#0A192F', // For text on accent-colored buttons
 };
 
 const darkColors = {
   primary: '#1DB954',
-  accent: '#1DB954',
+  accent: '#60f393ff',
   background: '#0A192F',
   surface: '#172A45',
-  text: '#E6F1FF',
+  text: '#afb0b1ff',
   textPrimary: '#E6F1FF',
   textSecondary: '#8892B0',
   border: '#2A3F5C',
-  success: '#66BB6A',
+  success: '#487e4bff',
   warning: '#FFA726',
   error: '#EF5350',
   primaryContrast: '#FFFFFF',

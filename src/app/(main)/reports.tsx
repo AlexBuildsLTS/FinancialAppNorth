@@ -6,7 +6,7 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { generateFinancialStatement, FinancialStatement } from '@/shared/services/accountingService';
 import ScreenContainer from '@/shared/components/ScreenContainer';
 import { Button } from '@/shared/components/Button';
-import { Card } from '@/shared/components/Card';
+import { Cards } from '@/shared/components/Cards';
 import ProfitLossStatement from '@/features/reports/ProfitLossStatement'; // We will create this
 import BalanceSheet from '@/features/reports/BalanceSheet'; // We will create this
 

@@ -6,7 +6,8 @@ import { useTransactions } from '@/features/transactions/useTransactions';
 import ScreenContainer from '@/shared/components/ScreenContainer';
 import { Transaction } from '@/shared/types';
 import { Button } from '@/shared/components/Button';
-import { Card } from '@/shared/components/Card';
+import { Cards } from '@/shared/components/Cards';
+
 
 // A dedicated component for each transaction item for better organization
 const TransactionListItem = ({ item, colors }: { item: Transaction, colors: any }) => {
@@ -15,7 +16,7 @@ const TransactionListItem = ({ item, colors }: { item: Transaction, colors: any 
     const amountColor = isIncome ? colors.success : colors.text;
 
     return (
-        <Card style={styles.transactionCard}>
+        <Cards style={styles.transactionCards}>
             <View style={styles.leftContent}>
                 <Icon color={isIncome ? colors.success : colors.error} size={32} />
                 <View style={styles.details}>
@@ -31,7 +32,7 @@ const TransactionListItem = ({ item, colors }: { item: Transaction, colors: any 
                     {new Date(item.date).toLocaleDateString()}
                 </Text>
             </View>
-        </Card>
+        </Cards>
     );
 };
 
@@ -149,12 +150,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
     },
-    transactionCard: {
+    transactionCards: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 16,
-        marginBottom: 12, // Use margin for spacing between cards
+        marginBottom: 12, // Use margin for spacing between Cards
     },
     leftContent: {
         flexDirection: 'row',

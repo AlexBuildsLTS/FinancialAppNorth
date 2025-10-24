@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { Plus, ArrowRightLeft, Upload, FilePieChart } from 'lucide-react-native';
-import { Card } from '@/shared/components';
+import { Cards } from '@/shared/components/Cards';
 
 const actions = [
   { text: 'Add Entry', icon: Plus, color: '#3B82F6', type: 'addTransaction' },
@@ -27,7 +27,7 @@ const ActionButton = ({ action, onPress }: { action: typeof actions[0], onPress?
 export default function QuickActions({ onAddTransaction }: { onAddTransaction: () => void }) {
     const { theme: { colors } } = useTheme();
   return (
-    <Card style={styles.container}>
+    <Cards style={styles.container}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Quick Actions</Text>
         <View style={styles.actionsGrid}>
             {actions.map((action) => (
@@ -38,7 +38,7 @@ export default function QuickActions({ onAddTransaction }: { onAddTransaction: (
                 />
             ))}
         </View>
-    </Card>
+    </Cards>
   );
 }
 

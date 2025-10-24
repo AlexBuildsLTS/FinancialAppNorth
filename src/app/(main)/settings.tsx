@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronRight, Bell, Shield, Palette, LogOut, Info } from 'lucide-react-native';
+import { ChevronRight, Bell, Shield, Palette, LogOut, Info, Globe } from 'lucide-react-native'; // Import Globe icon
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useAuth } from '@/shared/context/AuthContext';
 import ScreenContainer from '@/shared/components/ScreenContainer';
-import { Card } from '@/shared/components';
+import { Cards } from '@/shared/components/Cards';
 
 const SettingsListItem = ({ icon: Icon, text, onPress, rightContent, colors, isFirst, isLast }: any) => (
   <TouchableOpacity
@@ -29,7 +29,7 @@ export default function SettingsScreen() {
   const { signOut } = useAuth();
   const router = useRouter();
 
-  type AppRoute = "/(main)/settings" | "/(main)/profile/security";
+  type AppRoute = "/(main)/settings" | "/(main)/profile/security" | "/(main)/profile/localization"; // Add new path
 
   interface MenuItem {
     icon: any;
@@ -40,6 +40,7 @@ export default function SettingsScreen() {
   const menuItems: MenuItem[] = [
     { icon: Bell, text: 'Notifications', path: '/(main)/settings' }, // Placeholder path
     { icon: Shield, text: 'Security & Privacy', path: '/(main)/profile/security' },
+    { icon: Globe, text: 'Localization', path: '/(main)/profile/localization' }, // New Localization item
     { icon: Info, text: 'About NorthFinance', path: '/(main)/settings' }, // Placeholder path
   ];
 
@@ -48,7 +49,7 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
 
-        <Card style={styles.menuSection}>
+        <Cards style={styles.menuSection}>
           <SettingsListItem
             icon={Palette}
             text="Dark Mode"
@@ -65,9 +66,9 @@ export default function SettingsScreen() {
             isFirst
             isLast
           />
-        </Card>
+        </Cards>
 
-        <Card style={styles.menuSection}>
+        <Cards style={styles.menuSection}>
           {menuItems.map((item, index) => (
             <SettingsListItem
               key={item.text}
@@ -79,9 +80,9 @@ export default function SettingsScreen() {
               isLast={index === menuItems.length - 1}
             />
           ))}
-        </Card>
+        </Cards>
 
-        <Card style={styles.menuSection}>
+        <Cards style={styles.menuSection}>
           <SettingsListItem
             icon={LogOut}
             text="Sign Out"
@@ -90,7 +91,7 @@ export default function SettingsScreen() {
             isFirst
             isLast
           />
-        </Card>
+        </Cards>
       </ScrollView>
     </ScreenContainer>
   );

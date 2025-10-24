@@ -8,7 +8,7 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useToast } from '@/shared/context/ToastProvider';
 import ScreenContainer from '@/shared/components/ScreenContainer';
-import { Card, Button } from '@/shared/components';
+import { Cards, Button } from '@/shared/components';
 import * as SecureStore from 'expo-secure-store';
 
 // --- Constants ---
@@ -143,7 +143,7 @@ export default function LoginScreen() {
         <ScreenContainer>
             <View style={styles.outerContainer}>
                 <View style={styles.contentContainer}>
-                    <Card padding={32}>
+                    <Cards padding={32}>
                         <LogIn color={colors.accent} size={40} style={styles.headerIcon} />
                         <Text style={[styles.title, { color: colors.textPrimary }]}>Welcome Back</Text>
                         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Sign in to continue</Text>
@@ -199,7 +199,7 @@ export default function LoginScreen() {
                                 Don't have an account? <Text style={[styles.boldLink, { color: colors.accent }]}>Sign Up</Text>
                             </Text>
                         </TouchableOpacity>
-                    </Card>
+                    </Cards>
                 </View>
             </View>
         </ScreenContainer>

@@ -2,21 +2,24 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
+    "ignoreDeprecations": "6.0",
+    "paths": { "@/*": ["src/*"]
     },
-    "module": "esnext",
+    "module": "ESnext",
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    
-    // This line is added to resolve errors from third-party .d.ts files
     "skipLibCheck": true,
-    "ignoreDeprecations": "6.0"
+    "allowImportingTsExtensions": true,
+    "lib": ["ES2017", "DOM"]
+
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "**/*.d.ts",
+    "**/*.json",
+    "**/*.svg",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
   ]
 }

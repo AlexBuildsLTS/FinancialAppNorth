@@ -23,6 +23,7 @@ export enum UserRole {
 }
 
 // NEW: A mapping to get human-readable names for UI display.
+// Changed from Record<UserRole, string> to a mapped type for better explicitness.
 export const UserRoleDisplayNames: { [key in UserRole]: string } = {
   [UserRole.MEMBER]: 'Member',
   [UserRole.PREMIUM_MEMBER]: 'Premium Member',
@@ -33,7 +34,7 @@ export const UserRoleDisplayNames: { [key in UserRole]: string } = {
 };
 
 // Base status type for reusability
-type UserStatus = 'active' | 'suspended' | 'banned';
+export type UserStatus = 'active' | 'suspended' | 'banned';
 
 export interface Profile {
   full_name: string;
@@ -49,6 +50,18 @@ export interface Profile {
 
 export type User = Profile;
 
+// Define ThemeColors based on usage in ManageUsersScreen and UserListItemProps
+export interface ThemeColors {
+  primary: string;
+  secondary: string;
+  text: string;
+  textSecondary: string;
+  error: string;
+  warning: string;
+  success: string;
+  border: string;
+}
+
 // --- FINANCIAL & ACCOUNTING ---
 
 export interface Account {
@@ -63,7 +76,7 @@ export interface Account {
 
 export interface Transaction {
   category: string;
-  date: ISODateString; // Standardized  
+  date: ISODateString; // Standardized
   id: UUID;
   user_id: UUID;
   account_id: UUID;
@@ -73,13 +86,11 @@ export interface Transaction {
   amount: number;
   type: 'income' | 'expense';
   transaction_date: ISODateString;
-  status: 'pending' | 'cleared' | 'cancelled';
+  status: 'pending' | 'cleared' | 'cancelled' | 'reconciled'; // Added 'reconciled'
   created_at: ISODateString;
 }
 
 export interface Budget {
-  amount: any;
-  spent: any;
   id: UUID;
   user_id: UUID; // Kept original naming
   category: string;
@@ -135,7 +146,8 @@ export interface AuditTrail {
   id: UUID;
   user_id: UUID; // Kept original naming
   action: string;
-  details: Record<string, any>; // Kept as is, but consider more specific typing if possible
+  // Changed from Record<string, any> to Record<string, unknown> for better type safety.
+  details: Record<string, unknown>; // Kept as is, but consider more specific typing if possible
   timestamp: ISODateString; // Standardized
 }
 
@@ -144,8 +156,9 @@ export interface DashboardMetricItem {
   title: string;
   value: string;
   change?: number;
-  Icon: React.ComponentType<LucideProps>; // Kept React import since it's used
+  Icon: React.FC<LucideProps>;
   changeType?: 'positive' | 'negative';
+  percentage?: string;
 }
 
 // --- APP-SPECIFIC ---
@@ -157,6 +170,13 @@ export interface Notification {
   type: 'info' | 'warning' | 'error' | 'success';
   is_read: boolean; // Kept original naming
   created_at: ISODateString; // Standardized
+}
+
+export interface Category {
+  id: UUID;
+  user_id: UUID;
+  name: string;
+  type: 'income' | 'expense'; // Assuming categories are for income or expense
 }
 
 export interface Conversation {
@@ -174,7 +194,10 @@ export interface Message {
   user_id: string;
   text: string;
   created_at: ISODateString; // Standardized
-  sender: { display_name: string; avatar_url: string | null }; // Kept original naming
+  sender: {
+    display_name: string;
+    avatar_url: string | null;
+  };
 }
 
 // --- CPA & CLIENT-SPECIFIC ---
@@ -232,7 +255,7 @@ export interface Document {
   mime_type: string | null; // Standardized
   file_size: number | null;
   status: 'processing' | 'processed' | 'error';
-  processed_data: Record<string, any> | null; // Kept as is, consider more specific typing
+  processed_data: Record<string, unknown> | null;
   created_at: ISODateString; // Standardized
 }
 

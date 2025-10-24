@@ -1,21 +1,31 @@
-// src/components/common/Card.tsx
+// src/components/common/Cards.tsx
 
 import React from 'react';
 import { View, StyleSheet, Platform, ViewStyle } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 
-interface CardProps {
+interface CardsProps {
   children: React.ReactNode;
   style?: ViewStyle;
   padding?: number;
 }
 
-export const Card: React.FC<any> = ({ children, style, padding = 24 }: CardProps) => {
-  const { theme: { colors }, isDark } = useTheme();
+export const Cards: React.FC<CardsProps> = ({ children, style, padding = 24 }) => {
+  const themeContext = useTheme();
+
+  // Check if useTheme returned a valid context
+  if (!themeContext) {
+    throw new Error("ThemeContext is not provided. Please wrap your component within a ThemeProvider.");
+  }
+
+  const { theme: { colors } } = themeContext;
+  if (!colors) {
+    throw new Error("Colors are not defined in the theme.");
+  }
 
   return (
     <View style={[
-      styles.card,
+      styles.Cards,
       { 
         backgroundColor: colors.surface, 
         borderColor: colors.border,
@@ -29,7 +39,7 @@ export const Card: React.FC<any> = ({ children, style, padding = 24 }: CardProps
 };
 
 const styles = StyleSheet.create({
-  card: {
+  Cards: {
     borderRadius: 16,
     borderWidth: 1,
     ...Platform.select({
@@ -40,5 +50,5 @@ const styles = StyleSheet.create({
   },
 });
 
-// keep default export to be tolerant
-export default Card;
+// Keep default export for backward compatibility
+export default Cards;

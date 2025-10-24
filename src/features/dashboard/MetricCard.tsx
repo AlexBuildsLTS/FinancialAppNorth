@@ -1,17 +1,17 @@
-// src/components/dashboard/MetricCard.tsx
+// src/components/dashboard/MetricCards.tsx
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LucideProps } from 'lucide-react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 
-interface MetricCardProps {
+interface MetricCardsProps {
   title: string;
   value: string;
   Icon: React.FC<LucideProps>;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, Icon }) => {
+const MetricCards: React.FC<MetricCardsProps> = ({ title, value, Icon }) => {
   const { theme: { colors } } = useTheme();
   const IconComponent = Icon;
 
@@ -48,4 +48,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MetricCard;
+export default MetricCards;

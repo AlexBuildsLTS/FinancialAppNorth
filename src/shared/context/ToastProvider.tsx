@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useCallback, ReactNode } fr
 import Toast from '@/shared/components/Toast';
 import { View } from 'react-native';
 
+
+
 type ToastType = 'success' | 'error' | 'info';
 
 interface ToastMessage {
@@ -11,6 +13,7 @@ interface ToastMessage {
 }
 
 interface ToastContextType {
+  show: (message: string, title: string, type: ToastType) => void;
   showToast: (message: string, type: ToastType) => void;
 }
 
@@ -23,6 +26,9 @@ export const useToast = () => {
   }
   return context;
 };
+
+
+
 
 export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -39,8 +45,18 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     setToasts(prevToasts => prevToasts.filter(toast => toast.id !== id));
   };
 
-  return (
-    <ToastContext.Provider value={{ showToast }}>
+  // Placeholder for the 'show' method, if it's intended to be different from showToast
+  // For now, it will just call showToast
+  const show = useCallback((message: string, title: string, type: ToastType) => {
+    showToast(`${title}: ${message}`, type);
+  }, [showToast]);
+
+  // Add a function to clear all toasts
+  const clearToasts = () => {
+    setToasts([]);
+  };
+
+  return (<ToastContext.Provider value={{ show, showToast }}>
       {children}
       <View style={{ position: 'absolute', top: 60, left: 0, right: 0, zIndex: 9999 }}>
         {toasts.map(toast => (

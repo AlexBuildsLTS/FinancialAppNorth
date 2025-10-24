@@ -4,7 +4,7 @@ import { LineChart } from 'react-native-gifted-charts';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useAuth } from '@/shared/context/AuthContext';
 import { getMonthlyCashFlow, ChartDataPoint } from '@/features/dashboard/services/analyticsService';
-import { Card } from '@/shared/components';
+import { Cards } from '@/shared/components/Cards';
 import { BarChart3 } from 'lucide-react-native';
 
 export default function ChartSection({ userId }: { userId?: string }) {
@@ -27,7 +27,7 @@ export default function ChartSection({ userId }: { userId?: string }) {
     const chartColor = isDark ? colors.accent : colors.accent;
 
     return (
-        <Card style={styles.container}>
+        <Cards style={styles.container}>
             <View style={styles.header}>
                 <BarChart3 color={colors.textSecondary} size={22} />
                 <Text style={[styles.title, { color: colors.textPrimary }]}>Cash Flow Analysis</Text>
@@ -83,7 +83,7 @@ export default function ChartSection({ userId }: { userId?: string }) {
                     <Text style={{ color: colors.textSecondary, fontFamily: 'Inter-Regular' }}>Not enough data to display chart.</Text>
                 </View>
             )}
-        </Card>
+        </Cards>
     );
 }
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert } from 'react-native';
 import Modal from '@/shared/components/Modal';
 import { Button } from '@/shared/components/Button';
-import { Card } from '@/shared/components/Card';
+import { Cards } from '@/shared/components/Cards';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useToast } from '@/shared/context/ToastProvider';
 import { requestClientAccess } from '@/shared/services/cpaService';

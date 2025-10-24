@@ -388,7 +388,7 @@ export default function SupportScreen() {
               setSelectedTicket(item);
               loadMessages(item.id);
             }}
-            style={[styles.ticketCard, { backgroundColor: colors.surface }]}
+            style={[styles.ticketCards, { backgroundColor: colors.surface }]}
           >
             <View style={styles.ticketHeader}>
               <Text style={[styles.ticketTitle, { color: colors.text }]}>{item.title}</Text>
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   },
   quickActionText: { fontSize: 14, fontWeight: '600' },
   ticketsList: { padding: 16 },
-  ticketCard: {
+  ticketCards: {
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,

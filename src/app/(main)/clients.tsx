@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, Children } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { PlusCircle, User, ChevronRight } from 'lucide-react-native';
@@ -8,19 +8,19 @@ import { getAssignedClients } from '@/shared/services/cpaService';
 import { Profile, UserRole } from '@/shared/types';
 import ScreenContainer from '@/shared/components/ScreenContainer';
 import AddClientModal from '@/features/client-management/components/AddClientModal';
-import { Button } from '@/shared/components/Button';
-import { Card } from '@/shared/components/Card';
+
+
 
 const ClientListItem = ({ client, onPress, colors }: { client: Profile, onPress: () => void, colors: any }) => {
     return (
         <TouchableOpacity onPress={onPress}>
-            <Card style={styles.clientCard}>
+            <View style={styles.clientCards}>
                 <View style={styles.clientInfo}>
                     <User color={colors.primary} size={24} />
                     <Text style={[styles.clientName, { color: colors.text }]}>{client.display_name}</Text>
                 </View>
                 <ChevronRight color={colors.textSecondary} size={24} />
-            </Card>
+            </View>
         </TouchableOpacity>
     );
 };
@@ -30,6 +30,7 @@ export default function ClientsScreen() {
     const { colors } = theme;
     const { profile } = useAuth();
     const router = useRouter();
+    
 
     const [clients, setClients] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
@@ -106,7 +107,7 @@ const styles = StyleSheet.create({
     addButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 30, gap: 8 },
     addButtonText: { fontSize: 16, fontWeight: 'bold' },
     listContainer: { paddingHorizontal: 16 },
-    clientCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    clientCards: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
     clientInfo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
     clientName: { fontSize: 18, fontWeight: '600' },
 });

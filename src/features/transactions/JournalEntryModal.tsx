@@ -5,7 +5,7 @@ import { useTheme } from '@/shared/context/ThemeProvider';
 import { createJournalEntry, getChartOfAccounts } from '@/shared/services/accountingService';
 import { JournalEntryLine, Account } from '@/shared/types';
 import { Button } from '@/shared/components/Button';
-import { Card } from '@/shared/components/Card';
+import { Cards } from '@/shared/components/Cards';
 import Modal from '@/shared/components/Modal';
 import { Picker } from '@react-native-picker/picker';
 

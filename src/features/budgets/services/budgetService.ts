@@ -19,6 +19,18 @@ export const createBudget = async (payload: CreateBudgetPayload) => {
   return data;
 };
 
+export const getCategories = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (error) {
+    throw error;
+  }
+  return data;
+};
+
 
 export const getBudgets = async (userId: string) => {
   const { data, error } = await supabase

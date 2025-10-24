@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { LineChart as GiftedLineChart, lineDataItem } from 'react-native-gifted-charts';
+import { LineChart as GiftedLineChart } from 'react-native-gifted-charts';
 import { useTheme } from '@/shared/context/ThemeProvider';
 
-interface ChartProps {
+interface ChartProps { // Define ChartProps interface
   title: string;
-  data: Array<lineDataItem>;
+  data: Array<{ value: number; label?: string; dataPointText?: string }>; // Use a more specific type for data
 }
 
 const LineChart = ({ title, data }: ChartProps) => {
@@ -36,7 +36,7 @@ const LineChart = ({ title, data }: ChartProps) => {
           pointerLabelHeight: 90,
           activatePointersOnLongPress: true,
           autoAdjustPointerLabelPosition: true,
-          pointerLabelComponent: (items: lineDataItem[]) => {
+          pointerLabelComponent: (items: Array<{ label: string; value: number | null }>) => {
             return (
               <View style={[styles.tooltip, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <Text style={{ color: colors.textPrimary, fontWeight: 'bold' }}>{items[0].label}</Text>

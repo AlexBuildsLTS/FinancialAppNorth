@@ -7,6 +7,49 @@
         "@supabase/mcp-server-supabase@0.5.5",
         "--access-token",
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuaXVqcnF4a2hlcGV2enZnaGphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTY0NjI5MCwiZXhwIjoyMDcxMjIyMjkwfQ.SIYCwTitVZn15L_xoCRW2F1ZAZ7F-LVnkYfShgyMuMI"
+      ],
+      "alwaysAllow": [
+        "get_project",
+        "list_projects",
+        "search_docs",
+        "execute_sql",
+        "get_logs",
+        "get_advisors",
+        "create_branch",
+        "deploy_edge_function",
+        "get_edge_function",
+        "list_edge_functions",
+        "generate_typescript_types",
+        "get_anon_key",
+        "get_project_url",
+        "apply_migration",
+        "list_migrations",
+        "list_extensions",
+        "list_tables"
+      ]
+    },
+    "github.com/supabase-community/supabase-mcp": {
+      "command": "supabase",
+      "args": [
+        "mcp",
+        "start"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "list_projects"
+      ]
+    },
+    "postgrest": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-postgrest@0.0.11",
+        "--apiUrl",
+        "https://mcp.supabase.com/mcp?project_ref=fniujrqxkhepevzvghja&features=branching%2Cfunctions%2Cdevelopment%2Cdebugging%2Cdatabase%2Caccount%2Cdocs%2Cstorage",
+        "--apiKey",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuaXVqcnF4a2hlcGV2enZnaGphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTY0NjI5MCwiZXhwIjoyMDcxMjIyMjkwfQ.SIYCwTitVZn15L_xoCRW2F1ZAZ7F-LVnkYfShgyMuMI",
+        "--schema",
+        "public"
       ]
     }
   }

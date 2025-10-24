@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Modal, Alert, View, Text, TextInput, Button } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { Profile, UserRole, UserRoleDisplayNames } from '@/shared/types';
-import { adminService } from '@/features/admin/services/adminService';
+import * as adminService from '@/features/admin/services/adminService';
 import DropDownPicker from 'react-native-dropdown-picker';
 
 interface EditUserModalProps {
@@ -44,7 +44,7 @@ export default function EditUserModal({ visible, onClose, user, onUserUpdated }:
 
         setIsLoading(true);
         const newRole = value ?? user.role;
-        const { error } = await adminService.updateUser(user.id, {
+        const { error, data: updatedProfileData } = await adminService.updateUser(user.id, {
             display_name: displayName,
             role: newRole,
         });
@@ -54,12 +54,10 @@ export default function EditUserModal({ visible, onClose, user, onUserUpdated }:
             Alert.alert('Error', error.message);
         } else {
             Alert.alert('Success', 'User profile updated successfully.');
-            const updatedProfile: Profile = {
-                ...user,
-                display_name: displayName,
-                role: newRole,
-            };
-            onUserUpdated(updatedProfile);
+            // Ensure updatedProfileData is not undefined before passing it
+            if (updatedProfileData) {
+                onUserUpdated(updatedProfileData);
+            }
             onClose();
         }
     };

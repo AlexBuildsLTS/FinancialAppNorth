@@ -6,15 +6,13 @@ import { useTheme } from '@/shared/context/ThemeProvider';
 import { Transaction } from '@/shared/types';
 import { ArrowUpRight, ArrowDownLeft, PlusCircle } from 'lucide-react-native';
 import { format } from 'date-fns';
-import { Card } from '@/shared/components';
+import { Cards } from '@/shared/components/Cards';
 
-// CRITICAL FIX: The 'onAddTransaction' prop was missing from the interface.
 interface RecentTransactionsProps {
   transactions?: Transaction[];
-  onAddTransaction: () => void;
 }
 
-const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transactions, onAddTransaction }) => {
+const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transactions }) => {
   const { theme: { colors } } = useTheme();
 
   const renderItem = ({ item }: { item: Transaction }) => (
@@ -33,13 +31,9 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transactions, o
   );
 
   return (
-    <Card style={styles.container}>
+    <Cards style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Recent Transactions</Text>
-        <TouchableOpacity style={styles.addButton} onPress={onAddTransaction} accessibilityLabel="Add new transaction">
-          <PlusCircle color={colors.accent} size={22} />
-          <Text style={[styles.addButtonText, { color: colors.accent }]}>Add Transaction</Text>
-        </TouchableOpacity>
       </View>
       <FlatList
         data={transactions}
@@ -48,7 +42,7 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transactions, o
         ListEmptyComponent={<Text style={{ color: colors.textSecondary, textAlign: 'center', padding: 20 }}>No recent transactions.</Text>}
         scrollEnabled={false}
       />
-    </Card>
+    </Cards>
   );
 };
 

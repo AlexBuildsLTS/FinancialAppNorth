@@ -8,7 +8,7 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useToast } from '@/shared/context/ToastProvider';
 import ScreenContainer from '@/shared/components/ScreenContainer'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
-import { Button, Card } from '@/shared/components';
+import { Button, Cards } from '@/shared/components';
 import PasswordStrengthIndicator from '@/shared/components/PasswordStrengthIndicator';
 
 const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => {
@@ -75,7 +75,7 @@ export default function RegisterScreen() {
     return (
         <ScreenContainer>
             <View style={styles.contentContainer}>
-                <Card>
+                <Cards>
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                         <UserPlus color={colors.accent} size={40} style={styles.headerIcon} />
                         <Text style={[styles.title, { color: colors.textPrimary }]}>Create an Account</Text>    
@@ -119,7 +119,7 @@ export default function RegisterScreen() {
                             <Text style={[styles.link, { color: colors.textSecondary }]}>Already have an account? <Text style={{fontWeight: 'bold', color: colors.accent}}>Login</Text></Text>
                         </TouchableOpacity>
                     </ScrollView>
-                </Card>
+                </Cards>
             </View>
         </ScreenContainer>
     );

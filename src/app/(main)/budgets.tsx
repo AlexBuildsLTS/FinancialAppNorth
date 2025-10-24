@@ -9,7 +9,7 @@ import { Budget } from '@/shared/types';
 import ScreenContainer from '@/shared/components/ScreenContainer';
 import CreateBudgetModal from '@/features/budgets/components/CreateBudgetModal';
 import { Button } from '@/shared/components/Button';
-import { Card } from '@/shared/components/Card';
+import { Cards } from '@/shared/components/Cards';
 const BudgetProgressBar = ({ spent, allocated, color }: { spent: number, allocated: number, color: string }) => {
   const percent = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;
   return (
@@ -51,7 +51,7 @@ export default function BudgetsScreen() {
     const progressColor = isOverspent ? colors.error : colors.primary;
 
     return (
-      <View style={[styles.budgetCard, { backgroundColor: colors.surface }]}>
+      <View style={[styles.budgetCards, { backgroundColor: colors.surface }]}>
         <View style={styles.budgetHeader}>
           <Text style={[styles.budgetCategory, { color: colors.text }]}>{item.category}</Text>
           <Text style={[styles.budgetAmount, { color: colors.text }]}>
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, fontWeight: 'bold' },
   addButton: { padding: 8 },
   list: { paddingHorizontal: 16, paddingBottom: 50 },
-  budgetCard: { borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#333' },
+  budgetCards: { borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#333' },
   budgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   budgetCategory: { fontSize: 18, fontWeight: 'bold' },
   budgetAmount: { fontSize: 14, fontFamily: 'monospace' },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,44 +6,92 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  ScrollView,
+  Platform, // Import Platform
 } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
-import { useAuth } from '@/shared/context/AuthContext'; // Import useAuth
+import { useAuth } from '@/shared/context/AuthContext';
 import { addTransaction } from '@/shared/services/transactionService';
-import { Transaction } from '@/shared/types';
+import { getCategories } from '@/features/budgets/services/budgetService';
+import { getChartOfAccounts } from '@/shared/services/accountingService';
+import { Transaction, Category, Account } from '@/shared/types';
 import { Button } from '@/shared/components/Button';
-import { Card } from '@/shared/components/Card';
-import Modal from '@/shared/components/Modal'; // Using the polished base modal
+import Modal from '@/shared/components/Modal';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Icons from 'lucide-react-native';
 
 interface AddTransactionModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: (newTransaction: Transaction) => void;
-  clientId: string | null; // Can be null for personal transactions
+  clientId: string | null;
 }
+
+const categoryIcons: { [key: string]: Icons.LucideIcon } = {
+  Groceries: Icons.ShoppingCart,
+  Dining: Icons.Utensils,
+  Transportation: Icons.Car,
+  Utilities: Icons.Lightbulb,
+  Entertainment: Icons.Film,
+  Healthcare: Icons.HeartPulse,
+  Education: Icons.BookOpen,
+  Shopping: Icons.ShoppingBag,
+  Travel: Icons.Plane,
+  Housing: Icons.Home,
+  Salary: Icons.Briefcase,
+  Investments: Icons.TrendingUp,
+  Other: Icons.Tag,
+};
+
+type TransactionType = 'expense' | 'income' | 'transfer';
+type TransactionStatus = 'pending' | 'cleared' | 'reconciled';
 
 export default function AddTransactionModal({
   visible,
   onClose,
   onSuccess,
   clientId,
-}: AddTransactionModalProps) { 
+}: AddTransactionModalProps) {
   const { theme: { colors } } = useTheme();
-  const { session } = useAuth(); // Use the useAuth hook
-  const [title, setTitle] = useState('');
+  const { session } = useAuth();
+  const [transactionType, setTransactionType] = useState<TransactionType>('expense');
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
-  const [type, setType] = useState<'income' | 'expense'>('expense');
+  const [description, setDescription] = useState('');
+  const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [availableAccounts, setAvailableAccounts] = useState<Account[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>('pending');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!session?.user) return;
+      try {
+        const fetchedCategories = await getCategories(session.user.id);
+        setAvailableCategories(fetchedCategories || []);
+        const fetchedAccounts = await getChartOfAccounts(session.user.id);
+        setAvailableAccounts(fetchedAccounts || []);
+      } catch (error) {
+        console.error('Error fetching data for transaction modal:', error);
+        Alert.alert('Error', 'Failed to load categories or accounts.');
+      }
+    };
+    if (visible) {
+      fetchData();
+    }
+  }, [visible, session]);
+
   const handleSubmit = async () => {
-    if (!title || !amount) { // Category is no longer required here as we can't handle it
-      Alert.alert('Error', 'Please fill out title and amount.');
+    if (!amount || !description || !selectedCategory || !selectedAccount) {
+      Alert.alert('Invalid Input', 'Please fill all required fields.');
       return;
     }
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert('Error', 'Please enter a valid positive amount.');
+      Alert.alert('Invalid Input', 'Please enter a valid positive amount.');
       return;
     }
 
@@ -55,27 +103,31 @@ export default function AddTransactionModal({
         return;
       }
 
-      // TODO: This modal needs a way to select an account and a category.
-      // account_id is a required foreign key.
-      // category_id is optional, but the UI has a text input for category name.
-      const newTransactionData = {
-        description: title,
-        amount: numericAmount,
-        type,
-        account_id: '', // FIXME: This needs to be a valid account ID.
+      const newTransactionData: Omit<Transaction, 'id' | 'created_at'> = {
         user_id: session.user.id,
-        transaction_date: new Date().toISOString(),
+        account_id: selectedAccount,
+        category: selectedCategory,
+        description: description,
+        amount: numericAmount,
+        type: transactionType === 'transfer' ? 'expense' : transactionType,
+        transaction_date: date.toISOString(),
+        date: date.toISOString(), // Added missing 'date' property
+        status: transactionStatus, // Directly use transactionStatus as it's now correctly typed
       };
 
       const addedTransaction = await addTransaction(newTransactionData as any);
-      
+
       Alert.alert('Success', 'Transaction added successfully.');
-      onSuccess(addedTransaction); // Pass the new transaction to the callback
+      onSuccess(addedTransaction);
       onClose();
       // Clear form
-      setTitle('');
+      setTransactionType('expense');
+      setDate(new Date());
       setAmount('');
-      setCategory('');
+      setDescription('');
+      setSelectedCategory(null);
+      setSelectedAccount(null);
+      setTransactionStatus('pending');
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Failed to add transaction.');
@@ -84,77 +136,178 @@ export default function AddTransactionModal({
     }
   };
 
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || date;
+    setShowDatePicker(Platform.OS === 'ios');
+    setDate(currentDate);
+  };
+
   return (
-    <Modal visible={visible} onClose={onClose} title="Add New Transaction">
-      <View style={styles.container}>
-        <View style={styles.typeSelector}>
-          <TouchableOpacity
-            style={[styles.typeButton, type === 'expense' && styles.activeTypeButton, { backgroundColor: type === 'expense' ? colors.accent : colors.surface }]}
-            onPress={() => setType('expense')}
-          >
-            <Text style={[styles.typeButtonText, { color: type === 'expense' ? 'white' : colors.textPrimary }]}>Expense</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeButton, type === 'income' && styles.activeTypeButton, { backgroundColor: type === 'income' ? colors.success : colors.surface }]}
-            onPress={() => setType('income')}
-          >
-            <Text style={[styles.typeButtonText, { color: type === 'income' ? 'white' : colors.textPrimary }]}>Income</Text>
-          </TouchableOpacity>
+    <Modal visible={visible} onClose={onClose} title="Add Transaction">
+      <ScrollView contentContainerStyle={styles.modalContent}>
+        {/* Transaction Type */}
+        <Text style={[styles.label, { color: colors.textSecondary }]}>Transaction Type</Text>
+        <View style={[styles.typeSelector, { borderColor: colors.border }]}>
+          {['expense', 'income', 'transfer'].map((typeOption) => (
+            <TouchableOpacity
+              key={typeOption}
+              style={[
+                styles.typeButton,
+                transactionType === typeOption && { backgroundColor: colors.accent },
+              ]}
+              onPress={() => setTransactionType(typeOption as TransactionType)}
+            >
+              {typeOption === 'expense' && <Icons.MinusCircle size={20} color={transactionType === typeOption ? colors.surfaceContrast : colors.error} />}
+              {typeOption === 'income' && <Icons.PlusCircle size={20} color={transactionType === typeOption ? colors.surfaceContrast : colors.success} />}
+              {typeOption === 'transfer' && <Icons.Repeat size={20} color={transactionType === typeOption ? colors.surfaceContrast : colors.textPrimary} />}
+              <Text style={[styles.typeButtonText, { color: transactionType === typeOption ? colors.surfaceContrast : colors.textPrimary, marginLeft: 5 }]}>
+                {typeOption.charAt(0).toUpperCase() + typeOption.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
+        {/* Date */}
+        <Text style={[styles.label, { color: colors.textSecondary }]}>Date</Text>
+        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={[styles.input, styles.dateInput, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={{ color: colors.textPrimary }}>{date.toLocaleDateString()}</Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="default"
+            onChange={onDateChange}
+          />
+        )}
+
+        {/* Amount */}
+        <Text style={[styles.label, { color: colors.textSecondary, marginTop: 20 }]}>Amount ($)</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
-          placeholder="Title (e.g., Groceries)"
-          placeholderTextColor={colors.textSecondary}
-          value={title}
-          onChangeText={setTitle}
-        />
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
-          placeholder="Amount"
+          placeholder="0.00"
           placeholderTextColor={colors.textSecondary}
           value={amount}
           onChangeText={setAmount}
           keyboardType="numeric"
         />
+
+        {/* Description */}
+        <Text style={[styles.label, { color: colors.textSecondary, marginTop: 20 }]}>Description</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
-          placeholder="Category (e.g., Food)"
+          placeholder="Enter transaction description"
           placeholderTextColor={colors.textSecondary}
-          value={category}
-          onChangeText={setCategory}
+          value={description}
+          onChangeText={setDescription}
         />
+
+        {/* Category */}
+        <Text style={[styles.label, { color: colors.textSecondary, marginTop: 20 }]}>Category</Text>
+        <View style={styles.categoryGrid}>
+          {availableCategories.map((cat) => {
+            const Icon = categoryIcons[cat.name] || Icons.Tag;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                style={[
+                  styles.categoryItem,
+                  { backgroundColor: colors.surface },
+                  selectedCategory === cat.id && { borderColor: colors.accent, borderWidth: 2 },
+                ]}
+                onPress={() => setSelectedCategory(cat.id)}
+              >
+                <Icon size={24} color={selectedCategory === cat.id ? colors.accent : colors.textPrimary} />
+                <Text
+                  style={[
+                    styles.categoryText,
+                    { color: selectedCategory === cat.id ? colors.accent : colors.textPrimary },
+                  ]}
+                >
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Account */}
+        <Text style={[styles.label, { color: colors.textSecondary, marginTop: 20 }]}>Account</Text>
+        <View style={styles.accountGrid}>
+          {availableAccounts.map((acc) => (
+            <TouchableOpacity
+              key={acc.id}
+              style={[
+                styles.accountItem,
+                { backgroundColor: colors.surface },
+                selectedAccount === acc.id && { borderColor: colors.accent, borderWidth: 2 },
+              ]}
+              onPress={() => setSelectedAccount(acc.id)}
+            >
+              <Text
+                style={[
+                  styles.accountText,
+                  { color: selectedAccount === acc.id ? colors.accent : colors.textPrimary },
+                ]}
+              >
+                {acc.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Status */}
+        <Text style={[styles.label, { color: colors.textSecondary, marginTop: 20 }]}>Status</Text>
+        <View style={[styles.statusSelector, { borderColor: colors.border }]}>
+          {['pending', 'cleared', 'reconciled'].map((statusOption) => (
+            <TouchableOpacity
+              key={statusOption}
+              style={[
+                styles.statusButton,
+                transactionStatus === statusOption && { backgroundColor: colors.accent },
+              ]}
+              onPress={() => setTransactionStatus(statusOption as TransactionStatus)}
+            >
+              <Text style={[styles.statusButtonText, { color: transactionStatus === statusOption ? colors.surfaceContrast : colors.textPrimary }]}>
+                {statusOption.charAt(0).toUpperCase() + statusOption.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <Button
           title="Add Transaction"
           onPress={handleSubmit}
           isLoading={loading}
-          style={{ marginTop: 16 }}
+          style={{ marginTop: 30 }}
         />
-      </View>
+      </ScrollView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 8,
+  modalContent: {
+    paddingBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
   },
   typeSelector: {
     flexDirection: 'row',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333',
     overflow: 'hidden',
     marginBottom: 20,
   },
   typeButton: {
     flex: 1,
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  activeTypeButton: {
-    // Active styles are now applied directly
+    justifyContent: 'center',
+    paddingVertical: 12,
   },
   typeButtonText: {
     fontSize: 16,
@@ -167,5 +320,67 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 16,
     borderWidth: 1,
+  },
+  dateInput: {
+    justifyContent: 'center',
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  categoryItem: {
+    width: '30%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  categoryText: {
+    fontSize: 12,
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  accountGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  accountItem: {
+    width: '48%',
+    paddingVertical: 15,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  accountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  statusSelector: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  statusButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

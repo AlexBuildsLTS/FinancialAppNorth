@@ -6,7 +6,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { UserRole, Conversation, Notification } from '@/shared/types'; // FIX: Corrected imports
-import { Avatar, DropdownMenu } from '@/shared/components'; // FIX: Corrected named imports
+import { Avatar } from '@/shared/components/Avatar';
+import { DropdownMenu } from '@/shared/components/DropdownMenu';
 
 import { MessageCircle, Bell, Shield, User, Settings, LogOut } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

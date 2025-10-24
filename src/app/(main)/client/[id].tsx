@@ -168,10 +168,8 @@ export default function ClientDashboardScreen() {
           Recent Client Transactions
         </Text>
 
-        {/* Pass the transactions array directly */}
-        <RecentTransactions transactions={data.recentTransactions} onAddTransaction={function (): void {
-          throw new Error('Function not implemented.');
-        }} />
+        {/* Pass the transactions array directly */} 
+        <RecentTransactions transactions={data.recentTransactions} />
 
         {/* Action buttons */}
         <View style={styles.actionsContainer}>
