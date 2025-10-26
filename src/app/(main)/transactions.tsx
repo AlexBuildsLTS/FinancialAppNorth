@@ -1,103 +1,46 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
-import { PlusCircle, ArrowUpCircle, ArrowDownCircle, Search, SlidersHorizontal } from 'lucide-react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useTransactions } from '@/features/transactions/useTransactions';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import { Transaction } from '@/shared/types';
-import { Button } from '@/shared/components/Button';
-import { Cards } from '@/shared/components/Cards';
+    import React, { useState, useMemo } from 'react';   
+    import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
+    import { PlusCircle, ArrowUpCircle, ArrowDownCircle, Search, SlidersHorizontal } from 'lucide-react-native';
+    import { useTheme } from '@/shared/context/ThemeProvider';
+    import { useTransactions } from '@/features/transactions/useTransactions';
+    import ScreenContainer from '@/shared/components/ScreenContainer';
+    import { Transaction } from '@/shared/types';
+    import { Button } from '@/shared/components/Button';
+    import { Cards } from '@/shared/components/Cards';  
+    import { useAuth } from '@/shared/context/AuthContext';
+    import AddTransactionModal from '@/features/transactions/AddTransactionModal';
+    import { getCategories } from '@/shared/services/budgetService';
+    import { getChartOfAccounts } from '@/shared/services/accountingService';
 
-
+    // A dedicated component for each transaction item for better organization      
 // A dedicated component for each transaction item for better organization
 const TransactionListItem = ({ item, colors }: { item: Transaction, colors: any }) => {
     const isIncome = item.type === 'income';
     const Icon = isIncome ? ArrowUpCircle : ArrowDownCircle;
     const amountColor = isIncome ? colors.success : colors.text;
-
-    return (
+    return ( 
         <Cards style={styles.transactionCards}>
-            <View style={styles.leftContent}>
+            <View style={styles.leftContent}> 
                 <Icon color={isIncome ? colors.success : colors.error} size={32} />
                 <View style={styles.details}>
-                    <Text style={[styles.description, { color: colors.text }]}>{item.description}</Text>
+                    <Text style={[styles.description, { color: colors.text }]}>{item.description}</Text> 
                     <Text style={[styles.category, { color: colors.textSecondary }]}>{item.category}</Text>
                 </View>
-            </View>
-            <View style={styles.rightContent}>
-                <Text style={[styles.amount, { color: amountColor }]}>
-                    {isIncome ? '+' : '-'}${Math.abs(item.amount).toFixed(2)}
+            </View> 
+            <View style={styles.rightContent}> 
+                <Text style={[styles.amount, { color: amountColor }]}> 
+                    {isIncome ? '+' : '-'}${Math.abs(item.amount).toFixed(2)} 
+                </Text> 
+                <Text style={[styles.date, { color: colors.textSecondary }]}> 
+                    {new Date(item.date).toLocaleDateString()} 
                 </Text>
-                <Text style={[styles.date, { color: colors.textSecondary }]}>
-                    {new Date(item.date).toLocaleDateString()}
-                </Text>
-            </View>
-        </Cards>
-    );
-};
+            </View> 
 
-export default function TransactionsScreen() {
-    const { theme } = useTheme();
-    const { colors } = theme;
-    const { transactions } = useTransactions();
-    const [searchQuery, setSearchQuery] = useState('');
+        </Cards>    
+        );    
+    };
+    
 
-    const filteredTransactions = useMemo(() => {
-        if (!searchQuery) {
-            return transactions;
-        }
-        return transactions.filter(t =>
-            t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            t.category?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [transactions, searchQuery]);
-
-    const renderHeader = () => (
-        <>
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.text }]}>Transactions</Text>
-                <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]}>
-                    <PlusCircle color={colors.primaryContrast} size={20} />
-                    <Text style={[styles.addButtonText, { color: colors.primaryContrast }]}>New</Text>
-                </TouchableOpacity>
-            </View>
-             <View style={styles.filterContainer}>
-                <View style={[styles.searchInputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Search color={colors.textSecondary} size={20} />
-                    <TextInput
-                        placeholder="Search transactions..."
-                        placeholderTextColor={colors.textSecondary}
-                        style={[styles.searchInput, { color: colors.text }]}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                </View>
-                <TouchableOpacity style={[styles.filterButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <SlidersHorizontal color={colors.primary} size={20} />
-                </TouchableOpacity>
-            </View>
-        </>
-    );
-
-    return (
-        <ScreenContainer>
-            <FlatList
-                data={filteredTransactions}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => <TransactionListItem item={item} colors={colors} />}
-                ListHeaderComponent={renderHeader}
-                contentContainerStyle={styles.listContainer}
-                ListEmptyComponent={() => (
-                    <View style={styles.emptyContainer}>
-                        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                            No transactions found.
-                        </Text>
-                    </View>
-                )}
-            />
-        </ScreenContainer>
-    );
-}
 
 const styles = StyleSheet.create({
     listContainer: { paddingHorizontal: 16, paddingBottom: 24 },

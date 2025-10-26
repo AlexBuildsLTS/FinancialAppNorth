@@ -4,12 +4,10 @@ import { useFocusEffect } from 'expo-router';
 import { PiggyBank, Plus } from 'lucide-react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useAuth } from '@/shared/context/AuthContext';
-import { getBudgets } from '@/features/budgets/services/budgetService';
+import { getBudgets } from '@/shared/services/budgetService';
 import { Budget } from '@/shared/types';
 import ScreenContainer from '@/shared/components/ScreenContainer';
 import CreateBudgetModal from '@/features/budgets/components/CreateBudgetModal';
-import { Button } from '@/shared/components/Button';
-import { Cards } from '@/shared/components/Cards';
 const BudgetProgressBar = ({ spent, allocated, color }: { spent: number, allocated: number, color: string }) => {
   const percent = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;
   return (
@@ -96,8 +94,7 @@ export default function BudgetsScreen() {
       <CreateBudgetModal
         visible={isModalVisible}
         onClose={() => setModalVisible(false)}
-        onSuccess={fetchBudgets}
-      />
+        onSuccess={fetchBudgets} title={''}      />
     </ScreenContainer>
   );
 }

@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react'; // Import useEffect
-import { View, Text, StyleSheet, TextInput, Alert, TouchableOpacity, ScrollView } from 'react-native'; // Import ScrollView, TouchableOpacity
+// src/features/budgets/components/CreateBudgetModal.tsx
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, Alert, TouchableOpacity, ScrollView, Modal as RNModal } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { useAuth } from '@/shared/context/AuthContext';
-import { useToast } from '@/shared/context/ToastProvider';
-import { createBudget, getCategories } from '@/features/budgets/services/budgetService'; // Import getCategories
-import Modal from '@/shared/components/Modal';
+import { useToast } from '@/shared/context/ToastProvider';  
+import * as Icons from 'lucide-react-native';
+import { createBudget, CreateBudgetPayload, getCategories } from '@/shared/services/budgetService';
+import { Category } from '@/shared/types';
 import { Button } from '@/shared/components/Button';
-import { Category } from '@/shared/types'; // Assuming Category type exists
-import * as Icons from 'lucide-react-native'; // Import all Lucide icons
+import Modal from '@/shared/components/Modal';
+
+
+
 
 interface CreateBudgetModalProps {
   visible: boolean;
@@ -15,8 +19,19 @@ interface CreateBudgetModalProps {
   onSuccess: () => void;
 }
 
-// Map category names to Lucide icons
-const categoryIcons: { [key: string]: Icons.LucideIcon } = {
+
+
+
+interface CreateBudgetModalProps {
+  visible: boolean;
+  title: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+type BudgetPeriod = 'weekly' | 'monthly' | 'yearly';
+
+const categoryIcons: { [key: string]: any } = {
   Groceries: Icons.ShoppingCart,
   Dining: Icons.Utensils,
   Transportation: Icons.Car,
@@ -32,16 +47,14 @@ const categoryIcons: { [key: string]: Icons.LucideIcon } = {
   Other: Icons.Tag,
 };
 
-type BudgetPeriod = 'weekly' | 'monthly' | 'yearly';
-
 export default function CreateBudgetModal({ visible, onClose, onSuccess }: CreateBudgetModalProps) {
   const { theme } = useTheme();
   const { colors } = theme;
-  const { session } = useAuth();
-  const { showToast } = useToast();
+  const { session, profile } = useAuth(); // ensure useAuth provides profile (or fetch if not)
+  const toast = useToast();
 
   const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [budgetLimit, setBudgetLimit] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState<BudgetPeriod>('monthly');
   const [loading, setLoading] = useState(false);
@@ -52,118 +65,160 @@ export default function CreateBudgetModal({ visible, onClose, onSuccess }: Creat
       try {
         const fetchedCategories = await getCategories(session.user.id);
         setAvailableCategories(fetchedCategories || []);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        showToast('Failed to load categories.', 'error');
+      } catch (err: any) {
+        console.error('Error fetching categories:', err);
+        toast.show('Error', 'Failed to load categories', 'error');
       }
     };
-    if (visible) {
-      fetchCategories();
-    }
-  }, [visible, session, showToast]);
+    if (visible) fetchCategories();
+  }, [visible, session, toast]);
 
-  const handleCreateBudget = async () => {
+  const handleCreateBudget = async () => { // Renamed from handleCreateBudget to avoid conflict
     if (!session?.user) return;
     const allocatedAmount = parseFloat(budgetLimit);
-    if (!selectedCategory || isNaN(allocatedAmount) || allocatedAmount <= 0) {
+    const category = availableCategories.find((c) => c.id === selectedCategoryId);
+
+    if (!category || isNaN(allocatedAmount) || allocatedAmount <= 0) {
       return Alert.alert('Invalid Input', 'Please select a category and enter a positive budget limit.');
     }
 
     setLoading(true);
     try {
-      await createBudget({
+      const Currency = session.user.currency || 'USD';
+      const payload: CreateBudgetPayload = {
         user_id: session.user.id,
-        category: selectedCategory,
-        allocated: allocatedAmount,
+        name: category.name, // budgets.name
+        amount: allocatedAmount, // budgets.amount
+        currency: Currency,
         period: selectedPeriod,
-      });
-      showToast('Budget created successfully!', 'success');
+      };
+      await createBudget(payload);
+      toast.show('Success', 'Budget created successfully', 'success');
       onSuccess();
       onClose();
-      // Reset form
-      setSelectedCategory(null);
+      setSelectedCategoryId(null);
       setBudgetLimit('');
       setSelectedPeriod('monthly');
-    } catch (error) {
-      showToast('Failed to create budget.', 'error');
+    } catch (error: any) {
+      console.error('createBudget error:', error);
+      toast.show('Error', error.message || 'Failed to create budget', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal visible={visible} onClose={onClose} title="Create Budget">
-      <ScrollView contentContainerStyle={styles.modalContent}>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Select Category</Text>
-        <View style={styles.categoryGrid}>
-          {availableCategories.map((cat) => {
-            const Icon = categoryIcons[cat.name] || Icons.Tag;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                style={[
-                  styles.categoryItem,
-                  { backgroundColor: colors.surface },
-                  selectedCategory === cat.id && { borderColor: colors.accent, borderWidth: 2 },
-                ]}
-                onPress={() => setSelectedCategory(cat.id)}
-              >
-                <Icon size={24} color={selectedCategory === cat.id ? colors.accent : colors.textPrimary} />
-                <Text
-                  style={[
-                    styles.categoryText,
-                    { color: selectedCategory === cat.id ? colors.accent : colors.textPrimary },
-                  ]}
-                >
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <Text style={[styles.label, { color: colors.textSecondary, marginTop: 20 }]}>Budget Limit ($)</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
-          placeholder="0.00"
-          placeholderTextColor={colors.textSecondary}
-          value={budgetLimit}
-          onChangeText={setBudgetLimit}
-          keyboardType="numeric"
-        />
-
-        <Text style={[styles.label, { color: colors.textSecondary, marginTop: 20 }]}>Budget Period</Text>
-        <View style={[styles.periodSelector, { borderColor: colors.border }]}>
-          {['weekly', 'monthly', 'yearly'].map((period) => (
-            <TouchableOpacity
-              key={period}
-              style={[
-                styles.periodButton,
-                selectedPeriod === period && { backgroundColor: colors.accent },
-              ]}
-              onPress={() => setSelectedPeriod(period as BudgetPeriod)}
-            >
-              <Text
-                style={[
-                  styles.periodButtonText,
-                  { color: selectedPeriod === period ? colors.surfaceContrast : colors.textPrimary },
-                ]}
-              >
-                {period.charAt(0).toUpperCase() + period.slice(1)}
-              </Text>
+    <RNModal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Create Budget</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Text style={[styles.closeButtonText, { color: colors.primary }]}>Close</Text>
             </TouchableOpacity>
-          ))}
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Select Category</Text>
+            <View style={styles.categoryGrid}>
+              {availableCategories.map((cat) => {
+                const Icon = categoryIcons[cat.name] || Icons.Tag;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.categoryItem,
+                      { backgroundColor: colors.surface },
+                      selectedCategoryId === cat.id && { borderColor: colors.accent, borderWidth: 2 },
+                    ]}
+                    onPress={() => setSelectedCategoryId(cat.id)}
+                  >
+                    <Icon size={24} color={selectedCategoryId === cat.id ? colors.accent : colors.textPrimary} />
+                    <Text
+                      style={[
+                        styles.categoryText,
+                        { color: selectedCategoryId === cat.id ? colors.accent : colors.textPrimary },
+                      ]}
+                    >
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={[styles.label, { color: colors.textSecondary, marginTop: 20 }]}>Budget Limit</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
+              placeholder="0.00"
+              placeholderTextColor={colors.textSecondary}
+              value={budgetLimit}
+              onChangeText={setBudgetLimit}
+              keyboardType="numeric"
+            />
+            <Text style={[styles.label, { color: colors.textSecondary, marginTop: 20 }]}>Budget Period</Text>
+            <View style={[styles.periodSelector, { borderColor: colors.border }]}>
+              {['weekly', 'monthly', 'yearly'].map((period) => (
+                <TouchableOpacity
+                  key={period}
+                  style={[
+                    styles.periodButton,
+                    selectedPeriod === period && { backgroundColor: colors.accent },
+                  ]}
+                  onPress={() => setSelectedPeriod(period as BudgetPeriod)}
+                >
+                  <Text
+                    style={[
+                      styles.periodButtonText,
+                      { color: selectedPeriod === period ? colors.surfaceContrast : colors.textPrimary },
+                    ]}
+                  >
+                    {period.charAt(0).toUpperCase() + period.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Button title="Create Budget" onPress={handleCreateBudget} isLoading={loading} style={{ marginTop: 30 }} />
+          </ScrollView>
         </View>
-
-        <Button title="Create Budget" onPress={handleCreateBudget} isLoading={loading} style={{ marginTop: 30 }} />
-      </ScrollView>
-    </Modal>
+      </View>
+    </RNModal>
   );
 }
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '90%',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    fontSize: 16,
+  },
   modalContent: {
-    paddingBottom: 20,
+    padding: 20,
   },
   label: {
     fontSize: 14,

@@ -1,6 +1,5 @@
 import { supabase } from '@/shared/lib/supabase';
 import { Profile as UserProfileType } from '@/shared/types';
-import { setItemAsync } from 'expo-secure-store';
 import React, { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
 
 // This Profile type should be the single source of truth for the app
@@ -92,14 +91,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     
     if (!result.error && result.data.user) {
       await loadProfile(result.data.user.id);
-      // Store remember me preference if needed
-      if ('email' in credentials && typeof credentials.email === 'string') {
-        try {
-          await setItemAsync('remembered_email', credentials.email);
-        } catch (error) {
-          console.warn('Could not store remembered email:', error);
-        }
-      }
     }
     return result;
   };

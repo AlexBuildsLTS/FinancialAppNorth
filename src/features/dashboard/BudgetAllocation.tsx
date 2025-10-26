@@ -1,175 +1,121 @@
+// src/features/dashboard/BudgetAllocation.tsx
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { PieChart } from 'react-native-gifted-charts';
 import { Cards } from '@/shared/components/Cards';
-import { VictoryPie, VictoryLabel, VictoryTooltip } from 'victory-native';
-import { Budget } from '@/shared/types';
+import { useTheme } from '@/shared/context/ThemeProvider';
 import { formatCurrency } from '@/shared/utils/formatters';
 
-interface BudgetAllocationProps {
-  budgets: Budget[];
+// Define expected data structure
+interface AllocationDataPoint {
+  category: string;
+  value: number; // e.g., amount spent or allocated
+  color?: string; // Optional color override
+  percentage?: number;
 }
 
-const COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#FFCD56', '#C9CBCF'];
+interface BudgetAllocationProps {
+  allocationData?: AllocationDataPoint[];
+}
 
-export const BudgetAllocation: React.FC<BudgetAllocationProps> = ({ budgets }) => {
-  const { theme: { colors } } = useTheme();
+const defaultColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#54A0FF'];
 
-  const totalSpent = budgets.reduce((sum, budget) => sum + budget.spent_amount, 0);
+export default function BudgetAllocation({ allocationData = [] }: BudgetAllocationProps) {
+  const { theme } = useTheme();
 
-  if (budgets.length === 0 || totalSpent === 0) {
-    return (
-      <Cards style={styles.container}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Budget Allocation</Text>
-        </View>
-        <Text style={{ color: colors.textSecondary, textAlign: 'center', padding: 20 }}>No budget data available.</Text>
-      </Cards>
-    );
-  }
-
-  const screenWidth = Dimensions.get('window').width;
-  const chartRadius = (screenWidth - 32 - 40) / 2; // Screen width - ScreenContainer padding - Cards padding
-
-  const pieData = budgets.map((budget, index) => ({
-    x: budget.category,
-    y: budget.spent_amount,
-    label: `${budget.category}: ${formatCurrency(budget.spent_amount)} (${((budget.spent_amount / totalSpent) * 100).toFixed(1)}%)`,
-    color: COLORS[index % COLORS.length],
+  const pieData = allocationData.map((item, index) => ({
+    value: item.value,
+    color: item.color || defaultColors[index % defaultColors.length],
+    text: `${item.percentage?.toFixed(0) ?? ''}%`,
   }));
+
+  const renderLegendItem = ({ item, index }: { item: AllocationDataPoint, index: number }) => (
+    <View style={styles.legendItem}>
+      <View style={[styles.legendColorBox, { backgroundColor: item.color || defaultColors[index % defaultColors.length] }]} />
+      <Text style={[styles.legendText, { color: theme.colors.text, fontFamily: theme.fonts.regular }]} numberOfLines={1}>
+        {item.category}
+      </Text>
+      <Text style={[styles.legendValue, { color: theme.colors.textSecondary, fontFamily: theme.fonts.medium }]}>
+        {formatCurrency(item.value)}
+      </Text>
+    </View>
+  );
 
   return (
     <Cards style={styles.container}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Budget Allocation</Text>
-      </View>
-      <View style={styles.chartContainer}>
-        <VictoryPie
-          data={pieData}
-          colorScale={pieData.map(d => d.color)}
-          radius={chartRadius}
-          innerRadius={chartRadius * 0.6}
-          padAngle={2}
-          labels={() => null} // Hide default labels, use custom center label and legend
-          animate={{
-            duration: 1000,
-            onLoad: { duration: 500 },
-          }}
-          style={{
-            data: {
-              fill: ({ datum }) => datum.color,
-              stroke: colors.background,
-              strokeWidth: 2,
-            },
-          }}
-          labelComponent={
-            <VictoryTooltip
-              cornerRadius={5}
-              flyoutStyle={{ fill: colors.surface, stroke: colors.border, strokeWidth: 1 }}
-              style={{ fill: colors.textPrimary, fontSize: 12 }}
-            />
-          }
-          events={[
-            {
-              target: 'data',
-              eventHandlers: {
-                onPressIn: () => {
-                  return [
-                    {
-                      target: 'data',
-                      mutation: ({ style }) => {
-                        return style.fill === colors.accent
-                          ? null
-                          : { style: { fill: colors.accent } };
-                      },
-                    },
-                    {
-                      target: 'labels',
-                      mutation: ({ datum }) => {
-                        return { text: `${datum.x}: ${formatCurrency(datum.y)}` };
-                      },
-                    },
-                  ];
-                },
-                onPressOut: () => {
-                  return [
-                    {
-                      target: 'data',
-                      mutation: () => null, // Reset fill
-                    },
-                    {
-                      target: 'labels',
-                      mutation: () => ({ text: '' }), // Hide label
-                    },
-                  ];
-                },
-              },
-            },
-          ]}
-        />
-        <View style={styles.centerLabel}>
-          <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: 'bold' }}>
-            {formatCurrency(totalSpent)}
-          </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Total Spent</Text>
-        </View>
-      </View>
-      <View style={styles.legendContainer}>
-        {pieData.map((item, index) => (
-          <View key={index} style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: item.color }]} />
-            <Text style={[styles.legendText, { color: colors.textSecondary }]}>{item.x}</Text>
-          </View>
-        ))}
+      <Text style={[styles.title, { fontFamily: theme.fonts.semiBold, fontSize: 18, color: theme.colors.text }]}>
+        Budget Allocation
+      </Text>
+      <View style={styles.contentContainer}>
+         {pieData.length > 0 ? (
+            <>
+               <View style={styles.chartContainer}>
+                 <PieChart
+                   donut // Make it a Donut chart
+                   innerRadius={40} // Adjust inner radius
+                   radius={80} // Adjust outer radius
+                   data={pieData}
+                   showText // Show text labels on slices
+                   textColor={theme.colors.background} // Text color on slices
+                   textSize={10}
+                   focusOnPress // Allow interaction
+                   // Add animation props if available/needed
+                 />
+               </View>
+               <View style={styles.legendContainer}>
+                 <FlatList
+                   data={allocationData}
+                   renderItem={renderLegendItem}
+                   keyExtractor={(item) => item.category}
+                   showsVerticalScrollIndicator={false}
+                 />
+               </View>
+            </>
+         ) : (
+             <Text style={{color: theme.colors.textSecondary, textAlign: 'center', marginTop: 50}}>No budget data available.</Text>
+         )}
       </View>
     </Cards>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    marginHorizontal: 0, // Remove horizontal margin as ScreenContainer handles it
-    marginTop: 20,
-    padding: 20,
-  },
-  header: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  container: { flex: 1 }, // Ensure Cards takes available space
+  title: { fontSize: 18, marginBottom: 16 },
+  contentContainer: {
+    flex: 1, // Ensure content fills Cards
+    flexDirection: 'row', // Chart and Legend side-by-side
+    alignItems: 'center',
   },
   chartContainer: {
+    flex: 1.2, // Give chart slightly more space
     alignItems: 'center',
-    position: 'relative',
-  },
-  centerLabel: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -50 }, { translateY: -50 }],
     justifyContent: 'center',
-    alignItems: 'center',
   },
   legendContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 16,
+    flex: 1, // Legend takes remaining space
+    height: '100%', // Allow FlatList to scroll if needed
+    paddingLeft: 16,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 10,
-    marginBottom: 5,
+    marginBottom: 8,
+    paddingVertical: 4,
   },
-  legendColor: {
+  legendColorBox: {
     width: 12,
     height: 12,
-    borderRadius: 6,
+    borderRadius: 2,
     marginRight: 8,
   },
   legendText: {
-    fontSize: 14,
+    flex: 1, // Allow text to take available space
+    fontSize: 13,
+    marginRight: 8,
+  },
+  legendValue: {
+    fontSize: 13,
+    textAlign: 'right',
   },
 });

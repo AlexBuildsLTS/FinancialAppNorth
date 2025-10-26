@@ -235,305 +235,275 @@ Connecting a user with an accounting professional is a secure and managed proces
 * **Crypto Polyfill (React Native)**: For native builds, `window.crypto.subtle` is not available by default and requires polyfills like `react-native-get-random-values` and `react-native-quick-crypto`.
 
 ```
-FinanceNorthStarV5/
-├── .expo/
-│   ├── types/
-│   │   └── router.d.ts
-│   ├── web/
-│   │   └── cache/
-│   │       └── production/
-│   │           └── images/
-│   │               └── favicon/
-│   │                   ├── favicon-8cdb28a4c057e72cbe0f9a186972785ca35b7981fda54c2e3bf54cf3a6ce76df-contain-transparent/
-│   │                   │   └── favicon-48.png
-│   │                   ├── favicon-bab2107532315e62271a7aac0031dcc961850da341016e97b037cf318af50ac2-contain-transparent/
-│   │                   │   └── favicon-48.png
-│   │                   └── favicon-c4e80578e6d6bd7049ed62a23e1cf53e545e81cd7fb16c14e6194764a6a8fd79-contain-transparent/
-│   │                       └── favicon-48.png
-│   ├── devices.json
-│   └── README.md
-├── .github/
-│   ├── chatmodes/
-│   │   └── NorthFinance: A Vision for Professional Financial Management.chatmode.md
-│   └── workflows/
-│       └── deploy-functions.yml
-├── .qodo/
-├── .vscode/
-│   ├── .react/
-│   ├── extensions.json
-│   └── settings.json
-├── dist/
-│   ├── _expo/
-│   │   └── static/
-│   │       └── js/
-│   │           └── web/
-│   │               └── entry-195554d25d9b6dd3db21f08330d5227a.js
-│   ├── (auth)/
-│   │   ├── login.html
-│   │   └── register.html
-│   ├── (tabs)/
-│   │   ├── client/
-│   │   │   └── [id].html
-│   │   ├── profile/
-│   │   │   ├── security/
-│   │   │   │   ├── change-password.html
-│   │   │   │   └── index.html
-│   │   │   ├── api-keys.html
-│   │   │   ├── edit.html
-│   │   │   └── index.html
-│   │   ├── accounts.html
-│   │   ├── ai-assistant.html
-│   │   ├── analytics.html
-│   │   ├── budgets.html
-│   │   ├── camera.html
-│   │   ├── clients.html
-│   │   ├── documents.html
-│   │   ├── index.html
-│   │   ├── journal.html
-│   │   ├── reports.html
-│   │   ├── settings.html
-│   │   ├── support.html
-│   │   └── transactions.html
-│   ├── admin/
-│   │   ├── index.html
-│   │   └── manage-users.html
-│   ├── assets/
-│   │   └── src/
-│   │       └── assets/
-│   │           ├── images/
-│   │           │   └── icon.249d745cf0e1b5732e4fab1e8fbf083c.png
-│   │           └── Inter/
-│   │               └── Inter-VariableFont_opsz,wght.0a77e23a8fdbe6caefd53cb04c26fabc.ttf
-│   ├── chat/
-│   │   └── [id].html
-│   ├── client/
-│   │   └── [id].html
-│   ├── profile/
-│   │   ├── security/
-│   │   │   ├── change-password.html
-│   │   │   └── index.html
-│   │   ├── api-keys.html
-│   │   ├── edit.html
-│   │   └── index.html
-│   ├── _sitemap.html
-│   ├── +not-found.html
-│   ├── accounts.html
-│   ├── ai-assistant.html
-│   ├── analytics.html
-│   ├── budgets.html
-│   ├── camera.html
-│   ├── client-support.html
-│   ├── clients.html
-│   ├── documents.html
-│   ├── favicon.ico
-│   ├── index.html
-│   ├── journal.html
-│   ├── login.html
-│   ├── messages.html
-│   ├── process-document.html
-│   ├── register.html
-│   ├── reports.html
-│   ├── settings.html
-│   ├── support.html
-│   └── transactions.html
-├── scripts/
-│   ├── deploy-functions.sh
-│   ├── set-github-secrets.sh
-│   └── setup-gh-secrets-repo.sh
-├── src/
-│   ├── app/
-│   │   ├── (auth)/
-│   │   │   ├── _layout.tsx
-│   │   │   ├── login.tsx
-│   │   │   └── register.tsx
-│   │   ├── (tabs)/
-│   │   │   ├── admin/
-│   │   │   │   ├── _layout.tsx
-│   │   │   │   ├── EditUserModal.tsx
-│   │   │   │   ├── index.tsx
-│   │   │   │   └── manage-users.tsx
-│   │   │   ├── client/
-│   │   │   │   └── [id].tsx
-│   │   │   ├── profile/
-│   │   │   │   ├── security/
-│   │   │   │   │   ├── _layout.tsx
-│   │   │   │   │   ├── change-password.tsx
-│   │   │   │   │   └── index.tsx
-│   │   │   │   ├── _layout.tsx
-│   │   │   │   ├── api-keys.tsx
-│   │   │   │   ├── edit.tsx
-│   │   │   │   └── index.tsx
-│   │   │   ├── _layout.tsx
-│   │   │   ├── accounts.tsx
-│   │   │   ├── ai-assistant.tsx
-│   │   │   ├── analytics.tsx
-│   │   │   ├── budgets.tsx
-│   │   │   ├── camera.tsx
-│   │   │   ├── clients.tsx
-│   │   │   ├── documents.tsx
-│   │   │   ├── index.tsx
-│   │   │   ├── journal.tsx
-│   │   │   ├── reports.tsx
-│   │   │   ├── settings.tsx
-│   │   │   ├── support.tsx
-│   │   │   └── transactions.tsx
-│   │   ├── admin/
-│   │   │   └── manage-users.tsx
-│   │   ├── chat/
-│   │   │   ├── _layout.tsx
-│   │   │   ├── [id].tsx
-│   │   │   └── index.tsx
-│   │   ├── dev/
-│   │   │   └── diagnostics.tsx
-│   │   ├── _layout.tsx
-│   │   ├── +not-found.tsx
-│   │   ├── client-support.tsx
-│   │   ├── messages.tsx
-│   │   └── process-document.tsx
-│   ├── assets/
-│   │   ├── fonts/
-│   │   │   ├── components/
-│   │   │   │   ├── inter/
-│   │   │   │   │   ├── index.ts
-│   │   │   │   │   ├── inter.css
-│   │   │   │   │   ├── inter.stories.tsx
-│   │   │   │   │   └── inter.tsx
-│   │   │   │   └── index.ts
-│   │   │   └── Inter
-│   │   ├── images/
-│   │   │   ├── favicon.png
-│   │   │   ├── icon.png
-│   │   │   ├── NorthFinanceIcon.png
-│   │   │   ├── NorthFinancetext.png
-│   │   │   ├── NorthFinanceTextdark.png
-│   │   │   └── splash.png
-│   │   └── Inter/
-│   │       ├── static/
-│   ├── components/
-│   │   ├── admin/
-│   │   │   └── EditUserModal.tsx
-│   │   ├── common/
-│   │   │   ├── AnimatedThemeIcon.tsx
-│   │   │   ├── Avatar.tsx
-│   │   │   ├── Button.tsx
-│   │   │   ├── Card.tsx
-│   │   │   ├── DropdownMenu.tsx
-│   │   │   ├── index.ts
-│   │   │   ├── MainHeader.tsx
-│   │   │   ├── Modal.tsx
-│   │   │   ├── NotificationDropdown.tsx
-│   │   │   ├── PasswordStrengthIndicator.tsx
-│   │   │   ├── RoleBadge.tsx
-│   │   │   ├── TabIcon.tsx
-│   │   │   └── Toast.tsx
-│   │   ├── dashboard/
-│   │   │   ├── ChartSection.tsx
-│   │   │   ├── DashboardHeader.tsx
-│   │   │   ├── index.ts
-│   │   │   ├── LineChart.tsx
-│   │   │   ├── MetricCard.tsx
-│   │   │   ├── MetricsGrid.tsx
-│   │   │   ├── QuickActions.tsx
-│   │   │   └── RecentTransactions.tsx
-│   │   ├── forms/
-│   │   │   ├── AddClientModal.tsx
-│   │   │   ├── AddTransactionModal.tsx
-│   │   │   ├── CreateBudgetModal.tsx
-│   │   │   └── JournalEntryModal.tsx
-│   │   ├── reports/
-│   │   │   ├── BalanceSheet.tsx
-│   │   │   └── ProfitLossStatement.tsx
-│   │   └── ScreenContainer.tsx
-│   ├── constants/
-│   │   └── navigationOptions.ts
-│   ├── context/
-│   │   ├── AuthContext.tsx
-│   │   ├── ThemeProvider.tsx
-│   │   └── ToastProvider.tsx
-│   ├── hooks/
-│   │   ├── index.ts
-│   │   ├── useChartData.ts
-│   │   ├── useDashboardData.ts
-│   │   ├── useFrameworkReady.ts
-│   │   ├── useNotifications.ts
-│   │   ├── useProfile.ts
-│   │   └── useTransactions.ts
-│   ├── lib/
-│   │   ├── devErrors.ts
-│   │   ├── e2eeKeys.ts
-│   │   ├── keyRegistry.ts
-│   │   ├── secureStorage.ts
-│   │   └── supabase.ts
-│   ├── services/
-│   │   ├── accountingService.ts
-│   │   ├── adminService.ts
-│   │   ├── analyticsService.ts
-│   │   ├── budgetService.ts
-│   │   ├── chatService.ts
-│   │   ├── cpaService.ts
-│   │   ├── dataService.ts
-│   │   ├── documentService.ts
-│   │   ├── index.ts
-│   │   ├── notificationService.ts
-│   │   ├── profileService.ts
-│   │   ├── roleService.ts
-│   │   ├── settingsService.ts
-│   │   ├── transactionService.ts
-│   │   └── userService.tsx
-│   ├── theme/
-│   │   └── colors.ts
-│   ├── types/
-│   │   └── index.ts
-│   └── utils/
-│       └── fileUtils.ts
-├── supabase/
-│   ├── .temp/
-│   │   ├── cli-latest
-│   │   ├── gotrue-version
-│   │   ├── pooler-url
-│   │   ├── postgres-version
-│   │   ├── project-ref
-│   │   ├── rest-version
-│   │   └── storage-version
-│   ├── functions/
-│   │   ├── admin-change-role/
-│   │   │   └── index.ts
-│   │   ├── admin-deactivate/
-│   │   │   └── index.ts
-│   │   ├── admin-delete/
-│   │   │   └── index.ts
-│   │   ├── ocr-scan/
-│   │   │   └── index.ts
-│   │   ├── process-document/
-│   │   │   ├── .npmrc
-│   │   │   ├── deno.json
-│   │   │   ├──
-│  │  │  └─ index.ts
-│  │  ├─ deno.json
-│  │  ├─ deno.lock
-│  │  └─ import_map.json
-│  ├─ migrations/
-│  │  └─ 20250827111825_initial_schema.sql
-│  └─ .gitignore
-├─ .env.local
-├─ .gitignore
-├─ .hintrc
-├─ .npmrc
-├─ .prettierrc
-├─ .README.md.kate-swp
-├─ app.config.js
-├─ app.json
-├─ babel.config.js
-├─ deno.json
-├─ eas.json
-├─ expo-env.d.ts
-├─ Makefile
-├─ metro.config.js
-├─ package-lock.json
-├─ package.json
-├─ README.md
-├─ tsconfig.json
-└─ vercel.json
+└── 📁FinancialAppNorth
+    └── 📁.expo
+        └── 📁types
+            ├── router.d.ts
+        └── 📁web
+            └── 📁cache
+                
+        ├── devices.json
+        ├── README.md
+        └── 📁hooks
+        └── 📁info
+            ├── exclude
+        └── 📁logs
+            └── 📁refs
+                └── 📁heads
+                    ├── main
+                └── 📁remotes
+                    └── 📁main
+                        ├── developement
+                        ├── HEAD
+                        ├── main
+                        ├── master
+            ├── HEAD
+        └── 📁objects
+            └── 📁info
+            └── 📁pack
+                ├── pack-094e325577e28650e01949f591d785a71c832090.idx
+                ├── pack-094e325577e28650e01949f591d785a71c832090.pack
+                ├── pack-094e325577e28650e01949f591d785a71c832090.rev
+        └── 📁refs
+            └── 📁heads
+                ├── main
+            └── 📁remotes
+                └── 📁main
+                    ├── developement
+                    ├── HEAD
+                    ├── main
+                    ├── master
+            └── 📁tags
+        ├── COMMIT_EDITMSG
+        ├── config
+        ├── description
+        ├── FETCH_HEAD
+        ├── HEAD
+        ├── index
+    └── 📁.vscode
+        └── 📁.vscode
+            ├── mcp.json
+        ├── extensions.json
+        ├── settings.json
+    └── 📁scripts
+        ├── deploy-functions.sh
+        ├── set-github-secrets.sh
+        ├── setup-gh-secrets-repo.sh
+    └── 📁src
+        └── 📁app
+            └── 📁(auth)
+                ├── _layout.tsx
+                ├── login.tsx
+                ├── register.tsx
+            └── 📁(main)
+                └── 📁admin
+                    ├── _layout.tsx
+                    ├── index.tsx
+                └── 📁client
+                    ├── [id].tsx
+                └── 📁profile
+                    └── 📁security
+                        ├── _layout.tsx
+                        ├── change-password.tsx
+                        ├── index.tsx
+                    ├── _layout.tsx
+                    ├── api-keys.tsx
+                    ├── edit.tsx
+                    ├── index.tsx
+                    ├── localization.tsx
+                ├── _layout.tsx
+                ├── budgets.tsx
+                ├── camera.tsx
+                ├── clients.tsx
+                ├── documents.tsx
+                ├── index.tsx
+                ├── reports.tsx
+                ├── scan.tsx
+                ├── settings.tsx
+                ├── support.tsx
+                ├── transactions.tsx
+            ├── _layout.tsx
+            ├── +not-found.tsx
+        └── 📁assets
+            └── 📁fonts
+                ├── Inter-Italic-VariableFont_opsz,wght.ttf
+                ├── Inter-VariableFont_opsz,wght.ttf
+            └── 📁images
+                ├── favico.ico
+                ├── favicon.png
+                ├── NorthFinancetext.png
+                ├── NorthFinanceTextdark.png
+                ├── NorthFinanceTextdark11.png
+                ├── NorthFinanceTextdark2.png
+                ├── Northiconlight.png
+                ├── Northiconlight1.png
+                ├── Northiconlight2.png
+                ├── Pasted image.png
+            ├── icon.png
+            ├── NorthFinanceTextdark.png
+        └── 📁features
+            └── 📁admin
+                └── 📁components
+                    ├── AdminAuditLogs.tsx
+                    ├── AdminFeatureManagement.tsx
+                    ├── AdminOverview.tsx
+                    ├── AdminPanelLayout.tsx
+                    ├── AdminSystemSettings.tsx
+                    ├── AdminUserManagement.tsx
+                    ├── EditUserModal.tsx
+                    ├── Manage-users.tsx
+                └── 📁services
+                    ├── adminService.ts
+            └── 📁budgets
+                └── 📁components
+                    ├── CreateBudgetModal.tsx
+            └── 📁client-management
+                └── 📁components
+                    ├── AddClientModal.tsx
+                └── 📁services
+                    ├── cpaService.ts
+                ├── cpaService.ts
+            └── 📁dashboard
+                └── 📁hooks
+                    ├── useChartData.ts
+                    ├── useDashboardData.ts
+                └── 📁services
+                    ├── analyticsService.ts
+                ├── BudgetAllocation.tsx
+                ├── BudgetOverview.tsx
+                ├── ChartSection.tsx
+                ├── DashboardHeader.tsx
+                ├── IncomeByCategory.tsx
+                ├── index.ts
+                ├── LineChart.tsx
+                ├── MetricCard.tsx
+                ├── MetricsGrid.tsx
+                ├── QuickActions.tsx
+                ├── RecentTransactions.tsx
+                ├── RoleBasedDashboard.tsx
+                ├── SpendingTrends.tsx
+                ├── WelcomeHeader.tsx
+            └── 📁messaging
+                └── 📁services
+                    ├── chatService.ts
+                ├── chatService.ts
+                ├── useNotifications.ts
+            └── 📁profile
+                ├── useProfile.ts
+                ├── userService.tsx
+            └── 📁reports
+                ├── BalanceSheet.tsx
+                ├── ProfitLossStatement.tsx
+            └── 📁services
+                ├── profileService.ts
+            └── 📁transactions
+                ├── AddTransactionModal.tsx
+                ├── JournalEntryModal.tsx
+                ├── useTransactions.ts
+        └── 📁shared
+            └── 📁components
+                ├── AnimatedInfoCard.tsx
+                ├── AnimatedLogo.tsx
+                ├── AnimatedThemeIcon.tsx
+                ├── AppFooter.tsx
+                ├── Avatar.tsx
+                ├── Button.tsx
+                ├── Cards.tsx
+                ├── DropdownMenu.tsx
+                ├── ErrorBoundary.tsx
+                ├── Footer.tsx
+                ├── index.ts
+                ├── InfoFooter.tsx
+                ├── LoadingSpinner.tsx
+                ├── MainHeader.tsx
+                ├── Modal.tsx
+                ├── NotificationDropdown.tsx
+                ├── PasswordStrengthIndicator.tsx
+                ├── RoleBadge.tsx
+                ├── ScreenContainer.tsx
+                ├── TabIcon.tsx
+                ├── Toast.tsx
+            └── 📁constants
+                ├── navigation.ts
+            └── 📁context
+                ├── AuthContext.tsx
+                ├── ThemeProvider.tsx
+                ├── ToastProvider.tsx
+            └── 📁hooks
+                ├── useFrameworkReady.ts
+            └── 📁lib
+                ├── devErrors.ts
+                ├── e2eeKeys.ts
+                ├── keyRegistry.ts
+                ├── localStorage.ts
+                ├── secureStorage.ts
+                ├── supabase.ts
+            └── 📁services
+                ├── accountingService.ts
+                ├── adminService.ts
+                ├── analyticsService.ts
+                ├── budgetService.ts
+                ├── chatService.ts
+                ├── cpaService.ts
+                ├── dataService.ts
+                ├── documentService.ts
+                ├── notificationService.ts
+                ├── profileService.ts
+                ├── roleService.ts
+                ├── settingsService.ts
+                ├── transactionService.ts
+            └── 📁theme
+                ├── theme.ts
+            └── 📁types
+                ├── index.ts
+                ├── supabase.ts
+            └── 📁utils
+                ├── fileUtils.ts
+                ├── formatters.ts
+        ├── shim.d.ts
+    └── 📁supabase
+        └── 📁.temp
+            ├── cli-latest
+            ├── gotrue-version
+            ├── pooler-url
+            ├── postgres-version
+            ├── project-ref
+            ├── rest-version
+            ├── storage-migration
+            ├── storage-version
+        └── 📁functions
+            └── 📁admin-change-role
+                ├── index.ts
+            └── 📁admin-deactivate
+                ├── index.ts
+            └── 📁admin-delete
+                ├── index.ts
+            └── 📁ocr-scan
+                ├── index.ts
+            └── 📁process-document
+                ├── .npmrc
+                ├── index.ts
+            ├── import_map.json
+        └── 📁migrations
+            ├── 20250827111825_initial_schema.sql
+        ├── .gitignore
+    ├── .env
+    ├── .gitignore
+    ├── .hintrc
+    ├── .npmrc
+    ├── .prettierrc
+    ├── app.config.js
+    ├── app.json
+    ├── babel.config.js
+    ├── eas.json
+    ├── expo-env.d.ts
+    ├── metro.config.js
+    ├── package-lock.json
+    ├── package.json
+    ├── README.md
+    ├── TODO.md
+    ├── tsconfig.json
+    └── vercel.json
 ```
 
 ---

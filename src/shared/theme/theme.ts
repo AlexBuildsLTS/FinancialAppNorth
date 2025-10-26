@@ -2,14 +2,14 @@
 
 // This is your exact color palette, mapped to semantic names.
 const lightColors = {
-  primary: '#BB4711',
+  primary: '#4a72f4',
   accent: '#2e9256ff',
   background: '#ffffffff',
-  surface: '#333333',
-  text: '#658d5bff',
-  textPrimary: '#bb4711',
-  textSecondary: '#72eb82ff',
-  border: '#D8DEE2',
+  surface: '#9c9ca7e8',
+  text: '#504f4fff',
+  textPrimary: '#080808ff', 
+  textSecondary: '#b97002ff', 
+  border: '#bdc8cfff',
   success: '#2E7D32',
   warning: '#ED6C02',
   error: '#D32F2F',
@@ -37,7 +37,15 @@ const spacing = {
   xs: 4, sm: 8, md: 16, lg: 24, xl: 40,
 };
 
-export const lightTheme = { colors: lightColors, spacing };
-export const darkTheme = { colors: darkColors, spacing };
+const fonts = {
+  light: 'InterLight',
+  regular: 'InterRegular',
+  medium: 'InterMedium',
+  semiBold: 'InterSemiBold',
+  bold: 'InterBold',
+};
+
+export const lightTheme = { colors: lightColors, spacing, fonts };
+export const darkTheme = { colors: darkColors, spacing, fonts };
 
 export type AppTheme = typeof lightTheme;

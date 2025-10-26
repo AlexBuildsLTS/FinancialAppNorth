@@ -57,9 +57,22 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     const finalSpacing = currentTheme.spacing ?? fallbackSpacing;
 
     // Construct the final theme object, ensuring it conforms to the expected interface.
+    // Define fallback values for fonts
+    const fallbackFonts = {
+      light: 'System',
+      regular: 'System',
+      medium: 'System',
+      semiBold: 'System',
+      bold: 'System',
+    };
+
+    const finalFonts = currentTheme.fonts ?? fallbackFonts;
+
     const constructedTheme: AppTheme & { name: 'light' | 'dark' } = {
+      ...currentTheme,
       colors: finalColors,
       spacing: finalSpacing,
+      fonts: finalFonts, // Ensure fonts are included
       name: isDark ? 'dark' : 'light',
     };
     return constructedTheme;

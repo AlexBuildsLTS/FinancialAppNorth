@@ -1,6 +1,4 @@
 import React from 'react';
-
-
 import { Tabs, useRouter, Redirect } from 'expo-router';    
 import { useAuth } from '@/shared/context/AuthContext';
 import { useTheme } from '@/shared/context/ThemeProvider';
@@ -9,10 +7,6 @@ import { TabIcon } from '@/shared/components/TabIcon';
 import { MainHeader } from '@/shared/components/MainHeader';
 import { View, ActivityIndicator, StyleSheet, Platform, Pressable } from 'react-native';
 import { ScanEye } from 'lucide-react-native';
-import AppFooter from '@/shared/components/AppFooter'; // Import AppFooter
-      
-
-
 
 // This is the custom circular "Scan" button from your visual guide.
 const CustomScanButton = ({ onPress }: { onPress: (e: any) => void }) => {
@@ -58,8 +52,7 @@ export default function MainAppLayout() {
     const renderedTabNames = tabsToRender.map(t => t.name);
     const hiddenTabs = allPossibleTabs.filter(name => !renderedTabNames.includes(name));
 
-    return (
-        <View style={styles.container}> 
+        return (
             <Tabs
                 screenOptions={{
                     header: () => <MainHeader />,
@@ -115,15 +108,9 @@ export default function MainAppLayout() {
                 ))}
                 <Tabs.Screen name="client/[id]" options={{ href: null }} /> // This is a placeholder for a client-specific tab
             </Tabs>
-            <AppFooter />
-        </View>
-    );
-}
+        );}
 
 const styles = StyleSheet.create({
-    container: { // Added styles for the container
-        flex: 1,
-    },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     shadow: {
         boxShadow: '0 5px 15px rgba(0, 0, 0, 0.1)',

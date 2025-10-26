@@ -3,15 +3,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/shared/context/AuthContext';
 import { supabase } from '@/shared/lib/supabase';
-import { Transaction, Budget } from '@/shared/types';
+import { Transaction, Budget, BudgetItemData } from '@/shared/types'; // Added BudgetItemData
 import { startOfMonth, endOfMonth, format, subMonths } from 'date-fns';
+import { error } from 'console';
 
 export interface DashboardMetrics {
   totalBalance: number;
   monthlyIncome: number;
   monthlyExpenses: number;
+  savingsGoal: number;
+  spendingTrends: { value: number; date: string; label?: string; }[];
+  budgetAllocation: { category: string; value: number; }[];
+  currentBudget: number;
+  totalBudget: number;
   recentTransactions: Transaction[];
-  budgets: Budget[];
+  budgets: BudgetItemData[]; // Use BudgetItemData from shared types
+  incomeChartData: { value: number; label: string; }[];
+  expenseChartData: { value: number; label: string; }[];
 }
 
 export const useDashboardData = () => {
@@ -94,13 +102,41 @@ export const useDashboardData = () => {
       const recentTransactions = (recentTransactionsResult.data as Transaction[]) || [];
       const budgets = (budgetsResult.data as Budget[]) || [];
       
-      setMetrics({ totalBalance, monthlyIncome, monthlyExpenses, recentTransactions, budgets });
-      setIncomeChartData(incomeData);
-      setExpenseChartData(expenseData);
+      // Placeholder for savingsGoal, spendingTrends, budgetAllocation, currentBudget, totalBudget
+      // These would typically come from additional Supabase queries or calculations
+      const savingsGoal = 5000; // Example static value
+      const savingsGoalValue = 5000; // Example static value, replace with actual data fetching
+      const spendingTrendsData = incomeData.map((item, index) => ({
+        value: item.value,
+        date: item.label, // Assuming label is a date string
+        label: format(subMonths(now, monthsToFetch - 1 - index), 'MMM dd'),
+      }));
+      const budgetAllocationData = budgets.map(b => ({ category: b.category, value: b.allocated_amount }));
+      const currentBudgetAmount = budgets.reduce((sum, b) => sum + b.spent_amount, 0);
+      const totalBudgetAmount = budgets.reduce((sum, b) => sum + b.allocated_amount, 0);
 
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      // You can set an error state here to show a message to the user
+      setMetrics({
+        totalBalance,
+        monthlyIncome,
+        monthlyExpenses,
+        savingsGoal: savingsGoalValue,
+        spendingTrends: spendingTrendsData,
+        budgetAllocation: budgetAllocationData,
+        currentBudget: currentBudgetAmount,
+        totalBudget: totalBudgetAmount,
+        recentTransactions,
+        budgets: budgets.map(b => ({
+          category: b.category,
+          spent: b.spent_amount,
+          budget: b.allocated_amount,
+        })),
+        incomeChartData: incomeData,
+        expenseChartData: expenseData,
+      });
+
+    } catch (err: any) {
+      console.error('Error fetching dashboard data:', err);
+      setError(err.message || 'Failed to fetch dashboard data');
     } finally {
       setLoading(false);
     }
@@ -113,5 +149,9 @@ export const useDashboardData = () => {
   // Function to allow manual refresh
   const refreshData = () => fetchData();
 
-  return { metrics, incomeChartData, expenseChartData, loading, refreshData };
+  return { metrics, incomeChartData, expenseChartData, loading, error, refreshData };
 };
+function setError(arg0: any) {
+  throw new Error('Function not implemented.');
+}
+

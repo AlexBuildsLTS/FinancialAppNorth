@@ -1,19 +1,22 @@
-module.exports = function (api) {
+// babel.config.js
+module.exports = function(api) {
   api.cache(true);
   return {
-    presets: ["babel-preset-expo"],
+    presets: ['babel-preset-expo'],
     plugins: [
+      // Add this plugin configuration
       [
-        "module-resolver",
+        'module-resolver',
         {
-          root: ["./src"],
+          root: ['./src'], // Root directory for aliases
           alias: {
-            "@": "./src",
-            "react-native": "react-native-web",
+            '@': './src', // Match your tsconfig alias
           },
+          extensions: ['.ios.js', '.android.js', '.js', '.jsx', '.ts', '.tsx', '.json'],
         },
       ],
-      "react-native-reanimated/plugin",
+      // Ensure 'react-native-reanimated/plugin' is last if you use it
+      'react-native-reanimated/plugin',
     ],
   };
 };

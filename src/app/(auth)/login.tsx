@@ -236,4 +236,4 @@ const styles = StyleSheet.create({
         height: 14,
         borderRadius: 2,
     },
-});
+}); 

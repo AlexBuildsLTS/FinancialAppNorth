@@ -153,12 +153,30 @@ export interface AuditTrail {
 
 // --- DASHBOARD ---
 export interface DashboardMetricItem {
-  title: string;
-  value: string;
-  change?: number;
-  Icon: React.FC<LucideProps>;
-  changeType?: 'positive' | 'negative';
-  percentage?: string;
+  id: string;
+  label: string;
+  value: number;
+  icon: React.ReactElement<LucideProps>;
+  format: (value: number | null | undefined, locale?: string, currency?: string) => string;
+}
+
+export interface DashboardMetrics {
+  totalBalance: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  savingsGoal?: number; // Added savingsGoal
+  spendingTrends?: { value: number; date: string; label?: string; }[]; // Added spendingTrends
+  budgetAllocation?: { category: string; amount: number; }[]; // Added budgetAllocation
+  currentBudget?: number; // Added currentBudget
+  totalBudget?: number; // Added totalBudget
+  recentTransactions: Transaction[];
+  budgets: BudgetItemData[]; // Changed to BudgetItemData[]
+}
+
+export interface BudgetItemData {
+  category: string;
+  spent: number;
+  budget: number;
 }
 
 // --- APP-SPECIFIC ---

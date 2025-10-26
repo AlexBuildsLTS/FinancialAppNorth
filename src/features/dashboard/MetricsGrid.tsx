@@ -10,23 +10,16 @@ interface MetricsGridProps {
   metricData: DashboardMetricItem[];
 }
 
-const MetricCards = ({ title, value, Icon, percentage }: DashboardMetricItem) => {
+const MetricCards = ({ label, value, icon, format }: DashboardMetricItem) => {
     const { theme: { colors } } = useTheme();
-    const isPositive = percentage?.startsWith('+');
-    const changeColor = isPositive ? colors.success : colors.error;
 
     return (
         <Cards style={styles.metricCards} padding={20}>
             <View style={styles.CardsHeader}>
-                <Icon color={colors.textSecondary} size={22} />
-                {percentage && (
-                    <Text style={[styles.metricChange, { color: changeColor }]}>
-                        {percentage}
-                    </Text>
-                )}
+                {icon}
             </View>
-            <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{value}</Text>
-            <Text style={[styles.metricTitle, { color: colors.textSecondary }]}>{title}</Text>
+            <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{format(value)}</Text>
+            <Text style={[styles.metricTitle, { color: colors.textSecondary }]}>{label}</Text>
         </Cards>
     );
 };
@@ -35,7 +28,7 @@ export default function MetricsGrid({ metricData }: MetricsGridProps) {
   return (
     <View style={styles.container}>
       {metricData.map((metric) => (
-        <MetricCards key={metric.title} {...metric} />
+        <MetricCards key={metric.id} {...metric} />
       ))}
     </View>
   );
