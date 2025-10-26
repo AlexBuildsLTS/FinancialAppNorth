@@ -57,6 +57,7 @@ yarn-error.*
 .env.*
 !.env.example
 .vercel/vercel.json
+vercel.json
 
 # TypeScript
 *.tsbuildinfo
