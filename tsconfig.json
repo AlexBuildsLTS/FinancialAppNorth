@@ -18,7 +18,6 @@
     "**/*.tsx",
     "**/*.d.ts",
     "**/*.json",
-    "**/*.svg",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
   ]

@@ -4,7 +4,6 @@ module.exports = function(api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      // Add this plugin configuration
       [
         'module-resolver',
         {
@@ -17,6 +16,7 @@ module.exports = function(api) {
       ],
       // Ensure 'react-native-reanimated/plugin' is last if you use it
       'react-native-reanimated/plugin',
+      
     ],
   };
 };

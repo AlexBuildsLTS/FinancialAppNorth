@@ -57,8 +57,8 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ title }) => {    const {
 
     // Determine logo source based on theme name
     const logoSource = theme.name === 'dark'
-        ? require('@/assets/images/NorthFinanceTextdark.png') // Dark theme logo
-        : require('@/assets/images/Northiconlight.png'); // Light theme logo
+        ? require('@/assets/images/NFIconDark.png') // Dark theme logo
+        : require('@/assets/images/NFIconLight.png'); // Light theme logo
 
     return (
         <View style={[styles.container, {

@@ -1,7 +1,7 @@
 // This is the root layout for the entire application. It loads necessary fonts and wraps all routes with essential context providers.
 import React , { useEffect } from 'react' ;
 import { Slot, SplashScreen } from 'expo-router';
-import { AuthProvider } from '@/shared/context/AuthContext';
+import { AuthProvider } from '@/shared/context/AuthContext'; 
 import { ThemeProvider } from '@/shared/context/ThemeProvider';
 import { ToastProvider } from '@/shared/context/ToastProvider';
 import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';

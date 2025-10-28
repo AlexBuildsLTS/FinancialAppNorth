@@ -1,13 +1,16 @@
+// src/features/auth/components/info/OurMission.tsx
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '../../context/ThemeProvider';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { AppTheme } from '@/shared/theme/theme';
 
 export function OurMission() {
   const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.title, { color: theme.colors.text, fontFamily: theme.fonts.bold }]}>
+      <Text style={[styles.title, { color: theme.colors.textPrimary, fontFamily: theme.fonts.bold }]}>
         Our Mission
       </Text>
       <Text style={[styles.paragraph, { color: theme.colors.textSecondary, fontFamily: theme.fonts.regular }]}>
@@ -17,19 +20,19 @@ export function OurMission() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   section: {
-    paddingVertical: 32,
-    paddingHorizontal: 16,
+    marginBottom: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.md,
   },
   title: {
-    fontSize: 28,
-    marginBottom: 16,
+    fontSize: 22,
+    marginBottom: theme.spacing.md,
     textAlign: 'center',
   },
   paragraph: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 22,
     textAlign: 'center',
   },
 });

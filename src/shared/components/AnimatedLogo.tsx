@@ -44,8 +44,8 @@ const AnimatedLogo = ({ scrollY }: AnimatedLogoProps) => {
       <Image
         source={
           isDark
-            ? require('@/assets/images/NorthFinanceTextdark.png')
-            : require('@/assets/images/NorthFinancetext.png')
+            ? require('@/assets/images/NFIconDark')
+            : require('@/assets/images/NFIconLight')
         }
         style={styles.logo}
         resizeMode="contain"

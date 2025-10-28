@@ -2,13 +2,13 @@
 
 // This is your exact color palette, mapped to semantic names.
 const lightColors = {
-  primary: '#4a72f4',
+  primary: '#00b451ff',
   accent: '#2e9256ff',
   background: '#ffffffff',
-  surface: '#9c9ca7e8',
-  text: '#504f4fff',
-  textPrimary: '#080808ff', 
-  textSecondary: '#b97002ff', 
+  surface: '#1f2227',
+  text: '#00df82cc',
+  textPrimary: '#ffffffff', 
+  textSecondary: '#3f9604d3', 
   border: '#bdc8cfff',
   success: '#2E7D32',
   warning: '#ED6C02',
