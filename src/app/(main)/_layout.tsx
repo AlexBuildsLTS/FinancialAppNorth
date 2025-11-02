@@ -45,9 +45,11 @@ export default function MainAppLayout() {
     }
 
     const allPossibleTabs = ['index', 'transactions', 'documents', 'support', 'settings', 'budgets', 'reports', 'clients', 'admin', 'camera', 'scan', 'profile'];
-    const visibleTabs: Omit<TabItem, 'custom'>[] = ROLE_BASED_TABS[profile.role] || []; // Dynamically filters tabs based on the user's assigned role.
+    // FIX: Ensure visibleTabs and tabsToRender are correctly typed as TabItem[] and filter out custom tabs.
+    const allTabs: TabItem[] = ROLE_BASED_TABS[profile.role] || [];
+    const visibleTabs = allTabs.filter(tab => !tab.custom); // Filter out custom tabs (like the scan button)
+    const tabsToRender: TabItem[] = [...visibleTabs]; // Spread the filtered tabs
     const visibleTabNames = visibleTabs.map(tab => tab.name);   
-    const tabsToRender: TabItem[] = [...visibleTabs];
 
     const renderedTabNames = tabsToRender.map(t => t.name);
     const hiddenTabs = allPossibleTabs.filter(name => !renderedTabNames.includes(name));

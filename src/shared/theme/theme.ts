@@ -1,7 +1,45 @@
 // src/shared/theme/theme.ts
 
 // This is your exact color palette, mapped to semantic names.
-const lightColors = {
+interface ThemeColors {
+  primary: string;
+  accent: string;
+  background: string;
+  surface: string;
+  text: string;
+  textPrimary: string;
+  textSecondary: string;
+  border: string;
+  success: string;
+  warning: string;
+  error: string;
+  primaryContrast: string;
+  surfaceContrast: string;
+}
+
+interface ThemeSpacing {
+  xs: number;
+  sm: number;
+  md: number;
+  lg: number;
+  xl: number;
+}
+
+interface ThemeFonts {
+  light: string;
+  regular: string;
+  medium: string;
+  semiBold: string;
+  bold: string;
+}
+
+export interface AppTheme {
+  colors: ThemeColors;
+  spacing: ThemeSpacing;
+  fonts: ThemeFonts;
+}
+
+const lightColors: ThemeColors = {
   primary: '#00b451ff',
   accent: '#2e9256ff',
   background: '#ffffffff',
@@ -17,14 +55,14 @@ const lightColors = {
   surfaceContrast: '#0A192F', // For text on accent-colored buttons
 };
 
-const darkColors = {
+const darkColors: ThemeColors = {
   primary: '#1DB954',
   accent: '#60f393ff',
   background: '#0A192F',
   surface: '#172A45',
-  text: '#afb0b1ff',
-  textPrimary: '#E6F1FF',
-  textSecondary: '#8892B0',
+  text: '#003d0def',
+  textPrimary: '#a1a1a1ff',
+  textSecondary: '#34d672ff',
   border: '#2A3F5C',
   success: '#487e4bff',
   warning: '#FFA726',
@@ -33,11 +71,11 @@ const darkColors = {
   surfaceContrast: '#FFFFFF',
 };
 
-const spacing = {
+const spacing: ThemeSpacing = {
   xs: 4, sm: 8, md: 16, lg: 24, xl: 40,
 };
 
-const fonts = {
+const fonts: ThemeFonts = {
   light: 'InterLight',
   regular: 'InterRegular',
   medium: 'InterMedium',
@@ -45,7 +83,5 @@ const fonts = {
   bold: 'InterBold',
 };
 
-export const lightTheme = { colors: lightColors, spacing, fonts };
-export const darkTheme = { colors: darkColors, spacing, fonts };
-
-export type AppTheme = typeof lightTheme;
+export const lightTheme: AppTheme = { colors: lightColors, spacing, fonts };
+export const darkTheme: AppTheme = { colors: darkColors, spacing, fonts };
