@@ -2,9 +2,9 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ShieldCheck } from 'lucide-react-native'; // Using a more appropriate icon
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { AppTheme } from '@/shared/theme/theme';
-import { Cards } from '@/shared/components/Cards'; // Use Cards
+import { useTheme } from '@/context/ThemeProvider';
+import { AppTheme } from '@/constants/theme';
+import { Cards } from '@/components/Cards'; // Use Cards
 
 export function ProfessionalServices() {
   const { theme } = useTheme();

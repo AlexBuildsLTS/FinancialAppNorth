@@ -1,9 +1,9 @@
 // src/hooks/useDashboardData.ts
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/shared/context/AuthContext';
-import { supabase } from '@/shared/lib/supabase';
-import { Transaction, Budget, BudgetItemData } from '@/shared/types'; // Added BudgetItemData
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { Transaction, Budget, BudgetItemData } from '@/types'; // Added BudgetItemData
 import { startOfMonth, endOfMonth, format, subMonths } from 'date-fns';
 import { error } from 'console';
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/shared/lib/supabase';
-import { useAuth } from '@/shared/context/AuthContext';
-import { Notification } from '@/shared/types/index'; // Assuming Notification type exists
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import { Notification } from '@/types/index'; // Assuming Notification type exists
 
 export function useNotifications() {
   const { profile } = useAuth();

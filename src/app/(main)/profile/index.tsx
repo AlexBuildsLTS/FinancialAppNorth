@@ -3,11 +3,11 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { Link, LinkProps } from 'expo-router'; // Import LinkProps
 import { Briefcase, ChevronRight, KeyRound, LifeBuoy, LogOut, Palette, Shield, ShieldCheck, Star, User, Users } from 'lucide-react-native';
 
-import { Avatar } from '@/shared/components/Avatar';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import { useAuth } from '@/shared/context/AuthContext';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { UserRoleDisplayNames } from '@/shared/types';
+import { Avatar } from '@/components/Avatar';
+import ScreenContainer from '@/components/ScreenContainer';
+import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeProvider';
+import { UserRoleDisplayNames } from '@/types';
 
 interface ProfileOptionProps {
     href: LinkProps['href']; // Use LinkProps['href'] for correct type

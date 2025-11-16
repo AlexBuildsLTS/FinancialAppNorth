@@ -2,9 +2,9 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { AppTheme } from '@/shared/theme/theme';
-import { Cards } from '@/shared/components/Cards'; // Use your Cards component
+import { useTheme } from '@/context/ThemeProvider';
+import { AppTheme } from '@/constants/theme';
+import { Cards } from '@/components/Cards'; // Use your Cards component
 
 interface TierCardProps {
   title: string;

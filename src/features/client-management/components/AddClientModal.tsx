@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert } from 'react-native';
-import Modal from '@/shared/components/Modal';
-import { Button } from '@/shared/components/Button';
-import { Cards } from '@/shared/components/Cards';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useToast } from '@/shared/context/ToastProvider';
-import { requestClientAccess } from '@/shared/services/cpaService';
+import Modal from '@/components/Modal';
+import { Button } from '@/components/Button';
+import { Cards } from '@/components/Cards';
+import { useTheme } from '@/context/ThemeProvider';
+import { useToast } from '@/context/ToastProvider';
+import { requestClientAccess } from '@/services/cpaService';
 
 interface AddClientModalProps {
   visible: boolean;

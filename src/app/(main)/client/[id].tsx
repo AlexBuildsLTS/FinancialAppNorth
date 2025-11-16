@@ -21,10 +21,10 @@ import {
   TrendingDown,
   ReceiptText,
 } from 'lucide-react-native';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { getClientDashboardData } from '@/shared/services/cpaService';
-import { ClientDashboardData } from '@/shared/types';
+import ScreenContainer from '@/components/ScreenContainer';
+import { useTheme } from '@/context/ThemeProvider';
+import { getClientDashboardData } from '@/services/cpaService';
+import { ClientDashboardData } from '@/types';
 
 
 // Child components

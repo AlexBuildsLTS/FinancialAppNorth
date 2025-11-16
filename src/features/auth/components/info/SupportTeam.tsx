@@ -2,9 +2,9 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { HeartHandshake } from 'lucide-react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { AppTheme } from '@/shared/theme/theme';
-import { Cards } from '@/shared/components/Cards'; // Use Cards
+import { useTheme } from '@/context/ThemeProvider';
+import { AppTheme } from '@/constants/theme';
+import { Cards } from '@/components/Cards'; // Use Cards
 
 export function SupportTeam() {
   const { theme } = useTheme();

@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
 import { Camera, CameraView } from 'expo-camera';
 import { MaterialIcons } from '@expo/vector-icons';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import { useTheme } from '@/shared/context/ThemeProvider';
+import ScreenContainer from '@/components/ScreenContainer';
+import { useTheme } from '@/context/ThemeProvider';
 
 export default function CameraScreen() {
     const { theme } = useTheme();

@@ -1,7 +1,7 @@
   import React from 'react';
   import { Link, Stack } from 'expo-router';
   import { StyleSheet, View, Text } from 'react-native';
-  import { useTheme } from '@/shared/context/ThemeProvider';
+  import { useTheme } from '@/context/ThemeProvider';
 
   export default function NotFoundScreen() {
     const { theme: { colors } } = useTheme();

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import { Cards } from '@/shared/components/Cards';
+import { useTheme } from '@/context/ThemeProvider';
+import ScreenContainer from '@/components/ScreenContainer';
+import { Cards } from '@/components/Cards';
 import { router } from 'expo-router';
 import { Download, Send } from 'lucide-react-native'; // Icons for Export Report (Download) and Send Announcement
 import { AdminOverview } from './AdminOverview'; // Import AdminOverview

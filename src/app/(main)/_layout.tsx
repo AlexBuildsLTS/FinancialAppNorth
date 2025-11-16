@@ -1,10 +1,10 @@
 import React from 'react';
 import { Tabs, useRouter, Redirect } from 'expo-router';    
-import { useAuth } from '@/shared/context/AuthContext';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { ROLE_BASED_TABS, TabItem } from '@/shared/constants/navigation';
-import { TabIcon } from '@/shared/components/TabIcon';
-import { MainHeader } from '@/shared/components/MainHeader';
+import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeProvider';
+import { ROLE_BASED_TABS, TabItem } from '@/constants/navigation';
+import { TabIcon } from '@/components/TabIcon';
+import { MainHeader } from '@/components/MainHeader';
 import { View, ActivityIndicator, StyleSheet, Platform, Pressable } from 'react-native';
 import { ScanEye } from 'lucide-react-native';
 

@@ -4,12 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CheckCircle2, Circle, RefreshCw, Eye, EyeOff, UserPlus } from 'lucide-react-native';
-import { useAuth } from '@/shared/context/AuthContext';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useToast } from '@/shared/context/ToastProvider';
-import ScreenContainer from '@/shared/components/ScreenContainer'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
-import { Button, Cards } from '@/shared/components';
-import PasswordStrengthIndicator from '@/shared/components/PasswordStrengthIndicator';
+import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeProvider';
+import { useToast } from '@/context/ToastProvider';
+import ScreenContainer from '@/components/ScreenContainer'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
+import { Button, Cards } from '@/components';
+import PasswordStrengthIndicator from '@/components/PasswordStrengthIndicator';
 
 const PasswordRequirement = ({ met, text }: { met: boolean; text: string }) => {
     const { theme: { colors } } = useTheme();

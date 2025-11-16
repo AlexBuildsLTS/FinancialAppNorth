@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { Cards } from '@/shared/components/Cards';
-import { DropdownMenu } from '@/shared/components/DropdownMenu';
+import { useTheme } from '@/context/ThemeProvider';
+import { Cards } from '@/components/Cards';
+import { DropdownMenu } from '@/components/DropdownMenu';
 import { Search, Filter, MoreVertical, UserPlus } from 'lucide-react-native'; // Icons for search, filter, more options, add user
-import { UserRole, Profile } from '@/shared/types'; // Assuming Profile type exists
+import { UserRole, Profile } from '@/types'; // Assuming Profile type exists
 
 interface UserListItemProps {
   user: Profile;

@@ -2,9 +2,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
-import { Cards } from '@/shared/components/Cards';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { formatCurrency } from '@/shared/utils/formatters';
+import { Cards } from '@/components/Cards';
+import { useTheme } from '@/context/ThemeProvider';
+import { formatCurrency } from '@/lib/formatters';
 
 // Define expected data structure
 interface AllocationDataPoint {

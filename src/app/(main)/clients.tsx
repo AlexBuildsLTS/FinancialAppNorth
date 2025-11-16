@@ -2,11 +2,11 @@ import React, { useState, useCallback, Children } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { PlusCircle, User, ChevronRight } from 'lucide-react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useAuth } from '@/shared/context/AuthContext'; // Keep this line
-import { getAssignedClients } from '@/shared/services/cpaService';
-import { Profile, UserRole } from '@/shared/types';
-import ScreenContainer from '@/shared/components/ScreenContainer';
+import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext'; // Keep this line
+import { getAssignedClients } from '@/services/cpaService';
+import { Profile, UserRole } from '@/types';
+import ScreenContainer from '@/components/ScreenContainer';
 import AddClientModal from '@/features/client-management/components/AddClientModal';
 
 

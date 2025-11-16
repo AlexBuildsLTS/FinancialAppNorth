@@ -2,10 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronRight, Bell, Shield, Palette, LogOut, Info, Globe } from 'lucide-react-native'; // Import Globe icon
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useAuth } from '@/shared/context/AuthContext';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import { Cards } from '@/shared/components/Cards';
+import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
+import ScreenContainer from '@/components/ScreenContainer';
+import { Cards } from '@/components/Cards';
 
 const SettingsListItem = ({ icon: Icon, text, onPress, rightContent, colors, isFirst, isLast }: any) => (
   <TouchableOpacity

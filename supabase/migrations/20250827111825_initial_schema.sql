@@ -190,7 +190,7 @@ CREATE OR REPLACE FUNCTION public.get_monthly_income_summary(month_start date, m
 RETURNS TABLE(total_income NUMERIC, total_expense NUMERIC, net_income NUMERIC)
 LANGUAGE plpgsql
 SECURITY INVOKER
-AS $
+AS $$
 BEGIN
   RETURN QUERY
   SELECT
@@ -203,7 +203,7 @@ BEGIN
     user_id = auth.uid() AND
     transaction_date BETWEEN month_start AND month_end;
 END;
-$;
+$$;
 
 
 ----------------------------------------------------------------

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import { Cards } from '@/shared/components/Cards';
+import { useTheme } from '@/context/ThemeProvider';
+import ScreenContainer from '@/components/ScreenContainer';
+import { Cards } from '@/components/Cards';
 import { Picker } from '@react-native-picker/picker'; // For dropdowns
 
 export default function LocalizationScreen() {

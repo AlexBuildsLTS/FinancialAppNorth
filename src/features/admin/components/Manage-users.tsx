@@ -2,17 +2,17 @@
 
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
+import { useTheme } from '@/context/ThemeProvider';
 import { useFocusEffect } from 'expo-router';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import { Cards } from '@/shared/components/Cards';
-import RoleBadge from '@/shared/components/RoleBadge';
-import { Avatar } from '@/shared/components/Avatar';
-import { User, UserRole, ThemeColors } from '@/shared/types';
+import ScreenContainer from '@/components/ScreenContainer';
+import { Cards } from '@/components/Cards';
+import RoleBadge from '@/components/RoleBadge';
+import { Avatar } from '@/components/Avatar';
+import { User, UserRole, ThemeColors } from '@/types';
 import * as adminService from '@/features/admin/services/adminService';
 import { Edit, Trash2, UserCheck, UserX } from 'lucide-react-native';
 import EditUserModal from '@/features/admin/components/EditUserModal';
-import { useToast } from '@/shared/context/ToastProvider';
+import { useToast } from '@/context/ToastProvider';
 
 const fetchUsersFromAPI = async (): Promise<User[]> => {
     // This is a placeholder for actual API call

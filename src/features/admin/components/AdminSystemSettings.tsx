@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
+import { useTheme } from '@/context/ThemeProvider';
 import { RefreshCw, Database, Settings, FileText } from 'lucide-react-native'; // Icons for system actions
 
 interface SystemActionButtonProps {

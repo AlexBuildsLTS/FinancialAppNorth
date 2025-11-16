@@ -1,9 +1,9 @@
 // src/features/dashboard/BudgetOverview.tsx
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import { Cards } from '../../shared/components/Cards'; // Adjusted path
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { formatCurrency } from '@/shared/utils/formatters';
+import { Cards } from '@/components/Cards'; // Adjusted path
+import { useTheme } from '@/context/ThemeProvider';
+import { formatCurrency } from '@/lib/formatters';
 
 
 interface BudgetItemData {

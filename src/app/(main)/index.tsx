@@ -4,25 +4,25 @@ import { ScrollView, StyleSheet, View, Text, useWindowDimensions } from 'react-n
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Components
-import LoadingSpinner from '@/shared/components/LoadingSpinner';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { WelcomeHeader } from '@/features/dashboard/WelcomeHeader';
 import MetricsGrid from '@/features/dashboard/MetricsGrid';
 import SpendingTrends from '@/features/dashboard/SpendingTrends';
 import BudgetAllocation from '@/features/dashboard/BudgetAllocation';
 import BudgetOverview from '@/features/dashboard/BudgetOverview';
 import AddTransactionModal from '@/features/transactions/AddTransactionModal';
-import { Button } from '@/shared/components/Button'; // Changed to named import
+import { Button } from '@/components/Button'; // Changed to named import
 
 // Hooks
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useAuth } from '@/shared/context/AuthContext';
+import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
 import { useDashboardData } from '@/features/dashboard/hooks/useDashboardData';
 
 // Types
-import { DashboardMetricItem, DashboardMetrics } from '@/shared/types';
+import { DashboardMetricItem, DashboardMetrics } from '@/types';
 
 // Utils
-import { formatCurrency } from '@/shared/utils/formatters';
+import { formatCurrency } from '@/lib/formatters';
 
 // Icons
  import { PiggyBank, TrendingDown, TrendingUp, Wallet } from 'lucide-react-native';

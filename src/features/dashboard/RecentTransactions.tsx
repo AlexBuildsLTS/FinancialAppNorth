@@ -2,11 +2,11 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { Transaction } from '@/shared/types';
+import { useTheme } from '@/context/ThemeProvider';
+import { Transaction } from '@/types';
 import { ArrowUpRight, ArrowDownLeft, PlusCircle } from 'lucide-react-native';
 import { format } from 'date-fns';
-import { Cards } from '@/shared/components/Cards';
+import { Cards } from '@/components/Cards';
 
 interface RecentTransactionsProps {
   transactions?: Transaction[];

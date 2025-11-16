@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useAuth } from '@/shared/context/AuthContext';
+import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
 
 export const WelcomeHeader = () => {
   const { theme: { colors } } = useTheme();

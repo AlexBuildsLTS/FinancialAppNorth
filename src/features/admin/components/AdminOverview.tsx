@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { Cards } from '@/shared/components/Cards';
+import { useTheme } from '@/context/ThemeProvider';
+import { Cards } from '@/components/Cards';
 import { Search, Filter, MoreVertical, UserPlus, Users, TrendingUp, DollarSign, Activity, Database, Clock, Server, HardDrive, Wifi, AlertTriangle, RefreshCw, Settings, MessageSquare, BarChart3, ShieldCheck, Download, Send } from 'lucide-react-native';
 import { AdminUserManagement } from './AdminUserManagement';
 import { AdminSystemSettings } from './AdminSystemSettings';

@@ -1,4 +1,4 @@
-import { supabase } from '@/shared/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 /* Simple chat service for frontend use.
    - getConversations(userId?)

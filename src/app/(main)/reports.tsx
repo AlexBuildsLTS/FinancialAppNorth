@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { BarChart3, Calendar, Download } from 'lucide-react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useAuth } from '@/shared/context/AuthContext';
-import { generateFinancialStatement, FinancialStatement } from '@/shared/services/accountingService';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import { Button } from '@/shared/components/Button';
-import { Cards } from '@/shared/components/Cards';
+import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
+import { generateFinancialStatement, FinancialStatement } from '@/services/accountingService';
+import ScreenContainer from '@/components/ScreenContainer';
+import { Button } from '@/components/Button';
+import { Cards } from '@/components/Cards';
 import ProfitLossStatement from '@/features/reports/ProfitLossStatement'; // We will create this
 import BalanceSheet from '@/features/reports/BalanceSheet'; // We will create this
 

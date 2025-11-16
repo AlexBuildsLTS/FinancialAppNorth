@@ -11,10 +11,10 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { FileText, Clock, CheckCircle2, AlertTriangle, Trash2, UploadCloud } from 'lucide-react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useAuth } from '@/shared/context/AuthContext';
-import { getUserDocuments, deleteDocument, ScannedDocument } from '@/shared/services/documentService';
-import ScreenContainer from '@/shared/components/ScreenContainer';
+import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
+import { getUserDocuments, deleteDocument, ScannedDocument } from '@/services/documentService';
+import ScreenContainer from '@/components/ScreenContainer';
 
 export default function DocumentsScreen() {
   const { theme } = useTheme();

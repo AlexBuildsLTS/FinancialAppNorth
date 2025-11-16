@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { Cards } from '@/shared/components/Cards';
+import { useTheme } from '@/context/ThemeProvider';
+import { Cards } from '@/components/Cards';
 import { Download } from 'lucide-react-native'; // Icon for Export Logs
 
 interface AuditLogItemProps {

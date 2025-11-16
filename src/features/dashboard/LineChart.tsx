@@ -3,7 +3,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LineChart as GiftedLineChart } from 'react-native-gifted-charts';
-import { useTheme } from '@/shared/context/ThemeProvider';
+import { useTheme } from '@/context/ThemeProvider';
 
 interface ChartProps { // Define ChartProps interface
   title: string;

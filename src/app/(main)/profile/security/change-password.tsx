@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useToast } from '@/shared/context/ToastProvider';
-import { supabase } from '@/shared/lib/supabase'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
-import { Button } from '@/shared/components/Button';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import PasswordStrengthIndicator from '@/shared/components/PasswordStrengthIndicator';
+import { useTheme } from '@/context/ThemeProvider';
+import { useToast } from '@/context/ToastProvider';
+import { supabase } from '@/lib/supabase'; // FIX: This component uses a default export, so it should be imported as `import ScreenContainer from ...`
+import { Button } from '@/components/Button';
+import ScreenContainer from '@/components/ScreenContainer';
+import PasswordStrengthIndicator from '@/components/PasswordStrengthIndicator';
 import { Eye, EyeOff } from 'lucide-react-native';
 
 export default function ChangePasswordScreen() {

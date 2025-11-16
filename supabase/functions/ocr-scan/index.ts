@@ -65,8 +65,17 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
       return;
     }
 
-    // The rest of the function logic for OCR scanning would go here.
-    // For now, we'll just return a success message.
+    //
+    // ... Real OCR logic would go here ...
+    // e.g., get user_secrets from 'northfinance.user_secrets'
+    //
+    // const { data: secrets } = await supabaseAdmin
+    //   .from('user_secrets')
+    //   .schema('northfinance')
+    //   .select('openai_key')
+    //   .eq('user_id', callerId)
+    //   .single();
+    //
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ success: true, message: 'OCR scan placeholder' }));

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { updateProfile as updateProfileService, getProfile as profileServiceGetProfile } from '@/shared/services/profileService';
-import { Profile } from '@/shared/types';
+import { updateProfile as updateProfileService, getProfile as profileServiceGetProfile } from '@/services/profileService';
+import { Profile } from '@/types';
 
 export const useProfile = (userId: string | undefined) => {
     const [profile, setProfile] = useState<Profile | null>(null);

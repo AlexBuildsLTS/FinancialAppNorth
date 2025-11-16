@@ -1,14 +1,14 @@
 // src/features/budgets/components/CreateBudgetModal.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, Alert, TouchableOpacity, ScrollView, Modal as RNModal } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useAuth } from '@/shared/context/AuthContext';
-import { useToast } from '@/shared/context/ToastProvider';  
+import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastProvider';  
 import * as Icons from 'lucide-react-native';
-import { createBudget, CreateBudgetPayload, getCategories } from '@/shared/services/budgetService';
-import { Category } from '@/shared/types';
-import { Button } from '@/shared/components/Button';
-import Modal from '@/shared/components/Modal';
+import { createBudget, CreateBudgetPayload, getCategories } from '@/services/budgetService';
+import { Category } from '@/types';
+import { Button } from '@/components/Button';
+import Modal from '@/components/Modal';
 
 
 

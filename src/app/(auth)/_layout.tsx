@@ -1,14 +1,14 @@
 // src/app/(auth)/_layout.tsx
 import React from 'react';
 import { Stack, Redirect } from 'expo-router';
-import { useAuth } from '@/shared/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { View, StyleSheet, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
-import { useTheme } from '@/shared/context/ThemeProvider';
+import { useTheme } from '@/context/ThemeProvider';
 import { AuthScreenFooter, ScrollSharedValue } from '@/features/auth/components/info/AuthScreenFooter'; 
 import Animated, { useSharedValue, useAnimatedScrollHandler, ScrollEvent, ScrollY } from 'react-native-reanimated'; 
 import { Image } from 'expo-image';
-// import AnimatedThemeIcon from '@/shared/components/AnimatedThemeIcon'; // REMOVED
-import { AppTheme } from '@/shared/theme/theme';
+// import AnimatedThemeIcon from '@/components/AnimatedThemeIcon'; // REMOVED
+import { AppTheme } from '@/constants/theme';
 
 function AuthLayout() { 
   const { session, isLoading } = useAuth();

@@ -46,7 +46,14 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
             return;
         }
 
-        const { data: callerProfile, error: pErr } = await supabaseAdmin.from('profiles').select('role').eq('id', callerId).single();
+        // ## FIX 1: Added .schema('northfinance') ##
+        const { data: callerProfile, error: pErr } = await supabaseAdmin
+            .from('profiles')
+            .schema('northfinance')
+            .select('role')
+            .eq('id', callerId)
+            .single();
+            
         if (pErr) {
             console.error('Error fetching caller profile:', pErr);
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -78,7 +85,13 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
                     console.warn('signOut unavailable or failed', e);
                 }
 
-                const { error } = await supabaseAdmin.from('profiles').update({ is_admin: false }).eq('id', userId);
+                // ## FIX 2: Added .schema('northfinance') ##
+                const { error } = await supabaseAdmin
+                    .from('profiles')
+                    .schema('northfinance')
+                    .update({ is_admin: false })
+                    .eq('id', userId);
+                    
                 if (error) throw error;
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });

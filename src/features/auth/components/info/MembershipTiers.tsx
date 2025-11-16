@@ -2,8 +2,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { TierCard } from './TierCard';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { AppTheme } from '@/shared/theme/theme';
+import { useTheme } from '@/context/ThemeProvider';
+import { AppTheme } from '@/constants/theme';
 
 const tiers = [
   { title: "Member", description: "Perfect for individuals starting their financial journey", color: "#3B82F6", features: ['Basic transaction tracking', 'Budget creation and monitoring', 'Financial document storage', 'Monthly spending reports'] },

@@ -9,15 +9,15 @@
     ScrollView,
     Platform, // Import Platform
   } from 'react-native';
-  import { useTheme } from '@/shared/context/ThemeProvider';
-  import { useAuth } from '@/shared/context/AuthContext';
-  import { addTransaction } from '@/shared/services/transactionService';
+  import { useTheme } from '@/context/ThemeProvider';
+  import { useAuth } from '@/context/AuthContext';
+  import { addTransaction } from '@/services/transactionService';
 
-  import { getCategories } from '@/shared/services/budgetService';
-  import { getChartOfAccounts } from '@/shared/services/accountingService';
-  import { Transaction, Category, Account } from '@/shared/types';
-  import { Button } from '@/shared/components/Button';
-  import Modal from '@/shared/components/Modal';
+  import { getCategories } from '@/services/budgetService';
+  import { getChartOfAccounts } from '@/services/accountingService';
+  import { Transaction, Category, Account } from '@/types';
+  import { Button } from '@/components/Button';
+  import Modal from '@/components/Modal';
   import DateTimePicker from '@react-native-community/datetimepicker';
   import * as Icons from 'lucide-react-native';
 

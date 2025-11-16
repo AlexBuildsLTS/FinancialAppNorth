@@ -66,8 +66,10 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
     }
 
     // Fetch the caller's profile and role from the 'profiles' table
+    // ## FIX 1: Added .schema('northfinance') ##
     const { data: callerProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
+      .schema('northfinance')
       .select('role')
       .eq('id', callerId)
       .single();
@@ -102,6 +104,7 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
         const { userId } = parsedBody;
 
         // Use Supabase Admin Auth API to delete the user
+        // This automatically deletes the 'northfinance.profiles' row
         const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
         if (deleteError) {

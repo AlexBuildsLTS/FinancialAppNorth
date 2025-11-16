@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';  
-import { useTheme } from '@/shared/context/ThemeProvider';    
-import ScreenContainer from '@/shared/components/ScreenContainer';  
+import { useTheme } from '@/context/ThemeProvider';    
+import ScreenContainer from '@/components/ScreenContainer';  
 import UsersComponent from '@/features/admin/components/Manage-users'; // Renamed to avoid conflict with lucide-react-native Users icon
 import { AdminOverview as OverviewComponent } from '@/features/admin/components/AdminOverview'; // Assuming this path is correct
 import Budgets from '../budgets';

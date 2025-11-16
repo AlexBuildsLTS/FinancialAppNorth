@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
-import { Cards } from '@/shared/components/Cards';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { formatCurrency } from '@/shared/utils/formatters'; // Assuming exists
+import { Cards } from '@/components/Cards';
+import { useTheme } from '@/context/ThemeProvider';
+import { formatCurrency } from '@/lib/formatters'; // Assuming exists
 
 // Define expected data structure
 interface TrendDataPoint {

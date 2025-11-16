@@ -1,5 +1,5 @@
-import { supabase } from "../../shared/lib/supabase";
-import { Profile } from "../../shared/types";
+import { supabase } from "@/lib/supabase";
+import { Profile } from "@/types";
 
 export const profileService = {
   /**
