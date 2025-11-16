@@ -496,3 +496,5 @@ export const db = {
   adminBroadcast,
   getMonthlyIncomeSummary,
 };
+
+// --- END of supabase.ts ---
