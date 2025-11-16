@@ -2,22 +2,14 @@ name: Alex's React Assistant
 version: 0.0.4
 schema: v1
 models:
-  # To see a list of your installed models, run `ollama list` in your terminal
-  # Make sure the model name and tag are correct.
-  - uses: continuedev/ollama
-    with:
-      model: codellama:latest
-    override:
-      roles:
-        - chat
-        - edit
-  - uses: continuedev/ollama
-    with:
-      model: mistral:latest
-    override:
-      roles:
-        - summarize
-        - autocomplete
+  - name: gemma3 4b
+    provider: ollama
+    model: gemma3:4b
+    apiBase: http://127.0.0.1:11434
+  - name: llama3.1 8b
+    provider: ollama
+    model: llama3.1:8b
+    apiBase: http://127.0.0.1:11434
 context:
   - uses: continuedev/code-context
   - uses: continuedev/docs-context
