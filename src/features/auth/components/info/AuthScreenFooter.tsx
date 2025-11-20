@@ -2,8 +2,8 @@
 import React from 'react';
 import { View, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolate } from 'react-native-reanimated';
-import { AppTheme } from '@/constants/theme';
-import { useTheme } from '@/context/ThemeProvider';
+import { AppTheme } from '@/shared/theme/theme';
+import { useTheme } from '@/shared/context/ThemeProvider';
 import { AboutNorthFinance } from './AboutNorthFinance';
 import { OurMission } from './OurMission';
 import { WhatWeOffer } from './WhatWeOffer';

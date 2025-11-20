@@ -1,5 +1,5 @@
-import { supabase } from '@/lib/supabase';
-import { Profile, Transaction, UserRole, UserStatus } from '@/types';
+import { supabase } from '@/shared/lib/supabase';
+import { Profile, Transaction, UserRole, UserStatus } from '@/shared/types';
 
 // Mock data fetching functions for admin panel
 

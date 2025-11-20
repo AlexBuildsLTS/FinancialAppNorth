@@ -1,14 +1,13 @@
-// src/app/(auth)/_layout.tsx
 import React from 'react';
 import { Stack, Redirect } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/shared/context/AuthContext';
 import { View, StyleSheet, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { AuthScreenFooter, ScrollSharedValue } from '@/features/auth/components/info/AuthScreenFooter'; 
-import Animated, { useSharedValue, useAnimatedScrollHandler, ScrollEvent, ScrollY } from 'react-native-reanimated'; 
+import { useTheme } from '@/shared/context/ThemeProvider';
+// We import the component we just fixed
+import { AuthScreenFooter } from '@/features/auth/components/info/AuthScreenFooter'; 
+import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated'; 
 import { Image } from 'expo-image';
-// import AnimatedThemeIcon from '@/components/AnimatedThemeIcon'; // REMOVED
-import { AppTheme } from '@/constants/theme';
+import { AppTheme } from '@/shared/theme/theme';
 
 function AuthLayout() { 
   const { session, isLoading } = useAuth();
@@ -19,9 +18,8 @@ function AuthLayout() {
 
   const isTabletOrWeb = width >= 768;
 
-  const handleScroll = useAnimatedScrollHandler((event: any
-
-  ) => {
+  // Using 'any' for the event to prevent type errors
+  const handleScroll = useAnimatedScrollHandler((event: any) => {
     scrollY.value = event.contentOffset.y;
   });
 
@@ -44,8 +42,6 @@ function AuthLayout() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       
-      {/* REMOVED the absoluteHeader View that contained the floating logo and theme icon */}
-      
       <Animated.ScrollView
         onScroll={handleScroll}
         scrollEventThrottle={16}
@@ -56,7 +52,6 @@ function AuthLayout() {
         <View style={styles.mainContent}>
           
           <View style={isTabletOrWeb ? styles.formContainerWeb : styles.formContainerNative}>
-            {/* ADDED: A logo component *above* the Stack navigator, so it's part of the scrollable form area */}
             <View style={styles.logoContainer}>
               <Image 
                   source={logoSource} 
@@ -68,22 +63,22 @@ function AuthLayout() {
             <Stack screenOptions={{ 
                 headerShown: false,
                 contentStyle: { backgroundColor: 'transparent' },
-                animation: 'fade', // Using 'fade' for now, will be replaced by flip
+                animation: 'fade',
              }}>
                 <Stack.Screen name="login" options={{ title: 'Sign In' }} />
                 <Stack.Screen name="register" options={{ title: 'Create Account' }} />
             </Stack>
           </View>
           
-          <View style={isTabletOrWeb ? styles.infoContainerWeb : styles.infoContainerNative}>
-            <AuthScreenFooter scrollY={scrollY} /> 
-          </View>
+          {/* THIS IS THE FOOTER YOU WANTED. It is now connected. */}
+        {/* Footer Area */}
+          <AuthScreenFooter scrollY={scrollY} />
         </View>
       </Animated.ScrollView>
-      
     </View>
   );
 }
+    
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({ 
   centered: {
@@ -104,13 +99,11 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     paddingTop: theme.spacing.lg,
     minHeight: Platform.select({ web: '100%', default: '100%' }) as any,
   },
-  // REMOVED absoluteHeader style
-
   headerLogo: {
     width: 150,
     height: 30,
   },
-  logoContainer: { // ADDED: Style for the logo container above the form
+  logoContainer: {
     alignItems: 'center',
     paddingVertical: theme.spacing.lg,
     paddingTop: Platform.OS === 'web' ? theme.spacing.xl : theme.spacing.lg,
@@ -119,13 +112,13 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     width: '100%',
     maxWidth: 1200, 
     alignItems: 'center', 
-    paddingTop: Platform.OS === 'web' ? theme.spacing.xl : 0, // Removed large top padding
+    paddingTop: Platform.OS === 'web' ? theme.spacing.xl : 0,
   },
   formContainerNative: {
     width: '100%',
     maxWidth: 450, 
     minHeight: 600, 
-    justifyContent: 'flex-start', // Align form to top
+    justifyContent: 'flex-start',
     padding: theme.spacing.md,
     marginBottom: theme.spacing.xl * 2, 
   },
@@ -134,7 +127,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
      maxWidth: 450,
      minHeight: 650, 
      padding: theme.spacing.lg, 
-     justifyContent: 'flex-start', // Align form to top
+     justifyContent: 'flex-start',
      marginBottom: theme.spacing.xl * 3, 
   },
   infoContainerNative: {

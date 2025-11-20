@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/shared/lib/supabase';
 
 export const updateProfile = async (userId: string, updates: { display_name?: string; avatar_url?: string }) => {
   const { error } = await supabase

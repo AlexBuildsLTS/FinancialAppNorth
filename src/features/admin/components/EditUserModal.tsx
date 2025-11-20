@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Modal, Alert, View, Text, TextInput, Button } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { Profile, UserRole, UserRoleDisplayNames } from '@/types';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { Profile, UserRole, UserRoleDisplayNames } from '@/shared/types';
 import * as adminService from '@/features/admin/services/adminService';
 import DropDownPicker from 'react-native-dropdown-picker';
 

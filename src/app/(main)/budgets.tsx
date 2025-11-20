@@ -2,11 +2,11 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { PiggyBank, Plus } from 'lucide-react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { useAuth } from '@/context/AuthContext';
-import { getBudgets } from '@/services/budgetService';
-import { Budget } from '@/types';
-import ScreenContainer from '@/components/ScreenContainer';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { useAuth } from '@/shared/context/AuthContext';
+import { getBudgets } from '@/shared/services/budgetService';
+import { Budget } from '@/shared/types';
+import ScreenContainer from '@/shared/components/ScreenContainer';
 import CreateBudgetModal from '@/features/budgets/components/CreateBudgetModal';
 const BudgetProgressBar = ({ spent, allocated, color }: { spent: number, allocated: number, color: string }) => {
   const percent = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;

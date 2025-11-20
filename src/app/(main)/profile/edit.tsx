@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable, Alert } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeProvider';
+import { useAuth } from '@/shared/context/AuthContext';
+import { useTheme } from '@/shared/context/ThemeProvider';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadAvatar } from '@/services/profileService';
-import { Avatar } from '@/components/Avatar';
+import { uploadAvatar } from '@/shared/services/profileService';
+import { Avatar } from '@/shared/components/Avatar';
 import { router } from 'expo-router';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/shared/lib/supabase';
 
 export default function EditProfileScreen() {
     const { theme } = useTheme();

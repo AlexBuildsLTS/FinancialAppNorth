@@ -3,8 +3,8 @@ import React from 'react';
 import { View, Text, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { TrendingUp, Target, BarChart3, BrainCircuit, FolderKanban, Users } from 'lucide-react-native';
 import { OfferCard } from './OfferCard';
-import { useTheme } from '@/context/ThemeProvider';
-import { AppTheme } from '@/constants/theme';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { AppTheme } from '@/shared/theme/theme';
 
 const offers = [
   { icon: TrendingUp, title: "Smart Transaction Tracking", description: "Automatically categorize and analyze your financial transactions with AI-powered insights." },

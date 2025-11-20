@@ -5,8 +5,8 @@
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@0.5.5",
-        "--access-token",
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuaXVqcnF4a2hlcGV2enZnaGphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTY0NjI5MCwiZXhwIjoyMDcxMjIyMjkwfQ.SIYCwTitVZn15L_xoCRW2F1ZAZ7F-LVnkYfShgyMuMI"
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFucnhuY25nb3FwaG5lcmRybm5jIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzQ3NzIxOSwiZXhwIjoyMDc5MDUzMjE5fQ.3gLfTGPDPaYqElXPrMC2UVUdcGZC8h4ILuMSmN5hZlE",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFucnhuY25nb3FwaG5lcmRybm5jIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzQ3NzIxOSwiZXhwIjoyMDc5MDUzMjE5fQ.3gLfTGPDPaYqElXPrMC2UVUdcGZC8h4ILuMSmN5hZlE"
       ],
       "alwaysAllow": [
         "get_project",
@@ -44,12 +44,14 @@
       "args": [
         "-y",
         "@supabase/mcp-server-postgrest@0.0.11",
-        "--apiUrl",
-        "https://mcp.supabase.com/mcp?project_ref=fniujrqxkhepevzvghja&features=branching%2Cfunctions%2Cdevelopment%2Cdebugging%2Cdatabase%2Caccount%2Cdocs%2Cstorage",
-        "--apiKey",
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuaXVqcnF4a2hlcGV2enZnaGphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTY0NjI5MCwiZXhwIjoyMDcxMjIyMjkwfQ.SIYCwTitVZn15L_xoCRW2F1ZAZ7F-LVnkYfShgyMuMI",
-        "--schema",
+        "https://qnrxncngoqphnerdrnnc.supabase.co/rest/v1/",
+        "https://mcp.supabase.com/mcp?project_ref=qnrxncngoqphnerdrnnc",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFucnhuY25nb3FwaG5lcmRybm5jIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzQ3NzIxOSwiZXhwIjoyMDc5MDUzMjE5fQ.3gLfTGPDPaYqElXPrMC2UVUdcGZC8h4ILuMSmN5hZlE",
+        "&features=branching%2Cfunctions%2Cdevelopment%2Cdebugging%2Cdatabase%2Caccount%2Cdocs%2Cstorage",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFucnhuY25nb3FwaG5lcmRybm5jIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzQ3NzIxOSwiZXhwIjoyMDc5MDUzMjE5fQ.3gLfTGPDPaYqElXPrMC2UVUdcGZC8h4ILuMSmN5hZlE",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFucnhuY25nb3FwaG5lcmRybm5jIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzQ3NzIxOSwiZXhwIjoyMDc5MDUzMjE5fQ.3gLfTGPDPaYqElXPrMC2UVUdcGZC8h4ILuMSmN5hZlE",
         "public"
+      
       ]
     }
   }

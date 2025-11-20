@@ -1,75 +1,59 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';  
-import { useTheme } from '@/context/ThemeProvider';    
-import ScreenContainer from '@/components/ScreenContainer';  
-import UsersComponent from '@/features/admin/components/Manage-users'; // Renamed to avoid conflict with lucide-react-native Users icon
-import { AdminOverview as OverviewComponent } from '@/features/admin/components/AdminOverview'; // Assuming this path is correct
-import Budgets from '../budgets';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { GlassCard } from '@/shared/components/GlassCard';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Users, ShieldCheck, Activity, FileText } from 'lucide-react-native';
 
+export default function AdminDashboard() {
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
 
-export default function AdminDashboardScreen() { 
-  const { theme: { colors } } = useTheme();
-  const [selectedTab, setSelectedTab] = useState('overview');
   return (
-    <ScreenContainer>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Admin Dashboard</Text>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 20 }]}>
+        
+        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Admin Panel</Text>
+
+        {/* Stats Grid */}
+        <View style={styles.grid}>
+          <GlassCard style={styles.card}>
+            <Users size={24} color="#3B82F6" />
+            <Text style={[styles.value, { color: theme.colors.textPrimary }]}>1,240</Text>
+            <Text style={styles.label}>Users</Text>
+          </GlassCard>
+          
+          <GlassCard style={styles.card}>
+            <ShieldCheck size={24} color="#10B981" />
+            <Text style={[styles.value, { color: theme.colors.textPrimary }]}>System</Text>
+            <Text style={styles.label}>Healthy</Text>
+          </GlassCard>
         </View>
 
-        <View style={styles.tabs}>
-          <TouchableOpacity style={[styles.tab, { backgroundColor: selectedTab === 'overview' ? colors.accent : colors.surface }]} onPress={() => setSelectedTab('overview')}>
-            <Text style={[styles.tabText, { color: selectedTab === 'overview' ? colors.accent : colors.textPrimary }]}>Overview</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.tab, { backgroundColor: selectedTab === 'users' ? colors.accent : colors.surface }]} onPress={() => setSelectedTab('users')}>  
-            <Text style={[styles.tabText, { color: selectedTab === 'users' ? colors.accent : colors.textPrimary }]}>Users</Text>  
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.tab, { backgroundColor: selectedTab === 'budgets' ? colors.accent : colors.surface }]} onPress={() => setSelectedTab('budgets')}>  
-            <Text style={[styles.tabText, { color: selectedTab === 'budgets' ? colors.accent : colors.textPrimary }]}>Budgets</Text>    
-          </TouchableOpacity>
-        </View>
+        <GlassCard style={{ padding: 20, marginTop: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+             <Activity size={20} color="#F59E0B" />
+             <Text style={{ color: theme.colors.textPrimary, fontWeight: '700' }}>Recent Activity</Text>
+          </View>
+          <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
+            • New user registration (alex@example.com)
+          </Text>
+          <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginTop: 8 }}>
+            • System backup completed
+          </Text>
+        </GlassCard>
 
-        <View style={styles.content}>
-          {selectedTab === 'overview' && <OverviewComponent />}
-          {selectedTab === 'users' && <UsersComponent />}
-          {selectedTab === 'budgets' && <Budgets />}
-        </View>
-      </ScrollView>  
-    </ScreenContainer>
+      </ScrollView>
+    </View>
   );
-}   
+}
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 30,
-  },
-  header: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 24,
-  },
-  tabs: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    overflow: 'hidden',        
-  },
-  tab: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  content: {
-    padding: 20,
-    borderRadius: 12,
-  },
+  container: { flex: 1 },
+  scroll: { paddingHorizontal: 20 },
+  title: { fontSize: 24, fontWeight: '800', marginBottom: 24 },
+  grid: { flexDirection: 'row', gap: 12 },
+  card: { flex: 1, padding: 20, alignItems: 'center', borderRadius: 20 },
+  value: { fontSize: 20, fontWeight: '800', marginTop: 8 },
+  label: { fontSize: 12, color: '#94A3B8', marginTop: 4 },
 });

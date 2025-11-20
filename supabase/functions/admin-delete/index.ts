@@ -1,14 +1,14 @@
-const { createClient } = require('@supabase/supabase-js');
-const http = require('http');
+import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.SUPABASE_URL ?? "";
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-
+const supabaseUrl = 'https://qnrxncngoqphnerdrnnc.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey)
+import * as http from 'http';
 // Create Supabase client with admin privileges
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY ?? '');
 
 // Check if environment variables are missing
-if (!supabaseUrl || !supabaseServiceRoleKey) {
+if (!supabaseUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.');
   process.exit(1);
 }
@@ -66,10 +66,8 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
     }
 
     // Fetch the caller's profile and role from the 'profiles' table
-    // ## FIX 1: Added .schema('northfinance') ##
     const { data: callerProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .schema('northfinance')
       .select('role')
       .eq('id', callerId)
       .single();
@@ -104,7 +102,6 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
         const { userId } = parsedBody;
 
         // Use Supabase Admin Auth API to delete the user
-        // This automatically deletes the 'northfinance.profiles' row
         const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
         if (deleteError) {

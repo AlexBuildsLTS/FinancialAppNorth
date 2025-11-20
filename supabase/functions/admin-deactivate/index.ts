@@ -1,5 +1,12 @@
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://qnrxncngoqphnerdrnnc.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey) 
 const http = require('http');
+
+
+
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -46,14 +53,7 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
             return;
         }
 
-        // ## FIX 1: Added .schema('northfinance') ##
-        const { data: callerProfile, error: pErr } = await supabaseAdmin
-            .from('profiles')
-            .schema('northfinance')
-            .select('role')
-            .eq('id', callerId)
-            .single();
-            
+        const { data: callerProfile, error: pErr } = await supabaseAdmin.from('profiles').select('role').eq('id', callerId).single();
         if (pErr) {
             console.error('Error fetching caller profile:', pErr);
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -85,13 +85,7 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
                     console.warn('signOut unavailable or failed', e);
                 }
 
-                // ## FIX 2: Added .schema('northfinance') ##
-                const { error } = await supabaseAdmin
-                    .from('profiles')
-                    .schema('northfinance')
-                    .update({ is_admin: false })
-                    .eq('id', userId);
-                    
+                const { error } = await supabaseAdmin.from('profiles').update({ is_admin: false }).eq('id', userId);
                 if (error) throw error;
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });

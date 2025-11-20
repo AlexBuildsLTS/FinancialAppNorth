@@ -3,17 +3,17 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
 import { PlusCircle, ArrowUpCircle, ArrowDownCircle, Search, SlidersHorizontal } from 'lucide-react-native';
-import { useTheme } from '@/context/ThemeProvider';
+import { useTheme } from '@/shared/context/ThemeProvider';
 import { useTransactions } from '@/features/transactions/useTransactions';
-import ScreenContainer from '@/components/ScreenContainer';
-import { Transaction } from '@/types';
-import { Button } from '@/components/Button';
-import { Cards } from '@/components/Cards';
-import { useAuth } from '@/context/AuthContext';
+import ScreenContainer from '@/shared/components/ScreenContainer';
+import { Transaction } from '@/shared/types';
+import { Button } from '@/shared/components/Button';
+import { Cards } from '@/shared/components/Cards';
+import { useAuth } from '@/shared/context/AuthContext';
 import AddTransactionModal from '@/features/transactions/AddTransactionModal';
 // These imports are here, ready for when you implement categories/accounts
-// import { getCategories } from '@/services/budgetService';
-// import { getChartOfAccounts } from '@/services/accountingService';
+// import { getCategories } from '@/shared/services/budgetService';
+// import { getChartOfAccounts } from '@/shared/services/accountingService';
 
 // --- THIS IS YOUR COMPONENT ---
 // (No changes needed, it's great)

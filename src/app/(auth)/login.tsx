@@ -4,11 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Eye, EyeOff, LogIn } from 'lucide-react-native'; // Removed CheckSquare, Square as they are now handled by custom hook state
-import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeProvider';
-import { useToast } from '@/context/ToastProvider';
-import ScreenContainer from '@/components/ScreenContainer';
-import { Cards, Button } from '@/components';
+import { useAuth } from '@/shared/context/AuthContext';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { useToast } from '@/shared/context/ToastProvider';
+import ScreenContainer from '@/shared/components/ScreenContainer';
+import { Cards, Button } from '@/shared/components';
 import * as SecureStore from 'expo-secure-store';
 
 // --- Constants ---

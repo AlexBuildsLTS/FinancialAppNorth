@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { Stack, Redirect } from 'expo-router';
-import { useTheme } from '@/context/ThemeProvider';
-import { useAuth } from '@/context/AuthContext';
-import { UserRole } from '@/types';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { useAuth } from '@/shared/context/AuthContext';
+import { UserRole } from '@/shared/types';
 
 export default function AdminStackLayout() {
   const { profile, session, isLoading } = useAuth();

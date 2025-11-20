@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronRight, KeyRound, Lock, ShieldCheck } from 'lucide-react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { useToast } from '@/context/ToastProvider';
-import ScreenContainer from '@/components/ScreenContainer';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { useToast } from '@/shared/context/ToastProvider';
+import ScreenContainer from '@/shared/components/ScreenContainer';
 import { Text } from 'react-native'; // Keep this line
-import { Button } from '@/components/Button';
+import { Button } from '@/shared/components/Button';
 
 
 const SecurityListItem = ({ icon: Icon, text, onPress, colors }: any) => (

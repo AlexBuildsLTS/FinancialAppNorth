@@ -1,94 +1,118 @@
-const { createClient } = require('@supabase/supabase-js');
-const http = require('http');
+import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { GoogleGenerativeAI } from 'npm:@google/generative-ai'
 
-const supabaseUrl = process.env.SUPABASE_URL ?? "";
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-
-// Create Supabase client with admin privileges
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
-
-// Check if environment variables are missing
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.');
-  process.exit(1);
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const server = http.createServer(async (req: import('http').IncomingMessage, res: import('http').ServerResponse) => {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200);
-    res.end();
-    return;
-  }
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    // Extract authorization token from header
-    const authorizationHeader = req.headers['authorization'];
-    if (!authorizationHeader) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Missing Authorization header' }));
-      return;
+    // 1. Setup Supabase Client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const authHeader = req.headers.get('Authorization')!
+
+    const supabaseClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } }
+    })
+    
+    // Service client for privileged actions (fetching secrets/files)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+    // 2. Get User ID
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    if (authError || !user) throw new Error('Unauthorized')
+
+    const { documentPath } = await req.json()
+    if (!documentPath) throw new Error('No document path provided')
+
+    // 3. DETERMINE WHICH API KEY TO USE
+    // Priority: User's Personal Key -> System Fallback Key
+    let geminiKey = Deno.env.get('GEMINI_API_KEY')
+    
+    // Check if user has their own key in user_secrets
+    const { data: userSecret } = await supabaseAdmin
+      .from('user_secrets')
+      .select('gemini_key')
+      .eq('user_id', user.id)
+      .single()
+
+    if (userSecret?.gemini_key) {
+      geminiKey = userSecret.gemini_key
+      console.log(`Using personal Gemini key for user ${user.id}`)
+    } else {
+      console.log(`Using system Gemini key`)
     }
 
-    const token = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.slice(7) : null;
+    if (!geminiKey) throw new Error('No AI configuration found. Please add a Gemini API Key in Settings.')
 
-    // Check if token is missing
-    if (!token) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Missing Authorization Bearer token' }));
-      return;
+    // 4. Download Image from Supabase Storage
+    const { data: fileData, error: downloadError } = await supabaseAdmin
+      .storage
+      .from('documents')
+      .download(documentPath)
+
+    if (downloadError) throw downloadError
+
+    // 5. Prepare for Gemini (Convert to Base64)
+    const arrayBuffer = await fileData.arrayBuffer()
+    const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    const mimeType = fileData.type || 'image/jpeg'
+
+    // 6. Call Gemini API (Vision)
+    const genAI = new GoogleGenerativeAI(geminiKey)
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+
+    const prompt = `
+      Analyze this financial document (receipt/invoice). 
+      Extract the following data strictly as JSON:
+      - merchant_name (string)
+      - date (YYYY-MM-DD format, string)
+      - total_amount (number)
+      - tax_amount (number, 0 if not found)
+      - currency (ISO code e.g. USD, EUR)
+      - category (guess one: Food, Transport, Utilities, Entertainment, Business, Shopping)
+      
+      Return ONLY the JSON string. No markdown formatting.
+    `
+
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Image,
+          mimeType: mimeType
+        }
+      }
+    ])
+
+    const response = await result.response
+    const text = response.text()
+
+    // Clean up potential markdown code blocks (```json ... ```)
+    const jsonString = text.replace(/```json|```/g, '').trim()
+    let extractedData
+    try {
+      extractedData = JSON.parse(jsonString)
+    } catch (e) {
+      console.error("Failed to parse AI response:", text)
+      throw new Error("Failed to parse document data")
     }
 
-    // Validate the token against Supabase Auth
-    const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    return new Response(JSON.stringify({ success: true, data: extractedData }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
 
-    // Check if token is invalid
-    if (!userResponse.ok) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid token' }));
-      return;
-    }
-
-    const userJson = await userResponse.json();
-    const callerId = userJson?.id;
-
-    // Check if user ID is missing
-    if (!callerId) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Unable to resolve user from token' }));
-      return;
-    }
-
-    //
-    // ... Real OCR logic would go here ...
-    // e.g., get user_secrets from 'northfinance.user_secrets'
-    //
-    // const { data: secrets } = await supabaseAdmin
-    //   .from('user_secrets')
-    //   .schema('northfinance')
-    //   .select('openai_key')
-    //   .eq('user_id', callerId)
-    //   .single();
-    //
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ success: true, message: 'OCR scan placeholder' }));
-
-  } catch (e) {
-    // Handle any errors that occur during the process
-    console.error(e);
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'An unexpected error occurred' }));
+  } catch (error) {
+    console.error('OCR Error:', error)
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
   }
-});
-
-const port = process.env.PORT || 3000;
-server.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+})

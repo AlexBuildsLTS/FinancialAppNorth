@@ -1,8 +1,8 @@
 // src/features/auth/components/info/AboutNorthFinance.tsx
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { AppTheme } from '@/constants/theme';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { AppTheme } from '@/shared/theme/theme';
 
 export function AboutNorthFinance() {
   const { theme } = useTheme();

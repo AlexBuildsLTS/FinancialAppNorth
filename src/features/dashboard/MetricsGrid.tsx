@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LucideProps } from 'lucide-react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { Cards } from '@/components/Cards';
-import { DashboardMetricItem } from '@/types';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { Cards } from '@/shared/components/Cards';
+import { DashboardMetricItem } from '@/shared/types';
 
 
 interface MetricsGridProps {

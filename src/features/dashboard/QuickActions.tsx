@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
+import { useTheme } from '@/shared/context/ThemeProvider';
 import { Plus, ArrowRightLeft, Upload, FilePieChart } from 'lucide-react-native';
-import { Cards } from '@/components/Cards';
+import { Cards } from '@/shared/components/Cards';
 
 const actions = [
   { text: 'Add Entry', icon: Plus, color: '#3B82F6', type: 'addTransaction' },

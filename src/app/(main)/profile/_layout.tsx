@@ -1,6 +1,6 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import { useTheme } from '@/context/ThemeProvider';
+import { useTheme } from '@/shared/context/ThemeProvider';
 
 export default function ProfileStackLayout() {
   const { theme } = useTheme();

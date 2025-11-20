@@ -9,10 +9,10 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { useAuth } from '@/shared/context/AuthContext';
 import { useRouter } from 'expo-router';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/shared/lib/supabase';
 import {
   MessageCircle,
   Plus,

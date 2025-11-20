@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
+import { useTheme } from '@/shared/context/ThemeProvider';
 
 interface ProfitLossStatementProps {
   data: any; // This should be more specific based on the actual data structure

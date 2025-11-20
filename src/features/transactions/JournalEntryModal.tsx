@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { Plus, Trash2 } from 'lucide-react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { createJournalEntry, getChartOfAccounts } from '@/services/accountingService';
-import { JournalEntryLine, Account } from '@/types';
-import { Button } from '@/components/Button';
-import { Cards } from '@/components/Cards';
-import Modal from '@/components/Modal';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { createJournalEntry, getChartOfAccounts } from '@/shared/services/accountingService';
+import { JournalEntryLine, Account } from '@/shared/types';
+import { Button } from '@/shared/components/Button';
+import { Cards } from '@/shared/components/Cards';
+import Modal from '@/shared/components/Modal';
 import { Picker } from '@react-native-picker/picker';
 
 

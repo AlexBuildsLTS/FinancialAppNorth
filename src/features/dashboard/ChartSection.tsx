@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
-import { useTheme } from '@/context/ThemeProvider';
-import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { useAuth } from '@/shared/context/AuthContext';
 import { getMonthlyCashFlow, ChartDataPoint } from '@/features/dashboard/services/analyticsService';
-import { Cards } from '@/components/Cards';
+import { Cards } from '@/shared/components/Cards';
 import { BarChart3 } from 'lucide-react-native';
 
 export default function ChartSection({ userId }: { userId?: string }) {

@@ -1,8 +1,15 @@
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://qnrxncngoqphnerdrnnc.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey) 
 const http = require('http');
 
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const SUPABASE_URL = process.env.SUPABASE_URL || "";
+
+
+
+const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -24,7 +31,6 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
     }
 
     try {
-        // 1) verify Authorization header and map to a Supabase user
         const authHeader = req.headers['authorization'] ?? '';
         const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
         if (!token) {
@@ -33,14 +39,10 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
             return;
         }
 
-        // call Supabase auth endpoint to get user
-        const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { Authorization: `Bearer ${token}` } });    
         if (!userResp.ok) {
-            const txt = await userResp.text();
             res.writeHead(401, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid token', detail: txt }));
+            res.end(JSON.stringify({ error: 'Invalid token' }));
             return;
         }
         const userJson = await userResp.json();
@@ -51,15 +53,7 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
             return;
         }
 
-        // 2) check caller is admin
-        // ## FIX 1: Added .schema('northfinance') ##
-        const { data: callerProfile, error: pErr } = await supabaseAdmin
-            .from('profiles')
-            .schema('northfinance')
-            .select('role')
-            .eq('id', callerId)
-            .single();
-            
+        const { data: callerProfile, error: pErr } = await supabaseAdmin.from('profiles').select('role').eq('id', callerId).single();
         if (pErr) {
             console.error('Error fetching caller profile:', pErr);
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -72,41 +66,40 @@ const server = http.createServer(async (req: import('http').IncomingMessage, res
             return;
         }
 
-        // 3) proceed with role change
         let body = '';
-        req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+        req.on('data', (chunk: Buffer) => {
+            body += chunk.toString();
+        });
+
         req.on('end', async () => {
             try {
-                const { userId, newRole } = JSON.parse(body) ?? {};
-                if (!userId || !newRole) {
+                const parsedBody = JSON.parse(body);
+                const { userId, deactivate } = parsedBody ?? {};
+                if (!userId || typeof deactivate !== 'boolean') {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'userId and newRole required' }));
+                    res.end(JSON.stringify({ error: 'userId and deactivate(boolean) required' }));
                     return;
                 }
 
-                // ## FIX 2: Added .schema('northfinance') ##
-                const { error } = await supabaseAdmin
-                    .from('profiles')
-                    .schema('northfinance')
-                    .update({ role: newRole, is_admin: newRole === 'admin' })
-                    .eq('id', userId);
+                const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+                    disabled: deactivate,
+                });
 
-                if (error) throw error;
+                if (updateErr) {
+                    throw updateErr;
+                }
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true }));
             } catch (e) {
-                console.error(e);
+                console.error('Error processing request:', e);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'unknown' }));
             }
         });
     } catch (e) {
-        console.error(e);
+        console.error('Unexpected error:', e);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'unknown' }));
     }
 });
-
-const port = process.env.PORT || 3000;
-server.listen(port, () => { console.log(`Server running at http://localhost:${port}/`); });

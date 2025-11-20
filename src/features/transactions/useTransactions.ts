@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Transaction } from '@/types';
-import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/shared/lib/supabase';
+import { Transaction } from '@/shared/types';
+import { useAuth } from '@/shared/context/AuthContext';
 
 export function useTransactions() {
   const { session } = useAuth();

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.ns", "deno.window"],
+    "strict": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  },
+  "imports": {
+    "jsr:@supabase/supabase-js@2": "https://deno.land/x/supabase_js@v2.39.8/mod.ts",
+    "npm:@google/generative-ai": "npm:@google/generative-ai"
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-explicit-any"]
+    }
+  },
+  "fmt": {
+    "options": {
+      "useTabs": false,
+      "lineWidth": 80,
+      "indentWidth": 2,
+      "singleQuote": true
+    }
+  }
+}

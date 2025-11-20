@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Switch } from 'react-native';
-import { useTheme } from '@/context/ThemeProvider';
-import { Cards } from '@/components/Cards';
+import { useTheme } from '@/shared/context/ThemeProvider';
+import { Cards } from '@/shared/components/Cards';
 
 interface FeatureFlagItemProps {
   title: string;
