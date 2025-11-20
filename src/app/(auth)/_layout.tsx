@@ -4,10 +4,11 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { View, StyleSheet, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 // We import the component we just fixed
-import { AuthScreenFooter } from '@/features/auth/components/info/AuthScreenFooter'; 
-import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated'; 
+import { AuthScreenFooter } from './components/AuthScreenFooter'
 import { Image } from 'expo-image';
 import { AppTheme } from '@/shared/theme/theme';
+import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated'; 
+  
 
 function AuthLayout() { 
   const { session, isLoading } = useAuth();
