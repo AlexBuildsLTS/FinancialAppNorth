@@ -1,9 +1,13 @@
-// Only export the new components we are actually using
-export * from './DashboardCharts';
-// export * from './DashboardHeader'; // REMOVED
-// export * from './WelcomeHeader';   // REMOVED
-export * from './MetricsGrid';
-export * from './QuickActions';
-export * from './RecentTransactions';
+export { default as ChartSection } from './ChartSection';
+export * from './DashboardHeader';
+export { default as MetricsGrid } from './MetricsGrid';
+export { default as QuickActions } from './QuickActions';
+export { default as RecentTransactions } from './RecentTransactions'; 
 export * from './BudgetAllocation';
-export * from './IncomeByCategory';
+export { default as IncomeByCategory } from './IncomeByCategory';
+export { default as SpendingTrends } from './SpendingTrends';
+export { default as BudgetOverview } from './BudgetOverview';
+
+
+// Removed the problematic module export due to missing module or type declarations.
+// export { default as ExpensesByCategory } from './IncomeByCategory';

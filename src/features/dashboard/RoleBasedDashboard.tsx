@@ -3,13 +3,8 @@ import { useAuth } from "../../shared/context/AuthContext";
 import ScreenContainer from "../../shared/components/ScreenContainer";
 import { createText } from "@shopify/restyle";
 import { AppTheme } from "../../shared/theme/theme";
-import { TextProps } from "@shopify/restyle";
-import { Text } from "react-native";
 
-
-
-
-
+const Text = createText<AppTheme>(); // Moved declaration here
 
 // Placeholder components for role-specific dashboards
 // In a real implementation, these would be in their own files
@@ -18,7 +13,6 @@ const PremiumDashboard: React.FC = () => <Text>Welcome, Premium Member!</Text>;
 const CPADashboard: React.FC = () => <Text>CPA Client Dashboard</Text>;
 const AdminDashboard: React.FC = () => <Text>Admin System Overview</Text>;
 const SupportDashboard: React.FC = () => <Text>Support Ticket Dashboard</Text>;
-
 
 /**
  * A top-level component for the main dashboard screen ('/home') that
@@ -54,4 +48,3 @@ export const RoleBasedDashboard: React.FC = () => {
 };
 
 export default RoleBasedDashboard;
-    

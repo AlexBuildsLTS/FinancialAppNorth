@@ -2,161 +2,141 @@ import { supabase } from '@/shared/lib/supabase';
 import { Profile as UserProfileType } from '@/shared/types';
 import React, { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
 
-// Matches your Database exactly
+// This Profile type should be the single source of truth for the app
+// It matches your database.types.ts and the schema changes from Step 2.1
 export type Profile = UserProfileType & {
   id: string;
-  role: 'member' | 'premium' | 'cpa' | 'support' | 'admin';
+  role: string;
   first_name?: string;
   last_name?: string;
-  full_name?: string; 
+  full_name?: string; // This is the generated column
   avatar_url?: string;
   email: string;
 };
 
 type AuthContextType = {
-  session: any | null; // Changed to 'any' to stop the namespace error
+  session: any | null;
   user: any | null;
-  profile: Profile | null;
+  profile: Profile | null; // Use the corrected Profile type
   isLoading: boolean;
-  isAuthenticated: boolean;
+  isAuthenticated: boolean; // Added for convenience
   signIn: (credentials: any) => Promise<{ data: any; error: any | null }>;
   signUp: (credentials: any & { firstName?: string; lastName?: string }) => Promise<{ data: any; error: any | null }>;
   signOut: () => Promise<{ error: any | null }>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
-  sendPasswordResetEmail: (email: string) => Promise<{ data: any; error: any | null }>;
-  refreshProfile: () => Promise<void>;
+  sendPasswordResetEmail: (email: string) => Promise<{ data: any; error: any | null }>; // Added
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [session, setSession] = useState<any | null>(null); 
+  const [session, setSession] = useState<any | null>(null);
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Helper to fetch profile safely
+  useEffect(() => {
+    const fetchSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        await loadProfile(session.user.id);
+      }
+      setLoading(false);
+    };
+
+    fetchSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event: any, session: any | null) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (event === 'SIGNED_IN' && session?.user) {
+          await loadProfile(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setProfile(null);
+        }
+      }
+    );
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
+
   const loadProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // Select all columns, including the generated full_name
+      const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
       if (error) {
-        console.error('AuthContext: Error fetching profile:', error.message);
-        return null;
+        console.error('Error fetching profile:', error);
+        setProfile(null);
+      } else {
+        setProfile(profileData as Profile);
       }
-      return data as Profile;
-    } catch (err) {
-      console.error('AuthContext: Unexpected error loading profile:', err);
-      return null;
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      setProfile(null);
     }
   };
 
-  useEffect(() => {
-    let mounted = true;
-
-    const initAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            const userProfile = await loadProfile(session.user.id);
-            setProfile(userProfile);
-          }
-        }
-      } catch (e) {
-        console.error('AuthContext: Init failed', e);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      // We use 'string' and 'any' here to FORCE TypeScript to accept it
-      async (event: string, newSession: any | null) => {
-        console.log(`Auth state changed: ${event}`); 
-        if (mounted) {
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
-
-          if (event === 'SIGNED_IN' && newSession?.user) {
-            // Slight delay to allow DB trigger to finish creating profile
-            setTimeout(async () => {
-                const userProfile = await loadProfile(newSession.user.id);
-                setProfile(userProfile);
-            }, 500); 
-          } else if (event === 'SIGNED_OUT') {
-            setProfile(null);
-          }
-        }
-      }
-    );
-
-    return () => {
-      mounted = false;
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  const signIn = async (credentials: { email: string; password: string }) => {
+  const signIn = async (credentials: any) => {
     const result = await supabase.auth.signInWithPassword(credentials);
-    if (result.data.user) {
-      const userProfile = await loadProfile(result.data.user.id);
-      setProfile(userProfile);
+    
+    if (!result.error && result.data.user) {
+      await loadProfile(result.data.user.id);
     }
     return result;
   };
 
-  const signUp = async (credentials: { email: string; password: string; firstName?: string; lastName?: string }) => {
+  const signUp = async (credentials: any & { firstName?: string; lastName?: string }) => {
     const { firstName, lastName, ...authCredentials } = credentials;
     
+    // Pass firstName and lastName to the trigger via raw_user_meta_data
     const result = await supabase.auth.signUp({
       ...authCredentials,
       options: {
         data: {
           first_name: firstName,
-          last_name: lastName, 
+          last_name: lastName,
+          // full_name is no longer needed here; database generates it
         }
       }
     });
     
-    if (result.data.user) {
-        setTimeout(async () => {
-             const userProfile = await loadProfile(result.data.user!.id);
-             setProfile(userProfile);
-        }, 1000);
+    // Manually load profile if sign-up is successful but needs verification
+    if (!result.error && result.data.user) {
+        await loadProfile(result.data.user.id);
     }
+    
     return result;
   };
 
   const signOut = async () => {
     const result = await supabase.auth.signOut();
     setProfile(null);
-    setSession(null);
-    setUser(null);
     return result;
   };
   
+  // Added password reset function
   const sendPasswordResetEmail = async (email: string) => {
-    return await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'northfinance://change-password',
+    const result = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: '/(auth)/change-password', // Specify your password reset page
     });
+    return result;
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) throw new Error('No user');
+    if (!user) throw new Error('No authenticated user');
     
-    // Cast to any to forcefully ignore strict type checks on the update object
-    const { full_name, id, email, ...validUpdates } = updates as any;
+    // Do not allow updating generated column
+    const { full_name, ...validUpdates } = updates;
 
     const { data, error } = await supabase
       .from('profiles')
@@ -166,28 +146,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
       .single();
       
     if (error) throw error;
+    
+    // Update local profile state with the returned data
     setProfile(data as Profile);
   };
-
-  const refreshProfile = async () => {
-    if (user) {
-        const p = await loadProfile(user.id);
-        setProfile(p);
-    }
-  }
 
   const value = {
     session,
     user,
     profile,
     isLoading: loading,
-    isAuthenticated: !!session && !!user, 
+    isAuthenticated: !!session, // Added this property
     signIn,
     signUp,
     signOut,
     updateProfile,
-    sendPasswordResetEmail,
-    refreshProfile
+    sendPasswordResetEmail, // Added this function
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

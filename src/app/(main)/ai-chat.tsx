@@ -31,7 +31,16 @@ export default function AIChatScreen() {
             </View>
           </View>
         </GlassCard>
-      </View>
+      </View>      {/* Chat Messages */}
+      <FlatList
+        data={[]} // Replace with your chat messages data
+        renderItem={({ item }) => (
+          <Text style={{ color: theme.colors.textPrimary }}>{item}</Text> // Customize message rendering
+        )}
+        keyExtractor={(item, index) => index.toString()}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
+      />
+      
 
       {/* Input Area */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={100}>

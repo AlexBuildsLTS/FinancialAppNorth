@@ -1,66 +1,50 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { UserRole, UserRoleDisplayNames } from '@/shared/types';
+import { Shield, User, Briefcase, LifeBuoy, Star } from 'lucide-react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 
-// Matching your exact Supabase Enum types
-export type UserRole = 'admin' | 'cpa' | 'support' | 'premium' | 'member';
-
 interface RoleBadgeProps {
-  role: string; 
+  role: UserRole;
 }
 
-export const RoleBadge = ({ role }: RoleBadgeProps) => {
-  const { isDark } = useTheme();
-  const normalizedRole = (role || 'member').toLowerCase() as UserRole;
+const roleVisuals: Record<string, { Icon: any; color: string }> = {
+  [UserRole.ADMIN]: { Icon: Shield, color: '#ef4444' }, // Red
+  [UserRole.CPA]: { Icon: Briefcase, color: '#3b82f6' }, // Blue
+  [UserRole.MEMBER]: { Icon: User, color: '#64748b' }, // Slate
+  [UserRole.PREMIUM_MEMBER]: { Icon: Star, color: '#8b5cf6' }, // Violet
+  [UserRole.SUPPORT]: { Icon: LifeBuoy, color: '#eab308' }, // Yellow
+  // fallback
+};
 
-  // EXACT COLORS requested: Red Admin, Orange CPA, Gold Premium
-  const getRoleStyle = () => {
-    switch (normalizedRole) {
-      case 'admin':
-        return { bg: 'rgba(239, 68, 68, 0.2)', text: '#EF4444', border: '#EF4444' }; // Red
-      case 'cpa':
-        return { bg: 'rgba(249, 115, 22, 0.2)', text: '#F97316', border: '#F97316' }; // Orange
-      case 'support':
-        return { bg: 'rgba(56, 189, 248, 0.2)', text: '#38BDF8', border: '#38BDF8' }; // Light Blue
-      case 'premium':
-        return { bg: 'rgba(234, 179, 8, 0.2)', text: '#EAB308', border: '#EAB308' };  // Gold
-      case 'member':
-      default:
-        return { 
-            bg: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)', 
-            text: isDark ? '#9CA3AF' : '#4B5563', 
-            border: isDark ? '#4B5563' : '#D1D5DB' 
-        };
-    }
-  };
-
-  const styles = getRoleStyle();
+export default function RoleBadge({ role }: RoleBadgeProps) {
+  const visual = roleVisuals[role] || { Icon: User, color: '#64748b' };
+  const Icon = visual.Icon;
 
   return (
-    <View style={[
-      baseStyles.badge, 
-      { backgroundColor: styles.bg, borderColor: styles.border }
-    ]}>
-      <Text style={[baseStyles.text, { color: styles.text }]}>
-        {normalizedRole.toUpperCase()}
+    <View style={[styles.badge, { backgroundColor: `${visual.color}20` }]}>
+      <Icon size={14} color={visual.color} style={styles.icon} />
+      <Text style={[styles.badgeText, { color: visual.color }]}>
+        {UserRoleDisplayNames?.[role] ?? String(role)}
       </Text>
     </View>
   );
-};
+}
 
-const baseStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginLeft: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 999,
+    alignSelf: 'flex-start',
   },
-  text: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+  icon: {
+    marginRight: 6,
+  },
+  badgeText: {
+    fontWeight: '600',
+    fontSize: 12,
   },
 });

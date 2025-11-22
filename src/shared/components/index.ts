@@ -1,15 +1,14 @@
-// Core UI Components
+// src/components/common/index.ts
+
+export * from './AnimatedThemeIcon';
+export * from './Avatar';
 export * from './Button';
 export * from './Cards';
-export * from './ScreenContainer';
-export * from './LoadingSpinner';
-export * from './Toast';
+export * from './DropdownMenu';
 export * from './Modal';
-export * from './Avatar';
+export * from './PasswordStrengthIndicator';
+export * from './Toast';
+export * from './MainHeader';
+export * from './NotificationDropdown';
+export { default as RoleBadge } from './RoleBadge';
 export * from './TabIcon';
-export * from './RoleBadge';
-
-// High-End UI Components (New)
-export * from './GlassCard';
-export * from './AppFooter';
-export * from './ProfileDropdown';

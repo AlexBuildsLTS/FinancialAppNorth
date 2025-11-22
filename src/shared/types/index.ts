@@ -4,46 +4,53 @@ import type { LucideProps } from 'lucide-react-native';
 // --- UTILITY TYPES ---
 type UUID = string;
 
-// Union type for supported currencies
-export type Currency = 'USD' | 'EUR' | 'GBP' | 'SEK';
+// Union type for supported currencies to prevent typos
+type Currency = 'USD' | 'EUR' | 'GBP' | 'SEK';
 
-// Standardized date type
+// Standardized date type to avoid confusion (ISO string format)
 type ISODateString = string;
 
 // --- AUTH & USERS ---
 
-// 1. UserRole: Kept your string union approach (Best for Supabase)
-export type UserRole = 'member' | 'premium' | 'cpa' | 'support' | 'admin' | 'client';
-
-export const UserRoleDisplayNames: Record<UserRole, string> = {
-  member: 'Member',
-  premium: 'Premium Member',
-  cpa: 'Professional (CPA)',
-  support: 'Support',
-  admin: 'Administrator',
-  client: 'Client',
-};
-
-export type UserStatus = 'active' | 'suspended' | 'banned';
-
-// 2. Profile: The Source of Truth (Matches Database Schema + Generated Column)
-export interface Profile {
-  id: UUID;
-  email: string; // Made required (Supabase users always have email)
-  full_name?: string; // Generated column
-  first_name?: string;
-  last_name?: string;
-  display_name?: string;
-  avatar_url: string | null;
-  role: UserRole;
-  status?: UserStatus;
-  created_at?: string;
-  updated_at?: string;
+// REFACTORED: Use programmatic keys for logic. This is more robust and aligns with database values.
+export enum UserRole {
+  MEMBER = 'member',
+  PREMIUM_MEMBER = 'premium',
+  CPA = 'cpa',
+  SUPPORT = 'support',
+  ADMIN = 'admin',
+  CLIENT = 'client', // Assuming this is also a role
 }
 
-// Legacy alias support
+// NEW: A mapping to get human-readable names for UI display.
+// Changed from Record<UserRole, string> to a mapped type for better explicitness.
+export const UserRoleDisplayNames: { [key in UserRole]: string } = {
+  [UserRole.MEMBER]: 'Member',
+  [UserRole.PREMIUM_MEMBER]: 'Premium Member',
+  [UserRole.CPA]: 'Professional (CPA)',
+  [UserRole.SUPPORT]: 'Support',
+  [UserRole.ADMIN]: 'Administrator',
+  [UserRole.CLIENT]: 'Client',
+};
+
+// Base status type for reusability
+export type UserStatus = 'active' | 'suspended' | 'banned';
+
+export interface Profile {
+  full_name: string;
+  status?: UserStatus; // Made optional with explicit type, handle undefined explicitly in code
+  id: UUID; // This is the user's UUID from auth.users
+  display_name: string; // Kept original naming to match database schema
+  first_name?: string; // Added first_name
+  last_name?: string; // Added last_name
+  avatar_url: string | null; // Kept original naming to match database schema
+  email?: string; // Email is often retrieved from the session user, can be optional here
+  role: UserRole; // Uses our robust enum
+}
+
 export type User = Profile;
 
+// Define ThemeColors based on usage in ManageUsersScreen and UserListItemProps
 export interface ThemeColors {
   primary: string;
   secondary: string;
@@ -58,17 +65,18 @@ export interface ThemeColors {
 // --- FINANCIAL & ACCOUNTING ---
 
 export interface Account {
-  code?: string;
+  code: string; // Replaced 'any' with string, assuming account code is alphanumeric
   id: UUID;
-  user_id: UUID;
+  user_id: UUID; // Kept original naming to match database schema
   name: string;
   type: 'checking' | 'savings' | 'credit' | 'investment';
   balance: number;
-  currency: Currency;
+  currency: Currency; // Use defined union type
 }
 
-// 3. Transaction: Merged your strict definition with the Dashboard requirements
 export interface Transaction {
+  category: string;
+  date: ISODateString; // Standardized
   id: UUID;
   user_id: UUID;
   account_id: UUID;
@@ -77,39 +85,38 @@ export interface Transaction {
   description?: string;
   amount: number;
   type: 'income' | 'expense';
-  date: ISODateString; // UI uses this
-  transaction_date: ISODateString; // Database uses this
-  status: 'pending' | 'cleared' | 'cancelled' | 'reconciled';
-  category: string; // Join result (category name)
+  transaction_date: ISODateString;
+  status: 'pending' | 'cleared' | 'cancelled' | 'reconciled'; // Added 'reconciled'
   created_at: ISODateString;
 }
 
 export interface Budget {
   id: UUID;
-  user_id: UUID;
+  user_id: UUID; // Kept original naming
   category: string;
-  allocated_amount: number;
-  spent_amount: number;
-  start_date: ISODateString;
+  allocated_amount: number; // Removed redundant 'amount: any', use this field
+  spent_amount: number; // Removed redundant 'spent: any', use this field
+  start_date: ISODateString; // Standardized
   end_date: ISODateString;
 }
 
 export interface JournalEntryLine {
   id?: UUID;
-  account_id: UUID;
+  account_id: UUID; // Kept original naming
   description?: string;
-  debit_amount: number;
+  debit_amount: number; // Kept original naming
   credit_amount: number;
 }
 
 export interface JournalEntry {
   id: UUID;
-  date: ISODateString;
+  date: ISODateString; // Standardized
   description: string;
   client_id: UUID;
   entries: JournalEntryLine[];
   status: 'draft' | 'posted' | 'void';
-  created_by: UUID;
+  created_by: UUID; // Standardized
+  // Removed 'TOTAL: any' and 'total_credit: any' as they seem like computed fields not part of the interface
 }
 
 export interface LineItem {
@@ -120,31 +127,31 @@ export interface LineItem {
 export interface FinancialStatement {
   id: string;
   type: 'profit_loss' | 'balance_sheet';
-  clientId: string;
-  periodStart: ISODateString;
+  clientId: string; // Already camelCase, kept consistent
+  periodStart: ISODateString; // Standardized
   periodEnd: ISODateString;
   data: LineItem[];
-  generatedAt: ISODateString;
+  generatedAt: ISODateString; // Standardized
   generatedBy: string;
 }
 
 export interface TaxCategory {
   id: UUID;
-  user_id: UUID;
+  user_id: UUID; // Kept original naming
   name: string;
   rate: number;
 }
 
 export interface AuditTrail {
   id: UUID;
-  user_id: UUID;
+  user_id: UUID; // Kept original naming
   action: string;
-  details: Record<string, unknown>;
-  timestamp: ISODateString;
+  // Changed from Record<string, any> to Record<string, unknown> for better type safety.
+  details: Record<string, unknown>; // Kept as is, but consider more specific typing if possible
+  timestamp: ISODateString; // Standardized
 }
 
-// --- DASHBOARD (UPDATED FOR CHARTS) ---
-
+// --- DASHBOARD ---
 export interface DashboardMetricItem {
   id: string;
   label: string;
@@ -153,22 +160,17 @@ export interface DashboardMetricItem {
   format: (value: number | null | undefined, locale?: string, currency?: string) => string;
 }
 
-// 4. DashboardMetrics: Added the Chart Data types you were missing
 export interface DashboardMetrics {
   totalBalance: number;
   monthlyIncome: number;
   monthlyExpenses: number;
-  savingsGoal?: number;
-  currentBudget?: number;
-  totalBudget?: number;
-  
-  // Chart Data Arrays (Required for the new Glass Dashboard)
-  incomeChartData: { value: number; label: string }[];
-  expenseChartData: { value: number; label: string }[];
-  budgetAllocation: { value: number; color: string; text: string; category: string; amount: number }[];
-  
+  savingsGoal?: number; // Added savingsGoal
+  spendingTrends?: { value: number; date: string; label?: string; }[]; // Added spendingTrends
+  budgetAllocation?: { category: string; amount: number; }[]; // Added budgetAllocation
+  currentBudget?: number; // Added currentBudget
+  totalBudget?: number; // Added totalBudget
   recentTransactions: Transaction[];
-  budgets: any[]; // Flexible to prevent crash if backend sends different shape
+  budgets: BudgetItemData[]; // Changed to BudgetItemData[]
 }
 
 export interface BudgetItemData {
@@ -178,39 +180,38 @@ export interface BudgetItemData {
 }
 
 // --- APP-SPECIFIC ---
-
 export interface Notification {
   id: string;
-  user_id: string;
+  user_id: string; // Kept original naming
   title: string;
   message: string;
   type: 'info' | 'warning' | 'error' | 'success';
-  is_read: boolean;
-  created_at: ISODateString;
+  is_read: boolean; // Kept original naming
+  created_at: ISODateString; // Standardized
 }
 
 export interface Category {
   id: UUID;
   user_id: UUID;
   name: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense'; // Assuming categories are for income or expense
 }
 
 export interface Conversation {
   id: string;
   name: string;
-  avatar_url: string | null;
+  avatar_url: string | null; // Kept original naming
   lastMessage: string;
-  timestamp: ISODateString;
+  timestamp: ISODateString; // Standardized
   unread: number;
 }
 
 export interface Message {
   id: string;
-  conversation_id: string;
+  conversation_id: string; // Kept original naming
   user_id: string;
   text: string;
-  created_at: ISODateString;
+  created_at: ISODateString; // Standardized
   sender: {
     display_name: string;
     avatar_url: string | null;
@@ -218,7 +219,6 @@ export interface Message {
 }
 
 // --- CPA & CLIENT-SPECIFIC ---
-
 export interface ClientDashboardData {
   profile: Profile;
   metrics: {
@@ -233,46 +233,48 @@ export interface ClientListItem {
   id: string;
   name: string;
   email: string;
-  avatarUrl: string | null;
-  last_activity: ISODateString;
+  avatarUrl: string | null; // Inconsistent with database, but kept as-is for compatibility
+  last_activity: ISODateString; // Standardized
 }
 
 export interface CPAProfile extends Profile {
-  // CPA specific fields
+  // Inherits all fields from Profile, role is already CPA
 }
 
 export interface ClientProfile extends Profile {
-  // Client specific fields
+  // Inherits all fields from Profile, role is already CLIENT
 }
 
 export interface SupportTicket {
   id: UUID;
-  user_id: UUID;
+  user_id: UUID; // Kept original naming
   title: string;
   status: 'open' | 'in_progress' | 'resolved' | 'closed';
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  created_at: ISODateString;
+  created_at: ISODateString; // Standardized
   updated_at: ISODateString;
-  assigned_to_id: UUID | null;
+  assigned_to_id: UUID | null; // Standardized
 }
 
 export interface SupportMessage {
   id: UUID;
-  ticket_id: UUID;
+  ticket_id: UUID; // Kept original naming
   user_id: UUID;
   message: string;
-  created_at: ISODateString;
-  internal: boolean;
+  created_at: ISODateString; // Standardized
+  internal: boolean; // True if it's an internal note, false if it's a message to the client
 }
 
 export interface Document {
   id: UUID;
-  user_id: UUID;
-  file_name: string;
-  storage_path: string;
-  mime_type: string | null;
+  user_id: UUID; // Kept original naming
+  file_name: string; // Standardized
+  storage_path: string; // Standardized
+  mime_type: string | null; // Standardized
   file_size: number | null;
   status: 'processing' | 'processed' | 'error';
   processed_data: Record<string, unknown> | null;
-  created_at: ISODateString;
+  created_at: ISODateString; // Standardized
 }
+
+// Removed erroneous 'export default Document;' as Document is an interface, not a default export

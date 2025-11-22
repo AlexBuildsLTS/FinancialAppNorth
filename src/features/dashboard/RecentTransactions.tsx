@@ -1,68 +1,63 @@
+// src/components/dashboard/RecentTransactions.tsx
+
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { GlassCard } from '@/shared/components/GlassCard';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/shared/context/ThemeProvider';
 import { Transaction } from '@/shared/types';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
+import { ArrowUpRight, ArrowDownLeft, PlusCircle } from 'lucide-react-native';
+import { format } from 'date-fns';
+import { Cards } from '@/shared/components/Cards';
 
-interface Props {
-  data?: Transaction[];
-  onViewAll?: () => void;
+interface RecentTransactionsProps {
+  transactions?: Transaction[];
 }
 
-export const RecentTransactions = ({ data = [], onViewAll }: Props) => {
-  const { theme, isDark } = useTheme();
+const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transactions }) => {
+  const { theme: { colors } } = useTheme();
 
-  const transactions = data.length > 0 ? data : [
-    { id: '1', description: 'Apple Store', amount: 1200, type: 'expense', date: '2025-01-20', category: 'Electronics' },
-    { id: '2', description: 'Freelance Project', amount: 3500, type: 'income', date: '2025-01-18', category: 'Business' },
-    { id: '3', description: 'Grocery Market', amount: 85, type: 'expense', date: '2025-01-15', category: 'Food' },
-  ];
+  const renderItem = ({ item }: { item: Transaction }) => (
+    <View style={[styles.itemContainer, { borderBottomColor: colors.border }]}>
+      <View style={[styles.iconContainer, { backgroundColor: item.type === 'income' ? `${colors.success}20` : `${colors.error}20` }]}>
+        {item.type === 'income' ? <ArrowUpRight color={colors.success} size={22} /> : <ArrowDownLeft color={colors.error} size={22} />}
+      </View>
+      <View style={styles.detailsContainer}>
+        <Text style={[styles.description, { color: colors.textPrimary }]}>{item.description}</Text>
+        <Text style={[styles.date, { color: colors.textSecondary }]}>{format(new Date(item.transaction_date), 'MMM d, yyyy')}</Text>
+      </View>
+      <Text style={[styles.amount, { color: item.type === 'income' ? colors.success : colors.error }]}>
+        {item.type === 'income' ? '+' : '-'}${item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+      </Text>
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
+    <Cards style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Recent Transactions</Text>
-        <TouchableOpacity onPress={onViewAll}>
-          <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 12 }}>See All</Text>
-        </TouchableOpacity>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Recent Transactions</Text>
       </View>
-
-      <View style={{ gap: 12 }}>
-        {transactions.map((tx: any, i) => {
-          const isExpense = tx.type === 'expense';
-          const color = isExpense ? '#EF4444' : '#10B981';
-          const Icon = isExpense ? ArrowDownRight : ArrowUpRight;
-
-          return (
-            <GlassCard key={tx.id || i} intensity={30} style={styles.row}>
-               <View style={styles.left}>
-                  <View style={[styles.iconBox, { backgroundColor: `${color}15` }]}>
-                     <Icon size={18} color={color} />
-                  </View>
-                  <View>
-                     <Text style={[styles.desc, { color: theme.colors.textPrimary }]}>{tx.description}</Text>
-                     <Text style={{ color: theme.colors.textSecondary, fontSize: 11 }}>{tx.category} • {tx.date}</Text>
-                  </View>
-               </View>
-               <Text style={[styles.amount, { color: isExpense ? theme.colors.textPrimary : '#10B981' }]}>
-                 {isExpense ? '-' : '+'}${tx.amount.toLocaleString()}
-               </Text>
-            </GlassCard>
-          );
-        })}
-      </View>
-    </View>
+      <FlatList
+        data={transactions}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        ListEmptyComponent={<Text style={{ color: colors.textSecondary, textAlign: 'center', padding: 20 }}>No recent transactions.</Text>}
+        scrollEnabled={false}
+      />
+    </Cards>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { marginTop: 10 },
+  container: { marginHorizontal: 16, marginTop: 20, padding: 20 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  title: { fontSize: 18, fontWeight: '700' },
-  row: { padding: 16, borderRadius: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  left: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  desc: { fontWeight: '600', fontSize: 14, marginBottom: 2 },
-  amount: { fontWeight: '700', fontSize: 14 },
+  title: { fontSize: 20, fontWeight: 'bold', fontFamily: 'Inter-Bold' },
+  addButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  addButtonText: { fontSize: 16, fontWeight: '600', fontFamily: 'Inter-SemiBold' },
+  itemContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1 },
+  iconContainer: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  detailsContainer: { flex: 1, marginLeft: 14 },
+  description: { fontSize: 16, fontWeight: '600', fontFamily: 'Inter-SemiBold' },
+  date: { fontSize: 13, marginTop: 3, fontFamily: 'Inter-Regular' },
+  amount: { fontSize: 17, fontWeight: 'bold', fontFamily: 'Inter-Bold' },
 });
+
+export default RecentTransactions;

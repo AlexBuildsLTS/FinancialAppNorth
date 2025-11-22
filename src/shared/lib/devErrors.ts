@@ -1,14 +1,10 @@
- import { Alert } from 'react-native';
-
-/**
- * Helper for development-only errors that should never occur in production.
- * Throws an error in dev, shows an alert in production.
- */
-export function devError(message: string, err?: Error) {
-  if (__DEV__) {
-    throw err ?? new Error(message);
-  } else {
-    console.error(message, err);
-    Alert.alert('Application Error', message + '\n\nPlease contact support.');
-  }
+export function initDevErrorHandlers() {
+  if (typeof window === 'undefined') return;
+  window.addEventListener('unhandledrejection', (ev: PromiseRejectionEvent) => {
+    // keep default behavior but also log stack/message clearly
+    console.error('UnhandledPromiseRejection:', ev.reason);
+  });
+  window.addEventListener('error', (ev: ErrorEvent) => {
+    console.error('Global error:', ev.error ?? ev.message, ev);
+  });
 }

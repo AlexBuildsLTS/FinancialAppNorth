@@ -2,11 +2,8 @@
    Supabase client & full‑stack helpers for NorthFinance
    -------------------------------------------------------------- */
 
-    
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
-  
 
 // ------------------- Replaced: robust client initialization -------------------
 // Resolve runtime config (supports app.config.js extra on web)
