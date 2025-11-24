@@ -95,6 +95,7 @@ export default function MainLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
+  // Filter navigation items based on Role
   const allowedItems = ROLE_NAV_ITEMS[user.role] || ROLE_NAV_ITEMS['member'];
   const navItems = allowedItems.map(key => NAV_CONFIG[key]).filter(Boolean);
 
@@ -102,12 +103,14 @@ export default function MainLayout() {
   if (isMobile) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#0A192F' }} edges={['top']}>
+        {/* 1. Custom Top Header for Mobile */}
         <MobileHeader user={user} />
         
+        {/* 2. Bottom Tab Navigation */}
         <Tabs
           screenOptions={{
             headerShown: false,
-            tabBarShowLabel: false,
+            tabBarShowLabel: false, 
             tabBarStyle: { 
               backgroundColor: '#020C1B',
               borderTopWidth: 1,
@@ -120,13 +123,12 @@ export default function MainLayout() {
             tabBarInactiveTintColor: '#8892B0',
           }}
         >
-          {/* 1. Render tabs for allowed items */}
           {navItems.map(config => (
             <Tabs.Screen
               key={config.name}
               name={config.name}
               options={{
-                href: config.path,
+                href: config.path, 
                 tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => {
                    const Icon = config.icon;
                    return (
@@ -140,8 +142,7 @@ export default function MainLayout() {
             />
           ))}
 
-          {/* 2. Render hidden tabs for screens that exist but shouldn't be in the bar */}
-          {/* We MUST filter out screens already rendered above to avoid 'Duplicate Screen Name' error */}
+          {/* Hide screens that are not in the user's role list */}
           {Object.values(NAV_CONFIG)
             .filter(config => !navItems.some(item => item.name === config.name))
             .map(config => (
@@ -151,8 +152,7 @@ export default function MainLayout() {
                 options={{ href: null }} 
               />
           ))}
-
-          {/* 3. Explicitly handle dynamic routes or extras */}
+          
           <Tabs.Screen name="messages/[id]" options={{ href: null }} />
         </Tabs>
       </SafeAreaView>
@@ -161,15 +161,16 @@ export default function MainLayout() {
 
   // --- Desktop Sidebar Layout ---
   const SidebarContent = () => (
-    <View className="flex-1">
+    <View className="flex-1 flex-col">
+      {/* Top Logo */}
       <View className="p-6 items-center mb-6">
         <View className="w-12 h-12 bg-[#112240] rounded-xl items-center justify-center mb-3 border border-[#233554]">
           <Text className="text-[#64FFDA] font-bold text-2xl">N</Text>
         </View>
         <Text className="text-white font-bold text-lg">NorthFinance</Text>
-        <RoleBadge role={user.role} />
       </View>
 
+      {/* Navigation Items */}
       <ScrollView className="flex-1 px-3">
         {navItems.map(config => {
           const Icon = config.icon;
@@ -194,24 +195,26 @@ export default function MainLayout() {
         })}
       </ScrollView>
 
+      {/* Bottom User Profile (Fixed) */}
       <View className="p-4 border-t border-[#233554]">
         <View className="flex-row items-center gap-3 mb-4 px-2">
-          <View className="w-8 h-8 rounded-full bg-[#112240] overflow-hidden">
+          <View className="w-10 h-10 rounded-full bg-[#112240] overflow-hidden border border-[#233554]">
             {user.avatar ? (
               <Image source={{ uri: user.avatar }} className="w-full h-full" />
             ) : (
-              <View className="items-center justify-center h-full"><Text className="text-[#64FFDA]">{user.name?.[0]}</Text></View>
+              <View className="items-center justify-center h-full"><Text className="text-[#64FFDA] font-bold">{user.name?.[0]}</Text></View>
             )}
           </View>
-          <View className="flex-1">
-            <Text className="text-white text-sm font-medium truncate">{user.name}</Text>
-            <Text className="text-[#8892B0] text-xs truncate">{user.email}</Text>
+          <View className="flex-1 justify-center">
+            <Text className="text-white text-sm font-bold truncate">{user.name}</Text>
+            <Text className="text-[#8892B0] text-xs truncate mb-1">{user.email}</Text>
+            <RoleBadge role={user.role} />
           </View>
         </View>
 
         <TouchableOpacity 
           onPress={logout}
-          className="flex-row items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20"
+          className="flex-row items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 justify-center"
         >
           <LogOut size={18} color="#F87171" />
           <Text className="text-[#F87171] font-medium">Sign Out</Text>

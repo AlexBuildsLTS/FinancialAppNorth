@@ -16,15 +16,8 @@ dist-ssr
 .env.*.local
 .expo
 .expo-shared
-web-build
-ios/build
-android/app/build
-.build
-.cache
-.tmp
-.out
-.expo-test
-.expo-web-build 
+*.env
+
 
 # Editor directories and files
 .vscode/*

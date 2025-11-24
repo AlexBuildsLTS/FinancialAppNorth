@@ -24,12 +24,14 @@ function RootLayoutNav() {
     if (!isMounted || isLoading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
-    
+
     if (!session && !inAuthGroup) {
+      // If not logged in, go to Login
       router.replace("/login");
     } else if (session && inAuthGroup) {
-      // FIX: Explicitly route to the main group to avoid sitemap confusion
-      router.replace("/(main)"); 
+      // CRITICAL FIX: Redirect to ROOT ('/') instead of '/(main)'
+      // On web, the group folder is hidden.
+      router.replace("/");
     }
   }, [session, isLoading, segments, isMounted]);
 
