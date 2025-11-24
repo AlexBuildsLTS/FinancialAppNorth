@@ -97,7 +97,7 @@ export const subscribeToChat = (chatId: string, callback: (payload: any) => void
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
-      (payload) => callback(payload.new)
+      (payload: { new: any; }) => callback(payload.new)
     )
     .subscribe();
 };

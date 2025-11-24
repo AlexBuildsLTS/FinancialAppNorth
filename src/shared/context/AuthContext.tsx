@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from '../../lib/supabase';
@@ -25,33 +24,50 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const router = useRouter();
 
   useEffect(() => {
-    // 1. Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        fetchProfile(session.user.id, session.user.email!);
-      } else {
-        setIsLoading(false);
+    let mounted = true;
+
+    async function initSession() {
+      try {
+        // 1. Check for existing session
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (mounted) {
+          setSession(data.session);
+          if (data.session) {
+            await fetchProfile(data.session.user.id, data.session.user.email!);
+          }
+        }
+      } catch (err) {
+        console.error("Session check failed:", err);
+      } finally {
+        if (mounted) setIsLoading(false); // <--- THIS IS THE FIX: ALWAYS TURN OFF SPINNER
       }
-    });
+    }
+
+    initSession();
 
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      if (session) {
-        await fetchProfile(session.user.id, session.user.email!);
-      } else {
-        setUser(null);
-        setIsLoading(false);
+      if (mounted) {
+        setSession(session);
+        if (session) {
+          await fetchProfile(session.user.id, session.user.email!);
+        } else {
+          setUser(null);
+          setIsLoading(false);
+        }
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchProfile = async (userId: string, email: string) => {
     try {
-      // Fetch user profile from 'profiles' table
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -76,8 +92,6 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       setUser(appUser);
     } catch (error) {
       console.error('Profile fetch error:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -103,7 +117,6 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const register = async (email: string, password: string, firstName: string, lastName: string) => {
     setIsLoading(true);
     
-    // 1. Sign up with Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -121,7 +134,6 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       throw error;
     }
 
-    // 2. Manually create profile if trigger doesn't exist (failsafe)
     if (data.user) {
        const { error: profileError } = await supabase.from('profiles').upsert({
         id: data.user.id,

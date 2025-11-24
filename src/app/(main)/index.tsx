@@ -1,10 +1,11 @@
-
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { Activity, ArrowUpRight, DollarSign, Users, ShieldCheck, FileText } from 'lucide-react-native';
 import { UserRole } from '@/types';
+import { Stack } from 'expo-router';  
+
 
 export default function Dashboard() {
   const { user } = useAuth();

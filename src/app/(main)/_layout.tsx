@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, useWindowDimensions } from 'react-native';
 import { Tabs, Redirect, useRouter, usePathname, Slot } from 'expo-router';
+import { UserRole } from '@/types';
 import { useAuth } from '@/shared/context/AuthContext';
 import { ROLE_NAV_ITEMS } from '@/constants';
 import { 
@@ -15,6 +16,7 @@ import {
   LogOut
 } from 'lucide-react-native';
 import React from 'react';
+import { ScrollView as GestureHandlerRootView } from 'react-native-gesture-handler';    
 
 const NAV_CONFIG: Record<string, { name: string, icon: any, path: string }> = {
   'Dashboard': { name: 'index', icon: LayoutDashboard, path: '/(main)/' },
@@ -25,6 +27,46 @@ const NAV_CONFIG: Record<string, { name: string, icon: any, path: string }> = {
   'Admin': { name: 'admin', icon: ShieldAlert, path: '/(main)/admin' },
   'Settings': { name: 'settings', icon: Settings, path: '/(main)/settings' },
 };
+const AIChat = { name: 'aiChat', icon: MessageSquare, path: '/(main)/aiChat' };
+
+// Add AIChat to NAV_CONFIG
+NAV_CONFIG.AIChat = AIChat;
+
+const ADMIN_NAV_ITEMS = [
+  'Dashboard',
+  'Transactions',
+  'Documents',
+  'Scan',
+  'AIChat',
+  'Support',
+  'Admin',
+  'Settings',
+];
+
+const CPA_NAV_ITEMS = [
+  'Dashboard',
+  'Transactions',
+  'Documents',
+  'Scan',
+  'AIChat',
+  'Support',
+  'Settings',
+];
+
+const MEMBER_NAV_ITEMS = [
+  'Dashboard',
+  'Transactions',
+  'Documents',
+  'Scan',
+  'AIChat',
+  'Support',
+  'Settings',
+];
+
+// Update ROLE_NAV_ITEMS with the new AIChat item
+ROLE_NAV_ITEMS[UserRole.ADMIN] = ADMIN_NAV_ITEMS;
+ROLE_NAV_ITEMS[UserRole.CPA] = CPA_NAV_ITEMS;
+ROLE_NAV_ITEMS[UserRole.MEMBER] = MEMBER_NAV_ITEMS;
 
 export default function MainLayout() {
   const { user, isLoading, logout } = useAuth();

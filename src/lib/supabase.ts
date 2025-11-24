@@ -1,48 +1,14 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { secureStorage } from './secureStorage';
 
-// Safe storage adapter that works on Web, Mobile, AND Server
-const ExpoSecureAdapter = {
-  getItem: (key: string) => {
-    if (Platform.OS === 'web') {
-      // CRITICAL FIX: Check if localStorage exists before using it
-      if (typeof localStorage === 'undefined') return null;
-      return localStorage.getItem(key);
-    }
-    return SecureStore.getItemAsync(key);
-  },
-  setItem: (key: string, value: string) => {
-    if (Platform.OS === 'web') {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(key, value);
-      }
-    } else {
-      SecureStore.setItemAsync(key, value);
-    }
-  },
-  removeItem: (key: string) => {
-    if (Platform.OS === 'web') {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem(key);
-      }
-    } else {
-      SecureStore.deleteItemAsync(key);
-    }
-  },
-};
+// Hardcoded keys to guarantee connection
+const supabaseUrl = 'https://qnrxncngoqphnerdrnnc.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFucnhuY25nb3FwaG5lcmRybm5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NzcyMTksImV4cCI6MjA3OTA1MzIxOX0.HSPju4exb2ZwnJsqpzQlqtUSN3tNUdkMhAca32hTepE';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase keys missing - check .env');
-}
-
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: ExpoSecureAdapter,
+    storage: secureStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

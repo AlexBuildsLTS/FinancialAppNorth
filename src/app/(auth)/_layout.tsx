@@ -7,11 +7,11 @@ export default function AuthLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: '#0A192F' },
-        animation: 'fade', // Smooth transition between auth screens
+        animation: 'fade',
       }}
     >
       <Stack.Screen name="login" />
-      <Stack.Screen name="register" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="register" />
     </Stack>
   );
 }

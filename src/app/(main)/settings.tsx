@@ -1,12 +1,11 @@
+
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Switch, Modal, Pressable, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Switch, Modal, Pressable } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { ChevronRight, Globe, CreditCard, Bell, Shield, Key, LogOut, X, Check, Save } from 'lucide-react-native';
-import { useAuth } from '../../shared/context/AuthContext';
+import { ChevronRight, Globe, CreditCard, Bell, Shield, Key, LogOut, X, Check } from 'lucide-react-native';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { logout } = useAuth();
   const [currency, setCurrency] = useState('USD ($)');
   const [region, setRegion] = useState('United States');
   const [notifications, setNotifications] = useState(true);
@@ -17,34 +16,15 @@ export default function SettingsScreen() {
   const currencies = ['USD ($)', 'GBP (£)', 'EUR (€)', 'SEK (kr)'];
   const regions = ['United States', 'United Kingdom', 'Sweden', 'Germany', 'Spain'];
 
-  const REGION_CURRENCY_MAP: Record<string, string> = {
-    'United States': 'USD ($)',
-    'United Kingdom': 'GBP (£)',
-    'Sweden': 'SEK (kr)',
-    'Germany': 'EUR (€)',
-    'Spain': 'EUR (€)'
-  };
-
   const openModal = (type: 'currency' | 'region') => {
     setModalType(type);
     setModalVisible(true);
   };
 
   const handleSelect = (value: string) => {
-    if (modalType === 'region') {
-        setRegion(value);
-        // Auto update currency based on region
-        if (REGION_CURRENCY_MAP[value]) {
-            setCurrency(REGION_CURRENCY_MAP[value]);
-        }
-    } else {
-        setCurrency(value);
-    }
+    if (modalType === 'currency') setCurrency(value);
+    else setRegion(value);
     setModalVisible(false);
-  };
-
-  const handleSave = () => {
-    Alert.alert("Success", "Settings saved successfully.");
   };
 
   const SettingItem = ({ icon: Icon, label, value, onPress, type = 'link' }: any) => (
@@ -115,8 +95,8 @@ export default function SettingsScreen() {
             <SettingItem 
                 icon={Key} 
                 label="AI API Keys" 
-                type="link"
-                onPress={() => router.push('/(main)/settings/ai-keys' as any)}
+                type="link" 
+                onPress={() => router.push('/ai-keys' as any)} 
             />
             <SettingItem 
                 icon={Shield} 
@@ -126,22 +106,14 @@ export default function SettingsScreen() {
             />
         </View>
 
-        {/* Save Button */}
-        <TouchableOpacity 
-            onPress={handleSave}
-            className="w-full bg-[#64FFDA] py-4 rounded-xl items-center flex-row justify-center mb-4"
-        >
-            <Save size={20} color="#0A192F" />
-            <Text className="text-[#0A192F] font-bold ml-2">Save Changes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-            onPress={logout}
-            className="flex-row items-center justify-center gap-2 p-4 bg-red-500/10 rounded-xl border border-red-500/20 mt-2"
-        >
+        <TouchableOpacity className="flex-row items-center justify-center gap-2 p-4 bg-red-500/10 rounded-xl border border-red-500/20 mt-4">
             <LogOut size={18} color="#F87171" />
             <Text className="text-[#F87171] font-bold">Sign Out</Text>
         </TouchableOpacity>
+        
+        <Text className="text-center text-[#8892B0] text-xs mt-8 pb-8">
+            Version 1.0.2 (Build 45)
+        </Text>
       </ScrollView>
 
       {/* Custom Picker Modal */}

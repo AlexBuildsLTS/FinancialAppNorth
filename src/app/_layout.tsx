@@ -1,32 +1,70 @@
-import { useEffect } from "react";
-import { Stack } from "expo-router";
+import "../../global.css";
+import { useEffect, useState } from "react";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
-import { AuthProvider } from "../shared/context/AuthContext";
-import "../../global.css";
+import { AuthProvider, useAuth } from "../shared/context/AuthContext";
+import { View, ActivityIndicator, Text } from "react-native";
+
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
-  const [loaded, error] = useFonts({});
+function RootLayoutNav() {
+  const { session, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    if (loaded || error) {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted || isLoading) return;
+
+    const inAuthGroup = segments[0] === "(auth)";
+    
+    if (!session && !inAuthGroup) {
+      // Redirect to the FLAT route (cleaner)
+      router.replace("/login");
+    } else if (session && inAuthGroup) {
+      router.replace("/");
+    }
+  }, [session, isLoading, segments, isMounted]);
+
+  if (isLoading || !isMounted) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0A192F" }}>
+        <ActivityIndicator size="large" color="#64FFDA" />
+      </View>
+    );
+  }
+
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0A192F' } }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(main)" />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  const [loaded] = useFonts({
+    // Add fonts if needed
+  });
+
+  useEffect(() => {
+    if (loaded) {
       SplashScreen.hideAsync();
     }
-  }, [loaded, error]);
-
-  if (!loaded && !error) return null;
+  }, [loaded]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <StatusBar style="light" />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(main)" />
-        </Stack>
+        <RootLayoutNav />
       </AuthProvider>
     </GestureHandlerRootView>
   );
