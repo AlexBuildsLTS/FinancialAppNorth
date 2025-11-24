@@ -1,131 +1,185 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
-import { useRouter } from 'expo-router';
-import { ChevronRight, Bell, Shield, Palette, LogOut, Info, Globe } from 'lucide-react-native'; // Import Globe icon
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useAuth } from '@/shared/context/AuthContext';
-import ScreenContainer from '@/shared/components/ScreenContainer';
-import { Cards } from '@/shared/components/Cards';
-
-const SettingsListItem = ({ icon: Icon, text, onPress, rightContent, colors, isFirst, isLast }: any) => (
-  <TouchableOpacity
-    style={[
-      styles.listItem,
-      { borderBottomColor: colors.border, backgroundColor: colors.surface },
-      isFirst && styles.isFirst,
-      isLast && styles.isLast,
-    ]}
-    onPress={onPress}
-  >
-    <Icon color={colors.primary} size={22} />
-    <Text style={[styles.listItemText, { color: colors.text }]}>{text}</Text>
-    {rightContent ? rightContent : <ChevronRight color={colors.textSecondary} size={22} />}
-  </TouchableOpacity>
-);
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Switch, Modal, Pressable, Alert } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { ChevronRight, Globe, CreditCard, Bell, Shield, Key, LogOut, X, Check, Save } from 'lucide-react-native';
+import { useAuth } from '../../shared/context/AuthContext';
 
 export default function SettingsScreen() {
-  const { theme, isDark, toggleTheme } = useTheme();
-  const { colors } = theme;
-  const { signOut } = useAuth();
   const router = useRouter();
+  const { logout } = useAuth();
+  const [currency, setCurrency] = useState('USD ($)');
+  const [region, setRegion] = useState('United States');
+  const [notifications, setNotifications] = useState(true);
+  
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<'currency' | 'region'>('currency');
 
-  type AppRoute = "/(main)/settings" | "/(main)/profile/security" | "/(main)/profile/localization"; // Add new path
+  const currencies = ['USD ($)', 'GBP (£)', 'EUR (€)', 'SEK (kr)'];
+  const regions = ['United States', 'United Kingdom', 'Sweden', 'Germany', 'Spain'];
 
-  interface MenuItem {
-    icon: any;
-    text: string;
-    path: AppRoute;
-  }
+  const REGION_CURRENCY_MAP: Record<string, string> = {
+    'United States': 'USD ($)',
+    'United Kingdom': 'GBP (£)',
+    'Sweden': 'SEK (kr)',
+    'Germany': 'EUR (€)',
+    'Spain': 'EUR (€)'
+  };
 
-  const menuItems: MenuItem[] = [
-    { icon: Bell, text: 'Notifications', path: '/(main)/settings' }, // Placeholder path
-    { icon: Shield, text: 'Security & Privacy', path: '/(main)/profile/security' },
-    { icon: Globe, text: 'Localization', path: '/(main)/profile/localization' }, // New Localization item
-    { icon: Info, text: 'About NorthFinance', path: '/(main)/settings' }, // Placeholder path
-  ];
+  const openModal = (type: 'currency' | 'region') => {
+    setModalType(type);
+    setModalVisible(true);
+  };
+
+  const handleSelect = (value: string) => {
+    if (modalType === 'region') {
+        setRegion(value);
+        // Auto update currency based on region
+        if (REGION_CURRENCY_MAP[value]) {
+            setCurrency(REGION_CURRENCY_MAP[value]);
+        }
+    } else {
+        setCurrency(value);
+    }
+    setModalVisible(false);
+  };
+
+  const handleSave = () => {
+    Alert.alert("Success", "Settings saved successfully.");
+  };
+
+  const SettingItem = ({ icon: Icon, label, value, onPress, type = 'link' }: any) => (
+    <TouchableOpacity 
+        onPress={onPress}
+        disabled={type === 'switch'}
+        className="flex-row items-center justify-between p-4 bg-[#112240] border-b border-white/5 first:rounded-t-xl last:rounded-b-xl last:border-0 active:bg-white/5"
+    >
+      <View className="flex-row items-center gap-3">
+        <Icon size={20} color="#8892B0" />
+        <Text className="text-white font-medium">{label}</Text>
+      </View>
+      
+      <View className="flex-row items-center gap-2">
+        {type === 'value' && (
+            <Text className="text-[#64FFDA] text-sm font-medium">{value}</Text>
+        )}
+        {type === 'switch' && (
+            <Switch 
+                value={value} 
+                onValueChange={onPress}
+                trackColor={{ false: '#0A192F', true: '#64FFDA' }}
+                thumbColor={value ? '#112240' : '#8892B0'}
+            />
+        )}
+        {type !== 'switch' && <ChevronRight size={16} color="#8892B0" />}
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
-    <ScreenContainer>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+    <SafeAreaView className="flex-1 bg-[#0A192F]">
+      <Stack.Screen options={{ 
+        headerTitle: 'Settings',
+        headerStyle: { backgroundColor: '#0A192F' },
+        headerTintColor: '#fff',
+        headerShadowVisible: false
+      }} />
 
-        <Cards style={styles.menuSection}>
-          <SettingsListItem
-            icon={Palette}
-            text="Dark Mode"
-            onPress={toggleTheme}
-            rightContent={
-              <Switch
-                trackColor={{ false: '#767577', true: colors.primary }}
-                thumbColor={isDark ? colors.surface : '#0328cfff'}
-                onValueChange={toggleTheme}
-                value={isDark}
-              />
-            }
-            colors={colors}
-            isFirst
-            isLast
-          />
-        </Cards>
-
-        <Cards style={styles.menuSection}>
-          {menuItems.map((item, index) => (
-            <SettingsListItem
-              key={item.text}
-              icon={item.icon}
-              text={item.text}
-              onPress={() => router.push(item.path)}
-              colors={colors}
-              isFirst={index === 0}
-              isLast={index === menuItems.length - 1}
+      <ScrollView className="flex-1 px-4 pt-2">
+        <Text className="text-[#8892B0] text-xs font-bold uppercase mb-2 mt-4 ml-2">Preferences</Text>
+        <View className="mb-6 rounded-xl overflow-hidden">
+            <SettingItem 
+                icon={Globe} 
+                label="Region" 
+                value={region} 
+                type="value" 
+                onPress={() => openModal('region')} 
             />
-          ))}
-        </Cards>
+            <SettingItem 
+                icon={CreditCard} 
+                label="Currency" 
+                value={currency} 
+                type="value" 
+                onPress={() => openModal('currency')} 
+            />
+            <SettingItem 
+                icon={Bell} 
+                label="Push Notifications" 
+                value={notifications} 
+                type="switch" 
+                onPress={() => setNotifications(!notifications)} 
+            />
+        </View>
 
-        <Cards style={styles.menuSection}>
-          <SettingsListItem
-            icon={LogOut}
-            text="Sign Out"
-            onPress={signOut}
-            colors={colors}
-            isFirst
-            isLast
-          />
-        </Cards>
+        <Text className="text-[#8892B0] text-xs font-bold uppercase mb-2 ml-2">Security & AI</Text>
+        <View className="mb-6 rounded-xl overflow-hidden">
+            <SettingItem 
+                icon={Key} 
+                label="AI API Keys" 
+                type="link"
+                onPress={() => router.push('/(main)/settings/ai-keys' as any)}
+            />
+            <SettingItem 
+                icon={Shield} 
+                label="Change Password" 
+                type="link" 
+                onPress={() => console.log('Change Pass')} 
+            />
+        </View>
+
+        {/* Save Button */}
+        <TouchableOpacity 
+            onPress={handleSave}
+            className="w-full bg-[#64FFDA] py-4 rounded-xl items-center flex-row justify-center mb-4"
+        >
+            <Save size={20} color="#0A192F" />
+            <Text className="text-[#0A192F] font-bold ml-2">Save Changes</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+            onPress={logout}
+            className="flex-row items-center justify-center gap-2 p-4 bg-red-500/10 rounded-xl border border-red-500/20 mt-2"
+        >
+            <LogOut size={18} color="#F87171" />
+            <Text className="text-[#F87171] font-bold">Sign Out</Text>
+        </TouchableOpacity>
       </ScrollView>
-    </ScreenContainer>
+
+      {/* Custom Picker Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <Pressable className="flex-1 bg-black/60 justify-end" onPress={() => setModalVisible(false)}>
+            <View className="bg-[#112240] rounded-t-3xl p-6 max-h-[50%]">
+                <View className="flex-row justify-between items-center mb-6">
+                    <Text className="text-white font-bold text-xl">Select {modalType === 'currency' ? 'Currency' : 'Region'}</Text>
+                    <TouchableOpacity onPress={() => setModalVisible(false)}>
+                        <X size={24} color="#8892B0" />
+                    </TouchableOpacity>
+                </View>
+                <ScrollView>
+                    {(modalType === 'currency' ? currencies : regions).map(item => (
+                        <TouchableOpacity 
+                            key={item} 
+                            onPress={() => handleSelect(item)}
+                            className="flex-row items-center justify-between py-4 border-b border-white/5"
+                        >
+                            <Text className={`font-medium text-base ${
+                                (modalType === 'currency' ? currency : region) === item ? 'text-[#64FFDA]' : 'text-white'
+                            }`}>
+                                {item}
+                            </Text>
+                            {(modalType === 'currency' ? currency : region) === item && (
+                                <Check size={20} color="#64FFDA" />
+                            )}
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+        </Pressable>
+      </Modal>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 30 },
-  title: { fontSize: 32, fontWeight: 'bold', marginBottom: 24 },
-  menuSection: {
-    marginBottom: 20,
-    borderRadius: 12,
-    overflow: 'hidden', // to clip children to the border radius
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-
-    borderBottomWidth: 1,
-  },
-  isFirst: {
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  isLast: {
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    borderBottomWidth: 0,
-  },
-  listItemText: {
-    flex: 1,
-    fontSize: 16,
-    marginLeft: 20,
-    fontFamily: 'Inter-SemiBold',
-  },
-});

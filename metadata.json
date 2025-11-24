@@ -1,0 +1,8 @@
+{
+  "name": "north-star-app",
+  "description": "Professional cross-platform financial management application with AI insights and CPA tools.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

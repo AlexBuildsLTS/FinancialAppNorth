@@ -1,8 +1,0 @@
-{
-  "outputDirectory": "dist",
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "https://qnrxncngoqphnerdrnnc.supabase.co",
-    "NEXT_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFucnhuY25nb3FwaG5lcmRybm5jIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzQ3NzIxOSwiZXhwIjoyMDc5MDUzMjE5fQ.3gLfTGPDPaYqElXPrMC2UVUdcGZC8h4ILuMSmN5hZlE",
-    "NEXT_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFucnhuY25nb3FwaG5lcmRybm5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NzcyMTksImV4cCI6MjA3OTA1MzIxOX0.HSPju4exb2ZwnJsqpzQlqtUSN3tNUdkMhAca32hTepE"
-  }
-}

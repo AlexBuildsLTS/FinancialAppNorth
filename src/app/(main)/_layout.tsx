@@ -1,131 +1,145 @@
-import React from 'react';
-import { Tabs, useRouter, Redirect } from 'expo-router';    
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, useWindowDimensions } from 'react-native';
+import { Tabs, Redirect, useRouter, usePathname, Slot } from 'expo-router';
 import { useAuth } from '@/shared/context/AuthContext';
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { ROLE_BASED_TABS, TabItem } from '@/shared/constants/navigation';
-import { TabIcon } from '@/shared/components/TabIcon';
-import { MainHeader } from '@/shared/components/MainHeader';
-import { View, ActivityIndicator, StyleSheet, Platform, Pressable } from 'react-native';
-import { ScanEye } from 'lucide-react-native';
+import { ROLE_NAV_ITEMS } from '@/constants';
+import { 
+  LayoutDashboard, 
+  CreditCard, 
+  FileText, 
+  PieChart, 
+  Users, 
+  LifeBuoy, 
+  ShieldAlert, 
+  MessageSquare, 
+  Settings,
+  LogOut
+} from 'lucide-react-native';
+import React from 'react';
 
-// This is the custom circular "Scan" button from your visual guide.
-const CustomScanButton = ({ onPress }: { onPress: (e: any) => void }) => {
-    const { theme } = useTheme(); // Correctly uses the theme context
-    return (
-        <Pressable
-            onPress={onPress}
-            style={({ pressed }) => [
-                styles.customButtonContainer,
-                // CORRECTED: Uses 'primary' and 'primaryContrast' from YOUR theme file.
-                { backgroundColor: theme.colors.accent, opacity: pressed ? 0.8 : 1 }
-            ]}
-        >
-            <ScanEye color={theme.colors.surfaceContrast} size={32} />
-        </Pressable>
-    );
+const NAV_CONFIG: Record<string, { name: string, icon: any, path: string }> = {
+  'Dashboard': { name: 'index', icon: LayoutDashboard, path: '/(main)/' },
+  'Transactions': { name: 'transactions', icon: CreditCard, path: '/(main)/transactions' },
+  'Documents': { name: 'documents', icon: FileText, path: '/(main)/documents' },
+  'Scan': { name: 'scan', icon: PieChart, path: '/(main)/scan' },
+  'Support': { name: 'support', icon: LifeBuoy, path: '/(main)/support' },
+  'Admin': { name: 'admin', icon: ShieldAlert, path: '/(main)/admin' },
+  'Settings': { name: 'settings', icon: Settings, path: '/(main)/settings' },
 };
 
+export default function MainLayout() {
+  const { user, isLoading, logout } = useAuth();
+  const { width } = useWindowDimensions();
+  const router = useRouter();
+  const pathname = usePathname();
+  const isMobile = width < 768; // Tailwind's 'lg' breakpoint
 
-export default function MainAppLayout() {
-    const { profile, session } = useAuth();
-    const { theme } = useTheme(); // Correctly destructures the full theme object
-    const router = useRouter();
+  if (isLoading) {
+    return <View className="flex-1 bg-[#0A192F] items-center justify-center"><Text className="text-white">Loading...</Text></View>;
+  }
 
-    // PROTECT THIS ROUTE: If the user is somehow not signed in, kick them out.
-    if (!session) {
-        return <Redirect href="/(auth)/login" />;
-    }
-    // While we wait for the user's profile (which contains their role), show a loader.
-    if (!profile) {
-        return (
-            <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
-                <ActivityIndicator size="large" color={theme.colors.textPrimary} />
-            </View>
-        );
-    }
+  if (!user) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
-    const allPossibleTabs = ['index', 'transactions', 'documents', 'support', 'settings', 'budgets', 'reports', 'clients', 'admin', 'camera', 'scan', 'profile'];
-    // FIX: Ensure visibleTabs and tabsToRender are correctly typed as TabItem[] and filter out custom tabs.
-    const allTabs: TabItem[] = ROLE_BASED_TABS[profile.role] || [];
-    const visibleTabs = allTabs.filter(tab => !tab.custom); // Filter out custom tabs (like the scan button)
-    const tabsToRender: TabItem[] = [...visibleTabs]; // Spread the filtered tabs
-    const visibleTabNames = visibleTabs.map(tab => tab.name);   
+  const allowedNavItems = ROLE_NAV_ITEMS[user.role] || [];
+  const navItemsToDisplay = allowedNavItems.map(item => NAV_CONFIG[item]).filter(Boolean);
 
-    const renderedTabNames = tabsToRender.map(t => t.name);
-    const hiddenTabs = allPossibleTabs.filter(name => !renderedTabNames.includes(name));
+  // Mobile Bottom Tab Bar Layout
+  if (isMobile) {
+    return (
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarShowLabel: false,
+          tabBarStyle: { 
+            backgroundColor: '#112240',
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(255,255,255,0.1)',
+            height: 60,
+            paddingBottom: 5,
+            paddingTop: 5,
+          },
+        }}
+      >
+        {navItemsToDisplay.map(config => {
+          if (!config) return null;
+          const Icon = config.icon;
+          const isActive = pathname === config.path;
+          return (
+            <Tabs.Screen
+              key={config.name}
+              name={config.name}
+              options={{
+                tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+                  <View className="items-center justify-center gap-1">
+                    <Icon size={24} color={focused ? '#64FFDA' : '#8892B0'} />
+                    {/* <Text className={`text-xs ${focused ? 'text-[#64FFDA]' : 'text-[#8892B0]'}`}>{config.name}</Text> */}
+                  </View>
+                ),
+              }}
+            />
+          );
+        })}
+      </Tabs>
+    );
+  }
 
-        return (
-            <Tabs
-                screenOptions={{
-                    header: () => <MainHeader />,
-                    tabBarShowLabel: false, // Hides text labels, as per your visual guides.        
-                    // --- THIS IS THE FINAL, ERROR-FREE STYLING FOR THE FLOATING TAB BAR ---
-                    tabBarStyle: {
-                        position: 'absolute',
-                        bottom: Platform.OS === 'ios' ? 30 : 20,
-                        left: 20,
-                        right: 20,
-                        height: 70,
-                        backgroundColor: theme.colors.surface, // CORRECTED: Uses the semantic token from your theme file.
-                        borderRadius: 25,
-                        borderTopWidth: 0,
-                        ...styles.shadow
-                    },  
-                    tabBarActiveTintColor: theme.colors.accent,   // CORRECTED: Uses the specific key from your theme file.
-                    tabBarInactiveTintColor: theme.colors.textSecondary, // CORRECTED: Uses the specific key from your theme file.
-                }}
+  // Desktop Sidebar Layout
+  const SidebarContent = () => (
+    <View className="flex-1">
+      <View className="p-6 items-center mb-6">
+        <View className="w-12 h-12 bg-[#64FFDA] rounded-xl items-center justify-center mb-3">
+          <Text className="text-[#0A192F] font-bold text-2xl">N</Text>
+        </View>
+        <Text className="text-white font-bold text-lg">NorthFinance</Text>
+        <Text className="text-[#8892B0] text-xs uppercase tracking-wider mt-1">{user.role}</Text>
+      </View>
+
+      <ScrollView className="flex-1 px-4">
+        {navItemsToDisplay.map(config => {
+          if (!config) return null;
+          const Icon = config.icon;
+          const isActive = pathname.startsWith(config.path);
+
+          return (
+            <TouchableOpacity
+              key={config.name}
+              onPress={() => router.push(config.path as any)}
+              className={`flex-row items-center gap-3 px-4 py-3.5 rounded-xl mb-2 transition-all ${
+                isActive ? 'bg-[#112240] border border-[#64FFDA]/30' : 'opacity-70'
+              }`}
             >
-                {tabsToRender.map((tab) => {
-                    // If this is our custom placeholder tab, render the circular button.
-                    if (tab.custom) {
-                        return (
-                            <Tabs.Screen
-                                key="scan-action"
-                                name="scan" // This file MUST exist at /src/app/(main)/scan.tsx
-                                options={{
-                                    tabBarButton: (props: React.JSX.IntrinsicAttributes & { onPress: (e: any) => void; }) => (
-                                        <CustomScanButton {...props} onPress={() => router.push('/(main)/scan')} />
-                                    ),
-                                }}
-                            />
-                        );
-                    }       
-                    // Otherwise, render a standard tab item.
-                    return (
-                        <Tabs.Screen
-                            key={tab.name}
-                            name={tab.name}
-                            options={{
-                                title: tab.title,
-                                tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-                                    <TabIcon icon={tab.icon} color={color} focused={focused} />
-                                ),
-                            }}
-                        />
-                    );
-                })} 
-                {/* Hide tabs that are not for the current role */}
-                {hiddenTabs.map(name => (
-                    <Tabs.Screen key={name} name={name} options={{ href: null }} />
-                ))}
-                <Tabs.Screen name="client/[id]" options={{ href: null }} /> // This is a placeholder for a client-specific tab
-            </Tabs>
-        );}
+              <Icon size={20} color={isActive ? '#64FFDA' : '#8892B0'} />
+              <Text className={`font-medium ${isActive ? 'text-white' : 'text-[#8892B0]'}`}>
+                {config.name.charAt(0).toUpperCase() + config.name.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
-const styles = StyleSheet.create({
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    shadow: {
-        boxShadow: '0 5px 15px rgba(0, 0, 0, 0.1)',
-        elevation: 10,
-    },
-    customButtonContainer: {
-        top: Platform.OS === 'ios' ? -25 : -35,
-        width: 70,
-        height: 70,
-        borderRadius: 35,
-        justifyContent: 'center',
-        alignItems: 'center',
-        boxShadow: '0 6px 8px rgba(0, 0, 0, 0.2)',
-        elevation: 12,
-    },
-});
+      <View className="p-4 border-t border-white/5">
+        <TouchableOpacity 
+          onPress={logout}
+          className="flex-row items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20"
+        >
+          <LogOut size={20} color="#F87171" />
+          <Text className="text-[#F87171] font-medium">Sign Out</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView className="flex-1 bg-[#0A192F]">
+      <View className="flex-1 flex-row">
+        <View className="w-64 bg-[#0A192F] border-r border-white/5 h-full">
+          <SidebarContent />
+        </View>
+        <View className="flex-1 bg-[#0A192F]">
+          <Slot />
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}

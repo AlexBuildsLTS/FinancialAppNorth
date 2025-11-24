@@ -1,150 +1,121 @@
-// src/app/(main)/index.tsx
-import React, { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View, Text, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Components
-import LoadingSpinner from '@/shared/components/LoadingSpinner';
-import { WelcomeHeader } from '@/features/dashboard/WelcomeHeader';
-import MetricsGrid from '@/features/dashboard/MetricsGrid';
-import SpendingTrends from '@/features/dashboard/SpendingTrends';
-import BudgetAllocation from '@/features/dashboard/BudgetAllocation';
-import BudgetOverview from '@/features/dashboard/BudgetOverview';
-import AddTransactionModal from '@/features/transactions/AddTransactionModal';
-import { Button } from '@/shared/components/Button'; // Changed to named import
+import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { useAuth } from '../../shared/context/AuthContext';
+import { useRouter } from 'expo-router';
+import { Activity, ArrowUpRight, DollarSign, Users, ShieldCheck, FileText } from 'lucide-react-native';
+import { UserRole } from '@/types';
 
-// Hooks
-import { useTheme } from '@/shared/context/ThemeProvider';
-import { useAuth } from '@/shared/context/AuthContext';
-import { useDashboardData } from '@/features/dashboard/hooks/useDashboardData';
+export default function Dashboard() {
+  const { user } = useAuth();
+  const router = useRouter();
 
-// Types
-import { DashboardMetricItem, DashboardMetrics } from '@/shared/types';
+  if (!user) return null;
 
-// Utils
-import { formatCurrency } from '@/shared/utils/formatters';
-
-// Icons
- import { PiggyBank, TrendingDown, TrendingUp, Wallet } from 'lucide-react-native';
-
-
-export default function DashboardScreen() {
-  const { theme: { colors } } = useTheme();
-  const { profile } = useAuth();
-  const { width } = useWindowDimensions();
-
-  const [isAddTransactionModalVisible, setIsAddTransactionModalVisible] = useState(false);
-
-  const { metrics: data, loading: isLoading, error, refreshData } = useDashboardData();
-
-  const handleAddTransaction = useCallback(() => {
-    setIsAddTransactionModalVisible(true);
-  }, []);
-
-  const handleModalClose = useCallback(() => {
-    setIsAddTransactionModalVisible(false);
-  }, []);
-
-  const handleTransactionAdded = useCallback(() => {
-    refreshData();
-    handleModalClose();
-  }, [refreshData, handleModalClose]);
-
-  const dashboardMetrics: DashboardMetricItem[] = useMemo(() => [
-    {
-      id: 'balance',
-      label: 'Total Balance',
-      value: data?.totalBalance ?? 0,
-      icon: <Wallet color={colors.primary} size={24} />,
-      format: formatCurrency,
-    },
-    {
-      id: 'income',
-      label: 'Monthly Income',
-      value: data?.monthlyIncome ?? 0,
-      icon: <TrendingUp color={colors.success} size={24} />,
-      format: formatCurrency,
-    },
-    {
-      id: 'expenses',
-      label: 'Monthly Expenses',
-      value: data?.monthlyExpenses ?? 0,
-      icon: <TrendingDown color={colors.error} size={24} />,
-      format: formatCurrency,
-    },
-    {
-      id: 'savings',
-      label: 'Savings Goal',
-      value: data?.savingsGoal ?? 0,
-      icon: <PiggyBank color={colors.warning} size={24} />,
-      format: formatCurrency,
-    },
-  ], [data, colors]);
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.loadingContainer}>
-          <LoadingSpinner size={48} />
+  const StatCard = ({ title, value, icon: Icon, color, link }: any) => (
+    <TouchableOpacity 
+      onPress={() => link && router.push(link)}
+      className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-1 min-w-[150px] mb-4 mr-4"
+    >
+      <View className="flex-row justify-between items-start mb-4">
+        <View className={`w-10 h-10 rounded-xl items-center justify-center bg-${color}-500/10`}>
+          <Icon size={20} color={color === 'emerald' ? '#34D399' : color === 'blue' ? '#60A5FA' : '#F472B6'} />
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.text }]}>
-            Error loading dashboard data: {error instanceof Error ? error.message : 'Unknown error'}
-          </Text>
-          <Button title="Retry" onPress={refreshData} />
-        </View>
-      </SafeAreaView>
-    );
-  }
+        {link && <ArrowUpRight size={16} color="#8892B0" />}
+      </View>
+      <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1">{title}</Text>
+      <Text className="text-white text-2xl font-bold">{value}</Text>
+    </TouchableOpacity>
+  );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <WelcomeHeader />
-        <MetricsGrid metricData={dashboardMetrics} /> {/* Changed prop to metricData */}
-        <SpendingTrends incomeData={data?.incomeChartData || []} expenseData={data?.expenseChartData || []} /> {/* Changed prop to incomeData and expenseData */}
-        <BudgetAllocation allocationData={data?.budgetAllocation || []} /> {/* Changed prop to allocationData */}
-        <BudgetOverview budgetData={data?.budgets || []} /> {/* Changed prop to budgetData */}
-      </ScrollView>
+    <ScrollView className="flex-1 bg-[#0A192F] p-6" contentContainerStyle={{ paddingBottom: 40 }}>
+      <View className="mb-8">
+        <Text className="text-white text-3xl font-bold mb-2">Dashboard</Text>
+        <Text className="text-[#8892B0]">Welcome back, {user.name}</Text>
+      </View>
 
-      <AddTransactionModal
-        visible={isAddTransactionModalVisible}
-        onClose={handleModalClose}
-        onSuccess={handleTransactionAdded}
-        clientId={profile?.id || null}
-      />
-    </SafeAreaView>
+      {/* Stats Grid */}
+      <View className="flex-row flex-wrap mb-6">
+        <StatCard 
+          title="Total Balance" 
+          value="$124,500.00" 
+          icon={DollarSign} 
+          color="emerald" 
+          link="/(main)/transactions"
+        />
+        <StatCard 
+          title="Active Docs" 
+          value="12" 
+          icon={FileText} 
+          color="blue" 
+          link="/(main)/documents"
+        />
+      </View>
+
+      {/* Role Specific Sections */}
+      {user.role === UserRole.ADMIN && (
+        <View className="mb-8">
+          <Text className="text-white text-lg font-bold mb-4">Admin Controls</Text>
+          <View className="flex-row flex-wrap">
+            <StatCard 
+              title="System Users" 
+              value="2,543" 
+              icon={Users} 
+              color="pink" 
+              link="/(main)/admin/users"
+            />
+            <StatCard 
+              title="System Health" 
+              value="98.2%" 
+              icon={Activity} 
+              color="emerald" 
+              link="/(main)/admin"
+            />
+          </View>
+        </View>
+      )}
+
+      {user.role === UserRole.CPA && (
+        <View className="mb-8">
+          <Text className="text-white text-lg font-bold mb-4">CPA Workspace</Text>
+          <View className="flex-row flex-wrap">
+            <StatCard 
+              title="Pending Audits" 
+              value="5" 
+              icon={ShieldCheck} 
+              color="pink" 
+              link="/(main)/cpa"
+            />
+            <StatCard 
+              title="Client Requests" 
+              value="8" 
+              icon={Users} 
+              color="blue" 
+              link="/(main)/cpa"
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Recent Activity Placeholder */}
+      <View className="bg-[#112240] rounded-2xl border border-white/5 p-6">
+        <Text className="text-white text-lg font-bold mb-4">Recent Insights</Text>
+        <View className="gap-4">
+           <View className="flex-row items-center gap-4">
+             <View className="w-2 h-2 rounded-full bg-[#64FFDA]" />
+             <Text className="text-[#8892B0] flex-1">Spending in "Software" increased by 12% this month.</Text>
+           </View>
+           <View className="flex-row items-center gap-4">
+             <View className="w-2 h-2 rounded-full bg-[#F472B6]" />
+             <Text className="text-[#8892B0] flex-1">Tax deadline approaching in 14 days.</Text>
+           </View>
+           <View className="flex-row items-center gap-4">
+             <View className="w-2 h-2 rounded-full bg-[#60A5FA]" />
+             <Text className="text-[#8892B0] flex-1">New document uploaded: Q3 Financials.</Text>
+           </View>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-});

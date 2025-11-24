@@ -1,40 +1,33 @@
-// This is the root layout for the entire application. It loads necessary fonts and wraps all routes with essential context providers.
-import React , { useEffect } from 'react' ;
-import { Slot, SplashScreen } from 'expo-router';
-import { AuthProvider } from '@/shared/context/AuthContext'; 
-import { ThemeProvider } from '@/shared/context/ThemeProvider';
-import { ToastProvider } from '@/shared/context/ToastProvider';
-import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
-import { router } from 'expo-router';
-// Keep the splash screen visible while we fetch resources
+import { useEffect } from "react";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as SplashScreen from "expo-splash-screen";
+import { useFonts } from "expo-font";
+import { AuthProvider } from "../shared/context/AuthContext";
+import "../../global.css";
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
-    'Inter-Regular': Inter_400Regular,
-    'Inter-SemiBold': Inter_600SemiBold,
-    'Inter-Bold': Inter_700Bold,
-  });
+  const [loaded, error] = useFonts({});
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      // Hide the splash screen after the fonts have loaded (or an error was returned)
+    if (loaded || error) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [loaded, error]);
 
-  // Prevent rendering until the font has loaded or an error was returned
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
+  if (!loaded && !error) return null;
 
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <ToastProvider>
-          <Slot />
-        </ToastProvider>
-      </ThemeProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <StatusBar style="light" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(main)" />
+        </Stack>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
