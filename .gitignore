@@ -11,6 +11,20 @@ node_modules
 dist
 dist-ssr
 *.local
+*.env
+*.env.local
+.env.*.local
+.expo
+.expo-shared
+web-build
+ios/build
+android/app/build
+.build
+.cache
+.tmp
+.out
+.expo-test
+.expo-web-build 
 
 # Editor directories and files
 .vscode/*

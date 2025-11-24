@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from '../../lib/supabase';
-import { User, UserRole } from '@./../src/types';
+import { User, UserRole } from '../../types';
 import { Session } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
 
@@ -12,6 +12,7 @@ interface AuthContextType {
   login: (email: string, password?: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>; // Added
   isLoading: boolean;
 }
 
@@ -23,49 +24,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function initSession() {
-      try {
-        // 1. Check for existing session
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        if (mounted) {
-          setSession(data.session);
-          if (data.session) {
-            await fetchProfile(data.session.user.id, data.session.user.email!);
-          }
-        }
-      } catch (err) {
-        console.error("Session check failed:", err);
-      } finally {
-        if (mounted) setIsLoading(false); // <--- THIS IS THE FIX: ALWAYS TURN OFF SPINNER
-      }
-    }
-
-    initSession();
-
-    // 2. Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (mounted) {
-        setSession(session);
-        if (session) {
-          await fetchProfile(session.user.id, session.user.email!);
-        } else {
-          setUser(null);
-          setIsLoading(false);
-        }
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
+  // Helper to fetch profile data
   const fetchProfile = async (userId: string, email: string) => {
     try {
       const { data, error } = await supabase
@@ -86,12 +45,63 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         name: profileData.first_name ? `${profileData.first_name} ${profileData.last_name}` : email.split('@')[0],
         role: profileData.role || UserRole.MEMBER,
         status: 'active',
-        avatar: profileData.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
+        avatar: profileData.avatar_url,
+        currency: profileData.currency || 'USD', // Load currency
+        country: profileData.country || 'US',   // Load country
       };
 
       setUser(appUser);
     } catch (error) {
       console.error('Profile fetch error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function initSession() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (mounted) {
+          setSession(data.session);
+          if (data.session) {
+            await fetchProfile(data.session.user.id, data.session.user.email!);
+          }
+        }
+      } catch (err) {
+        console.error("Session check failed:", err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+
+    initSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (mounted) {
+        setSession(session);
+        if (session) {
+          await fetchProfile(session.user.id, session.user.email!);
+        } else {
+          setUser(null);
+          setIsLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const refreshUser = async () => {
+    if (session?.user) {
+      await fetchProfile(session.user.id, session.user.email!);
     }
   };
 
@@ -160,7 +170,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isAuthenticated: !!session, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, session, isAuthenticated: !!session, login, register, logout, refreshUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

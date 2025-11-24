@@ -8,14 +8,7 @@ export enum UserRole {
 
 export type UserStatus = 'active' | 'banned' | 'deactivated';
 
-export interface ChatbotMessage {
-  id: string;
-  user_id: string;
-  sender: 'user' | 'ai';
-  text: string;
-  created_at: string;
-}
-
+// --- Auth & User ---
 export interface User {
   id: string;
   email: string;
@@ -23,40 +16,8 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   avatar?: string;
-}
-
-export interface Transaction {
-  id: string;
-  date: string;
-  description: string;
-  amount: number;
-  category: string;
-  status: 'pending' | 'completed' | 'failed';
-}
-
-export interface DocumentItem {
-  url: void;
-  id: string;
-  name: string;
-  type: 'receipt' | 'invoice' | 'contract';
-  date: string;
-  size: string;
-}
-
-export interface Ticket {
-  id: string;
-  subject: string;
-  status: 'open' | 'closed' | 'pending';
-  priority: 'low' | 'medium' | 'high';
-  created_at: string;
-}
-
-export interface CpaClient {
-  id: string;
-  name: string;
-  email: string;
-  status: 'active' | 'pending';
-  last_audit: string;
+  currency?: string;
+  country?: string;
 }
 
 export interface AppSettings {
@@ -66,6 +27,28 @@ export interface AppSettings {
   notifications: boolean;
 }
 
+// --- Features ---
+export interface Transaction {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+  status: 'pending' | 'completed' | 'failed';
+  type: 'income' | 'expense'; // Critical for dashboard calculations
+}
+
+export interface DocumentItem {
+  id: string;
+  name: string;
+  type: 'receipt' | 'invoice' | 'contract' | 'other';
+  url: string;
+  date: string;
+  size: string | number;
+  tags?: string[];
+}
+
+// --- Chat & AI ---
 export interface Message {
   id: string;
   chat_id: string;
@@ -81,8 +64,33 @@ export interface Chat {
   updated_at: string;
 }
 
+export interface ChatbotMessage {
+  id: string;
+  user_id: string;
+  sender: 'user' | 'ai';
+  text: string;
+  created_at: string;
+}
+
 export interface AiResponse {
   id: string;
   message: string;
   created_at: string;
-}   
+}
+
+// --- Professional & Support ---
+export interface Ticket {
+  id: string;
+  subject: string;
+  status: 'open' | 'closed' | 'pending';
+  priority: 'low' | 'medium' | 'high';
+  created_at: string;
+}
+
+export interface CpaClient {
+  id: string;
+  name: string;
+  email: string;
+  status: 'active' | 'pending';
+  last_audit: string;
+}
