@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { AuthProvider, useAuth } from "../shared/context/AuthContext";
-import { View, ActivityIndicator, Text } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,10 +26,10 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === "(auth)";
     
     if (!session && !inAuthGroup) {
-      // Redirect to the FLAT route (cleaner)
       router.replace("/login");
     } else if (session && inAuthGroup) {
-      router.replace("/");
+      // FIX: Explicitly route to the main group to avoid sitemap confusion
+      router.replace("/(main)"); 
     }
   }, [session, isLoading, segments, isMounted]);
 
@@ -50,9 +50,7 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
-    // Add fonts if needed
-  });
+  const [loaded] = useFonts({});
 
   useEffect(() => {
     if (loaded) {

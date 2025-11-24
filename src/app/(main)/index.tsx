@@ -1,15 +1,38 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useRouter } from 'expo-router';
-import { Activity, ArrowUpRight, DollarSign, Users, ShieldCheck, FileText } from 'lucide-react-native';
+import { Activity, ArrowUpRight, DollarSign, Users, ShieldCheck, FileText, Plus } from 'lucide-react-native';
 import { UserRole } from '@/types';
-import { Stack } from 'expo-router';  
-
+import { getTransactions } from '../../services/dataService';
+import { Transaction } from '@/types';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [totalBalance, setTotalBalance] = useState(0);
+
+  const fetchData = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const txs = await getTransactions(user.id);
+      setTransactions(txs);
+      // Calculate real balance from transactions
+      const balance = txs.reduce((acc, tx) => acc + (tx.amount || 0), 0);
+      setTotalBalance(balance);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [user]);
 
   if (!user) return null;
 
@@ -19,8 +42,8 @@ export default function Dashboard() {
       className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-1 min-w-[150px] mb-4 mr-4"
     >
       <View className="flex-row justify-between items-start mb-4">
-        <View className={`w-10 h-10 rounded-xl items-center justify-center bg-${color}-500/10`}>
-          <Icon size={20} color={color === 'emerald' ? '#34D399' : color === 'blue' ? '#60A5FA' : '#F472B6'} />
+        <View className={`w-10 h-10 rounded-xl items-center justify-center`} style={{ backgroundColor: `${color}20` }}>
+          <Icon size={20} color={color} />
         </View>
         {link && <ArrowUpRight size={16} color="#8892B0" />}
       </View>
@@ -30,26 +53,38 @@ export default function Dashboard() {
   );
 
   return (
-    <ScrollView className="flex-1 bg-[#0A192F] p-6" contentContainerStyle={{ paddingBottom: 40 }}>
-      <View className="mb-8">
-        <Text className="text-white text-3xl font-bold mb-2">Dashboard</Text>
-        <Text className="text-[#8892B0]">Welcome back, {user.name}</Text>
+    <ScrollView 
+      className="flex-1 bg-[#0A192F] p-6" 
+      contentContainerStyle={{ paddingBottom: 40 }}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchData} tintColor="#64FFDA" />}
+    >
+      <View className="mb-8 flex-row justify-between items-center">
+        <View>
+          <Text className="text-white text-3xl font-bold mb-2">Dashboard</Text>
+          <Text className="text-[#8892B0]">Welcome back, {user.name}</Text>
+        </View>
+        <TouchableOpacity 
+          onPress={() => router.push('/(main)/transactions')}
+          className="bg-[#64FFDA] w-12 h-12 rounded-full items-center justify-center shadow-lg"
+        >
+          <Plus size={24} color="#0A192F" />
+        </TouchableOpacity>
       </View>
 
       {/* Stats Grid */}
       <View className="flex-row flex-wrap mb-6">
         <StatCard 
           title="Total Balance" 
-          value="$124,500.00" 
+          value={`$${totalBalance.toFixed(2)}`} // REAL VALUE
           icon={DollarSign} 
-          color="emerald" 
+          color="#34D399" 
           link="/(main)/transactions"
         />
         <StatCard 
           title="Active Docs" 
-          value="12" 
+          value="0" // Placeholder for now until docs logic is connected
           icon={FileText} 
-          color="blue" 
+          color="#60A5FA" 
           link="/(main)/documents"
         />
       </View>
@@ -59,63 +94,35 @@ export default function Dashboard() {
         <View className="mb-8">
           <Text className="text-white text-lg font-bold mb-4">Admin Controls</Text>
           <View className="flex-row flex-wrap">
-            <StatCard 
-              title="System Users" 
-              value="2,543" 
-              icon={Users} 
-              color="pink" 
-              link="/(main)/admin/users"
-            />
-            <StatCard 
-              title="System Health" 
-              value="98.2%" 
-              icon={Activity} 
-              color="emerald" 
-              link="/(main)/admin"
-            />
+            <StatCard title="System Users" value="-" icon={Users} color="#F472B6" link="/(main)/admin/users" />
+            <StatCard title="System Health" value="100%" icon={Activity} color="#34D399" link="/(main)/admin" />
           </View>
         </View>
       )}
 
-      {user.role === UserRole.CPA && (
-        <View className="mb-8">
-          <Text className="text-white text-lg font-bold mb-4">CPA Workspace</Text>
-          <View className="flex-row flex-wrap">
-            <StatCard 
-              title="Pending Audits" 
-              value="5" 
-              icon={ShieldCheck} 
-              color="pink" 
-              link="/(main)/cpa"
-            />
-            <StatCard 
-              title="Client Requests" 
-              value="8" 
-              icon={Users} 
-              color="blue" 
-              link="/(main)/cpa"
-            />
-          </View>
-        </View>
-      )}
-
-      {/* Recent Activity Placeholder */}
+      {/* Recent Transactions List */}
       <View className="bg-[#112240] rounded-2xl border border-white/5 p-6">
-        <Text className="text-white text-lg font-bold mb-4">Recent Insights</Text>
-        <View className="gap-4">
-           <View className="flex-row items-center gap-4">
-             <View className="w-2 h-2 rounded-full bg-[#64FFDA]" />
-             <Text className="text-[#8892B0] flex-1">Spending in "Software" increased by 12% this month.</Text>
-           </View>
-           <View className="flex-row items-center gap-4">
-             <View className="w-2 h-2 rounded-full bg-[#F472B6]" />
-             <Text className="text-[#8892B0] flex-1">Tax deadline approaching in 14 days.</Text>
-           </View>
-           <View className="flex-row items-center gap-4">
-             <View className="w-2 h-2 rounded-full bg-[#60A5FA]" />
-             <Text className="text-[#8892B0] flex-1">New document uploaded: Q3 Financials.</Text>
-           </View>
-        </View>
+        <Text className="text-white text-lg font-bold mb-4">Recent Activity</Text>
+        {loading ? (
+          <ActivityIndicator color="#64FFDA" />
+        ) : transactions.length === 0 ? (
+          <Text className="text-[#8892B0]">No transactions found. Tap + to add one.</Text>
+        ) : (
+          <View className="gap-4">
+            {transactions.slice(0, 5).map((tx) => (
+              <View key={tx.id} className="flex-row items-center gap-4 border-b border-white/5 pb-3 last:border-0">
+                <View className={`w-2 h-2 rounded-full ${tx.amount >= 0 ? 'bg-[#64FFDA]' : 'bg-[#F472B6]'}`} />
+                <View className="flex-1">
+                  <Text className="text-white font-medium">{tx.description || 'Transaction'}</Text>
+                  <Text className="text-[#8892B0] text-xs">{new Date(tx.date).toLocaleDateString()}</Text>
+                </View>
+                <Text className={`font-bold ${tx.amount >= 0 ? 'text-[#64FFDA]' : 'text-white'}`}>
+                  {tx.amount >= 0 ? '+' : ''}${tx.amount.toFixed(2)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
