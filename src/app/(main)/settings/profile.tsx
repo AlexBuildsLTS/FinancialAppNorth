@@ -7,10 +7,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { ArrowLeft, Camera, Save } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { decode } from 'base64-arraybuffer';
-import * as FileSystem from 'expo-file-system';
 
 export default function ProfileSettings() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
   const [name, setName] = useState(user?.name || '');
   const [loading, setLoading] = useState(false);
@@ -36,17 +35,14 @@ export default function ProfileSettings() {
     try {
       const fileName = `${user.id}/${Date.now()}.jpg`;
       
-      // Upload to Supabase Storage 'avatars' bucket
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, decode(base64), { contentType: 'image/jpeg', upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // Get Public URL
       const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
       
-      // Update Profile
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: data.publicUrl })
@@ -55,8 +51,10 @@ export default function ProfileSettings() {
       if (updateError) throw updateError;
 
       setAvatarUrl(data.publicUrl);
+      await refreshUser(); // Refresh global state
       Alert.alert('Success', 'Avatar updated!');
     } catch (error: any) {
+      console.error('Avatar upload failed:', error);
       Alert.alert('Upload Failed', error.message);
     } finally {
       setLoading(false);
@@ -76,8 +74,11 @@ export default function ProfileSettings() {
         .eq('id', user.id);
 
       if (error) throw error;
+      
+      await refreshUser(); // Refresh global state
       Alert.alert('Saved', 'Profile updated successfully.');
     } catch (error: any) {
+      console.error('Profile update failed:', error);
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
@@ -94,7 +95,6 @@ export default function ProfileSettings() {
       </View>
 
       <ScrollView className="flex-1 p-6">
-        {/* Avatar Section */}
         <View className="items-center mb-8">
           <TouchableOpacity onPress={pickImage} className="relative">
             <View className="w-28 h-28 rounded-full bg-[#112240] border-2 border-[#64FFDA] overflow-hidden items-center justify-center">
@@ -111,7 +111,6 @@ export default function ProfileSettings() {
           <Text className="text-[#8892B0] mt-4 text-sm">Tap to change avatar</Text>
         </View>
 
-        {/* Form */}
         <View className="gap-4">
           <View>
             <Text className="text-[#8892B0] mb-2 text-sm font-bold uppercase">Full Name</Text>

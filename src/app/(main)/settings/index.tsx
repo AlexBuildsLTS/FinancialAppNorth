@@ -1,21 +1,28 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Modal, Alert, ActivityIndicator, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { settingsService } from '../../../shared/services/settingsService';
-import { ChevronRight, User, Shield, Bell, Globe, DollarSign, Key, LogOut, X, Check } from 'lucide-react-native';
+import { ChevronRight, User, Shield, Bell, DollarSign, Key, LogOut, X, Check } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const SettingItem = ({ icon: Icon, label, value, onPress, type = 'link', onToggle }: any) => (
+const SettingItem = ({ icon: Icon, label, value, onPress, type = 'link', onToggle, avatar }: any) => (
   <TouchableOpacity 
     onPress={type === 'link' ? onPress : undefined}
     activeOpacity={type === 'link' ? 0.7 : 1}
     className="flex-row items-center justify-between p-4 border-b border-[#233554] bg-[#112240]"
   >
     <View className="flex-row items-center gap-3">
-      <View className="w-8 h-8 rounded-lg bg-[#0A192F] items-center justify-center">
-        <Icon size={18} color="#64FFDA" />
-      </View>
+      {/* Show Avatar if provided, otherwise show Icon */}
+      {avatar ? (
+        <View className="w-10 h-10 rounded-full border border-[#64FFDA] overflow-hidden">
+          <Image source={{ uri: avatar }} className="w-full h-full" />
+        </View>
+      ) : (
+        <View className="w-8 h-8 rounded-lg bg-[#0A192F] items-center justify-center">
+          <Icon size={18} color="#64FFDA" />
+        </View>
+      )}
       <Text className="text-white font-medium text-base">{label}</Text>
     </View>
     
@@ -45,12 +52,8 @@ export default function SettingsMenu() {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Update in DB
       await settingsService.updatePreferences(user.id, { currency: currency as any });
-      
-      // 2. Refresh local state immediately (this updates the 'user' object in context)
       await refreshUser();
-      
       Alert.alert('Success', `Currency updated to ${currency}`);
       setShowCurrencyModal(false);
     } catch (e: any) {
@@ -70,7 +73,14 @@ export default function SettingsMenu() {
         
         <Text className="px-6 mt-6 mb-2 text-[#64FFDA] text-xs font-bold uppercase tracking-wider">Account</Text>
         <View className="mx-4 rounded-xl overflow-hidden">
-          <SettingItem icon={User} label="Profile" value={user?.name} onPress={() => router.push('/(main)/settings/profile')} />
+          {/* PROFILE ITEM NOW SHOWS AVATAR */}
+          <SettingItem 
+            icon={User} 
+            label={user?.name || "Profile"} 
+            value="Edit"
+            avatar={user?.avatar} 
+            onPress={() => router.push('/(main)/settings/profile')} 
+          />
           <SettingItem icon={Shield} label="Security" value="Password & 2FA" onPress={() => router.push('/(main)/settings/security')} />
         </View>
 

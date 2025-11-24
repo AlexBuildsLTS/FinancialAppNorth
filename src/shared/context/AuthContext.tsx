@@ -81,7 +81,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
     initSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: Session | null) => {
       if (mounted) {
         setSession(session);
         if (session) {

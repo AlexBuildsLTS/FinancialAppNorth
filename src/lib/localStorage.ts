@@ -1,34 +1,50 @@
+// src/lib/localStorage.ts
 import { Platform } from 'react-native';
 
-export const storage = {
-  getItem: (key: string) => {
-    if (Platform.OS === 'web') {
-      if (typeof localStorage === 'undefined') return null;
-      return localStorage.getItem(key);
-    }
-    return null;
+const isWeb = Platform.OS === 'web';
 
+export const storage = {
+  getItem(key: string): string | null {
+    try {
+      if (isWeb && typeof localStorage !== 'undefined') {
+        return localStorage.getItem(key);
+      }
+      return null;
+    } catch (err) {
+      console.warn('[storage] getItem failed', err);
+      return null;
+    }
   },
-  setItem: (key: string, value: string) => {
-    if (Platform.OS === 'web') {
-      if (typeof localStorage !== 'undefined') {
+
+  setItem(key: string, value: string): void {
+    try {
+      if (isWeb && typeof localStorage !== 'undefined') {
         localStorage.setItem(key, value);
       }
+    } catch (err) {
+      console.warn('[storage] setItem failed', err);
     }
   },
 
-  clear: () => {
-    if (Platform.OS === 'web') {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.clear();
-      }
-    }
-  },  
-  removeItem: (key: string) => {
-    if (Platform.OS === 'web') {
-      if (typeof localStorage !== 'undefined') {
+  removeItem(key: string): void {
+    try {
+      if (isWeb && typeof localStorage !== 'undefined') {
         localStorage.removeItem(key);
       }
+    } catch (err) {
+      console.warn('[storage] removeItem failed', err);
+    }
+  },
+
+  clear(): void {
+    try {
+      if (isWeb && typeof localStorage !== 'undefined') {
+        localStorage.clear();
+      }
+    } catch (err) {
+      console.warn('[storage] clear failed', err);
     }
   },
 };
+
+export default storage;

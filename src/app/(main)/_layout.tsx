@@ -20,21 +20,18 @@ import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // --- Configuration ---
-
 const NAV_CONFIG: Record<string, { name: string, icon: any, path: string, label: string }> = {
   'Dashboard':    { name: 'index',        icon: LayoutDashboard, path: '/(main)/',             label: 'Home' },
-  'Transactions': { name: 'transactions', icon: CreditCard,      path: '/(main)/transactions', label: 'Transactions' },
+  'Transactions': { name: 'finances',     icon: CreditCard,      path: '/(main)/finances',     label: 'Finances' },
   'Documents':    { name: 'documents',    icon: FileText,        path: '/(main)/documents',    label: 'Docs' },
   'Reports':      { name: 'reports',      icon: PieChart,        path: '/(main)/reports',      label: 'Reports' },
-  'CPA Portal':   { name: 'CpaDashboard', icon: Users,           path: '/(main)/CpaDashboard', label: 'CPA Portal' },
+  'CPA Portal':   { name: 'cpa',          icon: Users,           path: '/(main)/cpa',          label: 'CPA Portal' },
   'Support':      { name: 'support',      icon: LifeBuoy,        path: '/(main)/support',      label: 'Support' },
   'Admin':        { name: 'admin',        icon: ShieldAlert,     path: '/(main)/admin',        label: 'Admin' },
   'AI Chat':      { name: 'aiChat',       icon: MessageSquare,   path: '/(main)/aiChat',       label: 'AI Chat' },
   'Settings':     { name: 'settings',     icon: Settings,        path: '/(main)/settings',     label: 'Settings' },
   'Scan':         { name: 'scan',         icon: ScanLine,        path: '/(main)/scan',         label: 'Scan' },
 };
-
-// --- Components ---
 
 const RoleBadge = ({ role }: { role: string }) => {
   let bg = 'bg-[#112240]';
@@ -74,8 +71,6 @@ const MobileHeader = ({ user }: { user: any }) => (
   </View>
 );
 
-// --- Main Layout ---
-
 export default function MainLayout() {
   const { user, isLoading, logout } = useAuth();
   const { width } = useWindowDimensions();
@@ -95,18 +90,13 @@ export default function MainLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  // Filter navigation items based on Role
   const allowedItems = ROLE_NAV_ITEMS[user.role] || ROLE_NAV_ITEMS['member'];
   const navItems = allowedItems.map(key => NAV_CONFIG[key]).filter(Boolean);
 
-  // --- Mobile Layout ---
   if (isMobile) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#0A192F' }} edges={['top']}>
-        {/* 1. Custom Top Header for Mobile */}
         <MobileHeader user={user} />
-        
-        {/* 2. Bottom Tab Navigation */}
         <Tabs
           screenOptions={{
             headerShown: false,
@@ -129,7 +119,7 @@ export default function MainLayout() {
               name={config.name}
               options={{
                 href: config.path, 
-                tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => {
+                tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => {
                    const Icon = config.icon;
                    return (
                      <View className="items-center justify-center gap-1 w-16">
@@ -141,28 +131,27 @@ export default function MainLayout() {
               }}
             />
           ))}
-
-          {/* Hide screens that are not in the user's role list */}
+          
+          {/* Ensure all other screens are hidden but routed correctly */}
           {Object.values(NAV_CONFIG)
-            .filter(config => !navItems.some(item => item.name === config.name))
-            .map(config => (
+            .filter(c => !navItems.some(item => item.name === c.name))
+            .map(c => (
               <Tabs.Screen 
-                key={config.name}
-                name={config.name} 
-                options={{ href: null }} 
+                 key={c.name} 
+                 name={c.name} 
+                 options={{ href: null }} 
               />
           ))}
           
+          {/* Explicitly handle dynamic/extra routes */}
           <Tabs.Screen name="messages/[id]" options={{ href: null }} />
         </Tabs>
       </SafeAreaView>
     );
   }
 
-  // --- Desktop Sidebar Layout ---
   const SidebarContent = () => (
     <View className="flex-1 flex-col">
-      {/* Top Logo */}
       <View className="p-6 items-center mb-6">
         <View className="w-12 h-12 bg-[#112240] rounded-xl items-center justify-center mb-3 border border-[#233554]">
           <Text className="text-[#64FFDA] font-bold text-2xl">N</Text>
@@ -170,13 +159,10 @@ export default function MainLayout() {
         <Text className="text-white font-bold text-lg">NorthFinance</Text>
       </View>
 
-      {/* Navigation Items */}
       <ScrollView className="flex-1 px-3">
         {navItems.map(config => {
           const Icon = config.icon;
-          const isActive = config.path === '/(main)/' 
-            ? pathname === '/' || pathname === '/(main)' || pathname === '/(main)/'
-            : pathname.startsWith(config.path);
+          const isActive = pathname.startsWith(config.path);
 
           return (
             <TouchableOpacity
@@ -195,7 +181,6 @@ export default function MainLayout() {
         })}
       </ScrollView>
 
-      {/* Bottom User Profile (Fixed) */}
       <View className="p-4 border-t border-[#233554]">
         <View className="flex-row items-center gap-3 mb-4 px-2">
           <View className="w-10 h-10 rounded-full bg-[#112240] overflow-hidden border border-[#233554]">

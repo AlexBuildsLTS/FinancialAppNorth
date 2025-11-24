@@ -6,6 +6,8 @@ import { Activity, ArrowUpRight, DollarSign, Users, ShieldCheck, FileText, Plus 
 import { UserRole } from '@/types';
 import { getTransactions } from '../../services/dataService';
 import { Transaction } from '@/types';
+import { useFocusEffect } from 'expo-router';
+
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -64,7 +66,7 @@ export default function Dashboard() {
           <Text className="text-[#8892B0]">Welcome back, {user.name}</Text>
         </View>
         <TouchableOpacity 
-          onPress={() => router.push('/(main)/transactions')}
+          onPress={() => router.push('/(main)')}
           className="bg-[#64FFDA] w-12 h-12 rounded-full items-center justify-center shadow-lg"
         >
           <Plus size={24} color="#0A192F" />
@@ -75,8 +77,8 @@ export default function Dashboard() {
       <View className="flex-row flex-wrap mb-6">
         <StatCard 
           title="Total Balance" 
-          value={`$${totalBalance.toFixed(2)}`} // REAL VALUE
-          icon={DollarSign} 
+          value={`$${totalBalance.toFixed(2)}`} // REAL VALUE 
+          icon={DollarSign}  
           color="#34D399" 
           link="/(main)/transactions"
         />
@@ -87,15 +89,16 @@ export default function Dashboard() {
           color="#60A5FA" 
           link="/(main)/documents"
         />
-      </View>
+      </View> 
+
 
       {/* Role Specific Sections */}
       {user.role === UserRole.ADMIN && (
         <View className="mb-8">
           <Text className="text-white text-lg font-bold mb-4">Admin Controls</Text>
           <View className="flex-row flex-wrap">
-            <StatCard title="System Users" value="-" icon={Users} color="#F472B6" link="/(main)/admin/users" />
-            <StatCard title="System Health" value="100%" icon={Activity} color="#34D399" link="/(main)/admin" />
+            <StatCard title="System Users" value="-" icon={Users} color="#F472B6" link="/admin/users" />
+            <StatCard title="System Health" value="100%" icon={Activity} color="#34D399" link="/admin" />
           </View>
         </View>
       )}

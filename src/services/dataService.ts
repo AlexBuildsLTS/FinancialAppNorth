@@ -1,6 +1,5 @@
-
-import { supabase } from '../lib/supabase';
-import { Transaction, DocumentItem } from '@./../src/types';
+import { supabase } from '../lib/supabase'; // Only import supabase, as admin functions are invoked via it
+import { Transaction, DocumentItem, User } from '../types';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 
@@ -56,7 +55,13 @@ export const getDocuments = async (userId: string): Promise<DocumentItem[]> => {
   return data || [];
 };
 
-export const uploadDocument = async (userId: string, uri: string, fileName: string, type: 'receipt' | 'invoice' | 'contract') => {
+export const uploadDocument = async (
+  userId: string, 
+  uri: string, 
+  fileName: string, 
+  type: 'receipt' | 'invoice' | 'contract',
+  mimeType: string = 'image/jpeg' // Added mimeType support
+) => {
   try {
     const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
     const filePath = `${userId}/${Date.now()}_${fileName}`;
@@ -64,7 +69,7 @@ export const uploadDocument = async (userId: string, uri: string, fileName: stri
     // 1. Upload to Storage Bucket 'documents'
     const { error: uploadError } = await supabase.storage
         .from('documents')
-        .upload(filePath, decode(base64), { contentType: 'image/jpeg', upsert: true });
+        .upload(filePath, decode(base64), { contentType: mimeType, upsert: true });
 
     if (uploadError) throw uploadError;
 
@@ -77,8 +82,8 @@ export const uploadDocument = async (userId: string, uri: string, fileName: stri
         name: fileName,
         type: type,
         url: publicUrl,
-        size: '2MB', // Mock size for now
-        date: new Date().toISOString().split('T')[0]
+        size: '2MB', // ideally calculate actual size from base64 length
+        date: new Date().toISOString()
     }).select().single();
 
     if (dbError) throw dbError;
@@ -89,7 +94,7 @@ export const uploadDocument = async (userId: string, uri: string, fileName: stri
   }
 };
 
-// --- REALTIME CHAT ---
+// --- REALTIME CHAT (P2P / Support) ---
 
 export const subscribeToChat = (chatId: string, callback: (payload: any) => void) => {
   return supabase
@@ -124,4 +129,112 @@ export const getChatHistory = async (chatId: string) => {
     
     if (error) return [];
     return data;
+};
+
+// --- ADMIN USER MANAGEMENT ---
+// These connect to the Edge Functions we set up in lib/supabase.ts
+
+export const getUsers = async (): Promise<User[]> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching users:', error);
+    throw error;
+  }
+  
+  return (data || []).map((p: any) => ({
+    id: p.id,
+    email: p.email || 'No Email',
+    name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown',
+    role: p.role,
+    status: 'active', // Defaulting to active as 'banned' status isn't in profiles yet
+    avatar: p.avatar_url,
+    currency: p.currency,
+    country: p.country
+  }));
+};
+
+export const updateUserStatus = async (userId: string, status: 'active' | 'banned'): Promise<void> => {
+  if (status === 'banned') {
+    await supabase.functions.invoke('deactivateUser', { body: { userId } });
+  } else {
+    console.warn("Re-activation requires manual DB intervention or new Edge Function.");
+  }
+};
+
+export const updateUserRole = async (userId: string, newRole: string): Promise<void> => {
+  await supabase.functions.invoke('changeUserRole', { body: { userId, newRole } });
+};
+
+export const removeUser = async (userId: string): Promise<void> => {
+  await supabase.functions.invoke('deleteUser', { body: { userId } });
+};
+// --- CPA PORTAL ---
+
+export const getCpaClients = async (cpaId: string) => {
+  const { data, error } = await supabase
+    .from('cpa_clients')
+    .select('*, client:profiles(*)') // Fetch client details from profiles table
+    .eq('cpa_id', cpaId);
+
+  if (error) {
+    console.error('Error fetching CPA clients:', error);
+    return [];
+  }
+
+  return data.map((item: { client: { id: any; first_name: any; last_name: any; email: any; }; status: any; last_audit: any; }) => ({
+    id: item.client.id,
+    name: item.client.first_name ? `${item.client.first_name} ${item.client.last_name}` : 'Unknown',
+    email: item.client.email,
+    status: item.status,
+    last_audit: item.last_audit,
+  })) || [];
+};
+
+export const addCpaClient = async (cpaId: string, clientEmail: string) => {
+  // First, find the client's user ID based on their email
+  const { data: clientData, error: clientError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', clientEmail)
+    .single();
+
+  if (clientError || !clientData) {
+    console.error('Error finding client by email:', clientError);
+    throw new Error('Client not found with the provided email.');
+  }
+
+  const clientId = clientData.id;
+
+  // Then, insert the relationship into cpa_clients
+  const { data, error } = await supabase
+    .from('cpa_clients')
+    .insert([{ cpa_id: cpaId, client_id: clientId, status: 'active', last_audit: new Date().toISOString() }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding CPA client:', error);
+    throw error;
+  }
+  return data;
+};
+
+export const updateCpaClientStatus = async (cpaId: string, clientId: string, status: 'active' | 'pending') => {
+  const { data, error } = await supabase
+    .from('cpa_clients')
+    .update({ status: status, last_audit: new Date().toISOString() })
+    .eq('cpa_id', cpaId)
+    .eq('client_id', clientId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating CPA client status:', error);
+    throw error;
+  }
+  return data;
 };
