@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, Alert, RefreshControl, Modal, ActivityIndicator } from 'react-native';
-import { Search, Ban, Trash2, Check, X } from 'lucide-react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, Alert, RefreshControl, Modal, ActivityIndicator, Image, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Search, Ban, Trash2, Check, X, User as UserIcon, Mail, MoreVertical, Shield } from 'lucide-react-native';
 import { User, UserRole } from '../../../types';
-import { getAllUsers, updateUserStatus, updateUserRole as updateUserRole, removeUser } from '../../../services/dataService';
+import { getAllUsers, updateUserStatus, updateUserRole, deleteUser } from '../../../services/dataService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AdminUsersScreen() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -26,45 +28,29 @@ export default function AdminUsersScreen() {
     }
   };
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
+  useEffect(() => { loadUsers(); }, []);
 
   const handleBan = async (user: User) => {
-    Alert.alert('Confirm Ban', `Are you sure you want to deactivate ${user.name}?`, [
+    Alert.alert('Confirm Ban', `Deactivate ${user.name}?`, [
         { text: 'Cancel', style: 'cancel' },
-        { 
-            text: 'Deactivate', 
-            style: 'destructive', 
-            onPress: async () => {
-                try {
-                    await updateUserStatus(user.id, 'banned');
-                    loadUsers();
-                    Alert.alert("Success", "User deactivated");
-                } catch(e: any) {
-                    Alert.alert("Error", e.message);
-                }
-            }
-        }
+        { text: 'Deactivate', style: 'destructive', onPress: async () => {
+            try { await updateUserStatus(user.id, 'banned'); loadUsers(); } catch(e: any) { Alert.alert("Error", e.message); }
+        }}
     ]);
   };
 
   const handleDelete = async (user: User) => {
-    Alert.alert('Delete User', `This action cannot be undone. Delete ${user.name}?`, [
+    Alert.alert('Delete User', `Permanently delete ${user.name}?`, [
         { text: 'Cancel', style: 'cancel' },
-        { 
-            text: 'Delete', 
-            style: 'destructive', 
-            onPress: async () => {
-                try {
-                    await removeUser(user.id);
-                    loadUsers();
-                } catch(e: any) {
-                    Alert.alert("Error", e.message);
-                }
-            }
-        }
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+            try { await deleteUser(user.id); loadUsers(); } catch(e: any) { Alert.alert("Error", e.message); }
+        }}
     ]);
+  };
+
+  const handleMessage = (user: User) => {
+    // Navigate to private chat with this user
+    router.push(`/(main)/messages/${user.id}`);
   };
 
   const handleChangeRole = async (newRole: string) => {
@@ -72,103 +58,106 @@ export default function AdminUsersScreen() {
     setProcessing(true);
     try {
         await updateUserRole(selectedUser.id, newRole);
-        setShowRoleModal(false);
-        setSelectedUser(null);
-        loadUsers();
-        Alert.alert("Success", "Role updated");
-    } catch (e: any) {
-        Alert.alert("Error", e.message);
-    } finally {
-        setProcessing(false);
-    }
+        setShowRoleModal(false); setSelectedUser(null); loadUsers();
+    } catch (e: any) { Alert.alert("Error", e.message); } finally { setProcessing(false); }
   };
 
   const renderUser = ({ item }: { item: User }) => (
-    <View className="flex-row items-center justify-between p-4 bg-[#112240] border-b border-white/5 mb-1">
+    <View className="flex-row items-center justify-between p-4 bg-[#112240] border-b border-[#233554] mb-2 rounded-xl mx-4 shadow-sm">
+      {/* Left: Avatar & Info */}
       <View className="flex-row items-center gap-4 flex-1">
-        <View className="w-10 h-10 bg-[#64FFDA]/10 rounded-full items-center justify-center">
-            <Text className="text-[#64FFDA] font-bold">{item.name?.charAt(0) || 'U'}</Text>
+        <View className="w-12 h-12 bg-[#64FFDA]/10 rounded-full items-center justify-center overflow-hidden border border-[#233554]">
+          {item.avatar ? (
+            <Image source={{uri: item.avatar}} className="w-full h-full" />
+          ) : (
+            <UserIcon size={24} color="#64FFDA" />
+          )}
         </View>
         <View>
-          <Text className="font-bold text-white">{item.name}</Text>
+          <Text className="font-bold text-white text-base">{item.name}</Text>
           <Text className="text-[#8892B0] text-xs">{item.email}</Text>
+          <View className="flex-row mt-1">
+             <View className={`px-2 py-0.5 rounded-md ${item.status === 'banned' ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
+                <Text className={`text-[10px] uppercase font-bold ${item.status === 'banned' ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {item.status}
+                </Text>
+             </View>
+          </View>
         </View>
       </View>
 
-      <View className="flex-row items-center gap-3">
+      {/* Right: Actions */}
+      <View className="flex-row items-center gap-2">
+        {/* Role Badge (Click to Edit) */}
         <TouchableOpacity 
             onPress={() => { setSelectedUser(item); setShowRoleModal(true); }}
-            className="bg-white/5 px-3 py-1 rounded border border-white/10"
+            className="bg-[#0A192F] px-3 py-2 rounded-lg border border-[#233554] mr-2"
         >
             <Text className="text-[#64FFDA] text-xs font-bold uppercase">{item.role}</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity onPress={() => handleBan(item)}>
-            <Ban size={20} color="#F87171" />
+        {/* Message */}
+        <TouchableOpacity onPress={() => handleMessage(item)} className="p-2 bg-[#233554] rounded-full">
+            <Mail size={18} color="#E6F1FF" />
+        </TouchableOpacity>
+
+        {/* Ban */}
+        <TouchableOpacity onPress={() => handleBan(item)} className="p-2 bg-[#233554] rounded-full">
+            <Ban size={18} color="#F87171" />
         </TouchableOpacity>
         
-        <TouchableOpacity onPress={() => handleDelete(item)}>
-            <Trash2 size={20} color="#EF4444" />
+        {/* Delete */}
+        <TouchableOpacity onPress={() => handleDelete(item)} className="p-2 bg-red-500/10 rounded-full border border-red-500/20">
+            <Trash2 size={18} color="#EF4444" />
         </TouchableOpacity>
       </View>
     </View>
   );
 
-  const filteredUsers = users.filter(u => 
-    u.name?.toLowerCase().includes(search.toLowerCase()) || 
-    u.email?.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]" edges={['top']}>
-      <View className="p-4 border-b border-white/5">
-        <Text className="text-2xl font-bold text-white mb-4">User Management</Text>
-        <View className="bg-[#112240] flex-row items-center px-4 py-3 rounded-xl border border-white/10">
+      {/* Header */}
+      <View className="p-6 border-b border-[#233554] mb-4 bg-[#0A192F]">
+        <Text className="text-3xl font-bold text-white mb-4">User Management</Text>
+        <View className="bg-[#112240] flex-row items-center px-4 py-3 rounded-xl border border-[#233554]">
             <Search size={20} color="#8892B0" />
             <TextInput 
-                className="flex-1 text-white ml-3"
-                placeholder="Search users..."
-                placeholderTextColor="#475569"
-                value={search}
-                onChangeText={setSearch}
+                className="flex-1 text-white ml-3 font-medium" 
+                placeholder="Search users by name or email..." 
+                placeholderTextColor="#475569" 
+                value={search} 
+                onChangeText={setSearch} 
             />
         </View>
       </View>
 
-      <FlatList
-        data={filteredUsers}
-        renderItem={renderUser}
-        keyExtractor={item => item.id}
+      {/* List */}
+      <FlatList 
+        data={users.filter(u => u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()))} 
+        renderItem={renderUser} 
+        keyExtractor={item => item.id} 
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadUsers} tintColor="#64FFDA" />}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
       />
-
+      
+      {/* Role Modal */}
       <Modal visible={showRoleModal} transparent animationType="fade">
         <View className="flex-1 bg-black/80 justify-center items-center px-6">
-            <View className="bg-[#112240] w-full max-w-sm rounded-2xl border border-white/10 p-6">
+            <View className="bg-[#112240] w-full max-w-sm rounded-2xl border border-[#233554] p-6 shadow-xl">
                 <View className="flex-row justify-between items-center mb-6">
                     <Text className="text-white text-xl font-bold">Change Role</Text>
-                    <TouchableOpacity onPress={() => setShowRoleModal(false)}>
-                        <X size={24} color="#8892B0" />
-                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setShowRoleModal(false)}><X size={24} color="#8892B0" /></TouchableOpacity>
                 </View>
-                
                 {[UserRole.MEMBER, UserRole.PREMIUM, UserRole.CPA, UserRole.SUPPORT, UserRole.ADMIN].map((role) => (
-                    <TouchableOpacity 
-                        key={role}
-                        onPress={() => handleChangeRole(role)}
-                        className="py-4 border-b border-white/5 flex-row justify-between"
-                    >
-                        <Text className="text-white uppercase font-bold">{role}</Text>
+                    <TouchableOpacity key={role} onPress={() => handleChangeRole(role)} className="py-4 border-b border-[#233554] flex-row justify-between items-center active:bg-[#0A192F]">
+                        <Text className="text-white uppercase font-bold ml-2">{role}</Text>
                         {selectedUser?.role === role && <Check size={20} color="#64FFDA" />}
                     </TouchableOpacity>
                 ))}
-
                 {processing && <ActivityIndicator className="mt-4" color="#64FFDA" />}
             </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }

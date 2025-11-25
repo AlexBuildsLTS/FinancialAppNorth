@@ -7,35 +7,38 @@ export const settingsService = {
     const { data, error } = await supabase
       .from('profiles')
       .update({ 
-        // We assume your profiles table has columns for these, or a jsonb 'preferences' column
-        // Adjust based on your actual schema. Here we use specific columns for clarity.
         currency: preferences.currency,
         country: preferences.country
-        // theme and notifications might be local-only or stored in a preferences JSON column
       })
       .eq('id', userId)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Update Prefs Error:", error);
+      throw error;
+    }
     return data;
   },
 
-  // Securely save API Keys (using RLS-protected table)
+  // Securely save API Keys
   async saveApiKey(userId: string, service: 'openai' | 'gemini' | 'claude', key: string) {
-    // Upsert the key into user_secrets
+    // We use 'upsert' to Insert or Update based on (user_id, service)
     const { error } = await supabase
       .from('user_secrets')
       .upsert({ 
         user_id: userId, 
         service: service,
-        api_key_encrypted: key // In a real prod app, encrypt this before sending or use an Edge Function!
-      }, { onConflict: 'user_id, service' });
+        api_key_encrypted: key 
+      }, { onConflict: 'user_id,service' }); // Removed space for safety
 
-    if (error) throw error;
+    if (error) {
+      console.error("Save API Key Error:", error);
+      throw error;
+    }
   },
 
-  // Get API Key (for local usage, though ideally backend handles this)
+  // Get API Key
   async getApiKey(userId: string, service: 'openai' | 'gemini' | 'claude') {
     const { data, error } = await supabase
       .from('user_secrets')
@@ -44,7 +47,11 @@ export const settingsService = {
       .eq('service', service)
       .single();
 
-    if (error) return null;
+    if (error) {
+      // Don't throw on "not found", just return null
+      if (error.code !== 'PGRST116') console.error("Get API Key Error:", error);
+      return null;
+    }
     return data?.api_key_encrypted;
   }
 };

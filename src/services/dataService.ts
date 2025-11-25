@@ -1,5 +1,5 @@
 import { supabase, adminChangeUserRole, adminDeactivateUser, adminDeleteUser } from '../lib/supabase';
-import { Transaction, DocumentItem, User } from '../types';
+import { Transaction, DocumentItem, User, Message } from '../types';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 
@@ -136,7 +136,6 @@ export const subscribeToChat = (conversationId: string, callback: (payload: any)
 };
 
 // --- ADMIN HELPERS ---
-// Primary function names
 export const getUsers = async (): Promise<User[]> => {
   const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
   if (error) throw error;
@@ -199,8 +198,8 @@ export const getCpaClients = async (cpaId: string) => {
 };
 
 // --- ALIASES FOR COMPATIBILITY ---
-// These ensure your UI code works whether it calls 'getUsers' or 'getAllUsers'
 export const getAllUsers = getUsers;
 export const deleteUser = removeUser;
-
+export const changeUserRole = updateUserRole;
+export const changeUserStatus = updateUserStatus;
 export { User };

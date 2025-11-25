@@ -16,16 +16,20 @@ export default function ProfileSettings() {
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar);
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-      base64: true,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
 
-    if (!result.canceled && result.assets[0].base64) {
-      uploadAvatar(result.assets[0].base64);
+      if (!result.canceled && result.assets[0].base64) {
+        uploadAvatar(result.assets[0].base64);
+      }
+    } catch (e) {
+      Alert.alert("Error picking image", String(e));
     }
   };
 
@@ -33,16 +37,20 @@ export default function ProfileSettings() {
     if (!user) return;
     setLoading(true);
     try {
+      // Path: user_id/timestamp.jpg
       const fileName = `${user.id}/${Date.now()}.jpg`;
       
+      // 1. Upload
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, decode(base64), { contentType: 'image/jpeg', upsert: true });
 
       if (uploadError) throw uploadError;
 
+      // 2. Get URL
       const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
       
+      // 3. Update Profile
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: data.publicUrl })
@@ -51,11 +59,11 @@ export default function ProfileSettings() {
       if (updateError) throw updateError;
 
       setAvatarUrl(data.publicUrl);
-      await refreshUser(); // Refresh global state
+      await refreshUser(); // Update global state
       Alert.alert('Success', 'Avatar updated!');
     } catch (error: any) {
-      console.error('Avatar upload failed:', error);
-      Alert.alert('Upload Failed', error.message);
+      console.error(error);
+      Alert.alert('Upload Failed', error.message || "Could not upload image");
     } finally {
       setLoading(false);
     }
@@ -65,8 +73,10 @@ export default function ProfileSettings() {
     if (!user) return;
     setLoading(true);
     try {
-      const [firstName, ...lastNameParts] = name.split(' ');
-      const lastName = lastNameParts.join(' ');
+      // Basic logic to split name if user inputs full name
+      const parts = name.trim().split(' ');
+      const firstName = parts[0];
+      const lastName = parts.slice(1).join(' ') || '';
 
       const { error } = await supabase
         .from('profiles')
@@ -75,10 +85,9 @@ export default function ProfileSettings() {
 
       if (error) throw error;
       
-      await refreshUser(); // Refresh global state
+      await refreshUser();
       Alert.alert('Saved', 'Profile updated successfully.');
     } catch (error: any) {
-      console.error('Profile update failed:', error);
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
@@ -86,7 +95,7 @@ export default function ProfileSettings() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0A192F]">
+    <SafeAreaView className="flex-1 bg-[#0A192F]" edges={['top']}>
       <View className="px-6 py-4 border-b border-[#233554] flex-row items-center gap-4">
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft size={24} color="white" />
@@ -95,6 +104,7 @@ export default function ProfileSettings() {
       </View>
 
       <ScrollView className="flex-1 p-6">
+        {/* Avatar Section */}
         <View className="items-center mb-8">
           <TouchableOpacity onPress={pickImage} className="relative">
             <View className="w-28 h-28 rounded-full bg-[#112240] border-2 border-[#64FFDA] overflow-hidden items-center justify-center">
@@ -111,6 +121,7 @@ export default function ProfileSettings() {
           <Text className="text-[#8892B0] mt-4 text-sm">Tap to change avatar</Text>
         </View>
 
+        {/* Form */}
         <View className="gap-4">
           <View>
             <Text className="text-[#8892B0] mb-2 text-sm font-bold uppercase">Full Name</Text>
