@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Send, Bot, User } from 'lucide-react-native';
@@ -29,14 +29,19 @@ export default function AIChatScreen() {
 
   const loadApiKey = async () => {
     if (!user) return;
+    // Try to get key from settings first
     const key = await settingsService.getApiKey(user.id, 'gemini');
     setApiKey(key);
   };
 
   const handleSend = async () => {
     if (!input.trim() || !user) return;
-    if (!apiKey) {
-      Alert.alert('Missing Key', 'Please set your Gemini API Key in Settings first.');
+    
+    // Fallback: Check env var if settings key is missing
+    const effectiveKey = apiKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+
+    if (!effectiveKey) {
+      Alert.alert('Missing Key', 'Please set your Gemini API Key in Settings.');
       return;
     }
 
@@ -56,7 +61,7 @@ export default function AIChatScreen() {
       setMessages(prev => [...prev, tempUserMsg]);
 
       // Send to AI Service (Handles saving both user & AI msg to DB)
-      const aiResponseText = await sendUserMessageToAI(user.id, userText, apiKey);
+      await sendUserMessageToAI(user.id, userText, effectiveKey);
       
       // Refresh history to get the real DB IDs and the new AI message
       await loadHistory();
@@ -66,6 +71,14 @@ export default function AIChatScreen() {
       setLoading(false);
     }
   };
+
+  const handleClear = async () => {
+    if (!user) return;
+    setLoading(true);
+    await clearChatbotMessages(user.id);
+    setMessages([]);
+    setLoading(false);
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]" edges={['top']}>
@@ -79,7 +92,7 @@ export default function AIChatScreen() {
             <Text className="text-[#8892B0] text-xs">Powered by Gemini</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={() => { if(user) clearChatbotMessages(user.id).then(loadHistory); }}>
+        <TouchableOpacity onPress={handleClear}>
           <Text className="text-[#F87171] text-xs">Clear Chat</Text>
         </TouchableOpacity>
       </View>
@@ -113,9 +126,9 @@ export default function AIChatScreen() {
               placeholderTextColor="#8892B0"
               value={input}
               onChangeText={setInput}
-              editable={!!apiKey}
+              editable={!loading}
             />
-            <TouchableOpacity onPress={handleSend} disabled={loading || !apiKey}>
+            <TouchableOpacity onPress={handleSend} disabled={loading}>
               {loading ? <ActivityIndicator color="#64FFDA" /> : <Send size={20} color={input ? '#64FFDA' : '#8892B0'} />}
             </TouchableOpacity>
           </View>
