@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, Alert, RefreshControl, Modal, ActivityIndicator } from 'react-native';
-import { Search, MoreVertical, Ban, Trash2, Shield, Check, X } from 'lucide-react-native';
+import { Search, Ban, Trash2, Check, X } from 'lucide-react-native';
 import { User, UserRole } from '../../../types';
-import { getUsers, updateUserStatus, updateUserRole, removeUser } from '../../../services/dataService';
+import { getAllUsers, updateUserStatus, updateUserRole as updateUserRole, removeUser } from '../../../services/dataService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AdminUsersScreen() {
@@ -10,7 +10,6 @@ export default function AdminUsersScreen() {
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   
-  // Modal State
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -18,7 +17,7 @@ export default function AdminUsersScreen() {
   const loadUsers = async () => {
     setRefreshing(true);
     try {
-        const data = await getUsers();
+        const data = await getAllUsers();
         setUsers(data);
     } catch (e: any) {
         Alert.alert("Error", e.message);
@@ -144,7 +143,6 @@ export default function AdminUsersScreen() {
         contentContainerStyle={{ paddingBottom: 20 }}
       />
 
-      {/* Role Change Modal */}
       <Modal visible={showRoleModal} transparent animationType="fade">
         <View className="flex-1 bg-black/80 justify-center items-center px-6">
             <View className="bg-[#112240] w-full max-w-sm rounded-2xl border border-white/10 p-6">

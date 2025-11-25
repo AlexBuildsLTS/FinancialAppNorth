@@ -1,13 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, DimensionValue } from 'react-native';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useRouter } from 'expo-router';
-import { Activity, ArrowUpRight, DollarSign, Users, ShieldCheck, FileText, Plus } from 'lucide-react-native';
+import { Activity, ArrowUpRight, DollarSign, Users, ShieldCheck, FileText, Plus, TrendingUp, TrendingDown, BarChart } from 'lucide-react-native';
 import { UserRole } from '@/types';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { getTransactions } from '../../services/dataService';
 import { Transaction } from '@/types';
 import { useFocusEffect } from 'expo-router';
+import { useGlobalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 
+const ChartBar = ({ height, active }: { height: DimensionValue; active?: boolean }) => (
+  <View className={`flex-1 rounded-t-sm ${active ? 'bg-[#64FFDA]' : 'bg-[#1D3255]'}`} style={{ height }} />
+);
+
+const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <View className="bg-[#112240] rounded-2xl border border-white/5 p-6 mb-6">
+    <Text className="text-white text-lg font-bold mb-4">{title}</Text>
+    {children}
+  </View>
+);
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -96,13 +109,26 @@ export default function Dashboard() {
       {user.role === UserRole.ADMIN && (
         <View className="mb-8">
           <Text className="text-white text-lg font-bold mb-4">Admin Controls</Text>
-          <View className="flex-row flex-wrap">
+            <View className="flex-row flex-wrap">
             <StatCard title="System Users" value="-" icon={Users} color="#F472B6" link="/admin/users" />
-            <StatCard title="System Health" value="100%" icon={Activity} color="#34D399" link="/admin" />
-          </View>
+            </View>
+
+            {/* Charts */}
+            <View>
+            <Card title="Revenue Overview">
+              <View style={{ height: 300 }} className="items-center justify-center">
+              <Text className="text-[#8892B0]">Chart will be displayed here.</Text>
+              </View>
+            </Card>
+
+            <Card title="Expense Breakdown">
+              <View style={{ height: 300 }} className="items-center justify-center">
+              <Text className="text-[#8892B0]">Chart will be displayed here.</Text>
+              </View>
+            </Card>
+            </View>
         </View>
       )}
-
       {/* Recent Transactions List */}
       <View className="bg-[#112240] rounded-2xl border border-white/5 p-6">
         <Text className="text-white text-lg font-bold mb-4">Recent Activity</Text>

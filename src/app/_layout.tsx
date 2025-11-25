@@ -7,6 +7,17 @@ import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { AuthProvider, useAuth } from "../shared/context/AuthContext";
 import { View, ActivityIndicator } from "react-native";
+import { Tabs } from 'expo-router';
+import { 
+  LayoutDashboard, 
+  List, 
+  ScanEye, 
+  Users, 
+  BarChart3, 
+  MessageSquareText,
+  Landmark,
+  Briefcase
+} from 'lucide-react-native';
 
 SplashScreen.preventAutoHideAsync();
 

@@ -1,5 +1,5 @@
-import { supabase, adminChangeUserRole, adminDeactivateUser, adminDeleteUser } from '../lib/supabase';
-import { Transaction, DocumentItem, User } from '../types';
+import { supabase, adminChangeUserRole, adminDeactivateUser, adminDeleteUser } from '../../../lib/supabase';
+import { Transaction, DocumentItem, User } from '@./../src/types'
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 
@@ -136,71 +136,19 @@ export const subscribeToChat = (conversationId: string, callback: (payload: any)
 };
 
 // --- ADMIN HELPERS ---
-// Primary function names
 export const getUsers = async (): Promise<User[]> => {
   const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []).map((p: any) => ({
-    id: p.id, 
-    email: p.email || 'No Email', 
-    name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown',
-    role: p.role, 
-    status: 'active', 
-    avatar: p.avatar_url, 
-    currency: p.currency, 
-    country: p.country
+    id: p.id, email: p.email || 'No Email', name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown',
+    role: p.role, status: 'active', avatar: p.avatar_url, currency: p.currency, country: p.country
   }));
 };
 
 export const updateUserStatus = async (userId: string, status: 'active' | 'banned') => {
-  if (status === 'banned') {
-      if (adminDeactivateUser) {
-          await adminDeactivateUser(userId);
-      } else {
-          await supabase.functions.invoke('admin-deactivate', { body: { userId, deactivate: true } });
-      }
-  }
+  if (status === 'banned') await adminDeactivateUser(userId);
 };
 
-export const updateUserRole = async (userId: string, newRole: string) => {
-     if (adminChangeUserRole) {
-         await adminChangeUserRole(userId, newRole as any);
-     } else {
-         await supabase.functions.invoke('admin-change-role', { body: { userId, newRole } });
-     }
-};
+export const updateUserRole = async (userId: string, newRole: string) => await adminChangeUserRole(userId, newRole as any);
 
-export const removeUser = async (userId: string) => {
-    if (adminDeleteUser) {
-        await adminDeleteUser(userId);
-    } else {
-        await supabase.functions.invoke('admin-delete', { body: { userId } });
-    }
-};
-
-// --- CPA PORTAL ---
-export const getCpaClients = async (cpaId: string) => {
-  const { data, error } = await supabase
-    .from('cpa_clients')
-    .select('*, client:profiles(*)')
-    .eq('cpa_id', cpaId);
-
-  if (error) {
-    console.error('Error fetching CPA clients:', error);
-    return [];
-  }
-  return data.map((item: any) => ({
-    id: item.client.id,
-    name: item.client.first_name ? `${item.client.first_name} ${item.client.last_name}` : 'Unknown',
-    email: item.client.email,
-    status: item.status,
-    last_audit: item.last_audit,
-  })) || [];
-};
-
-// --- ALIASES FOR COMPATIBILITY ---
-// These ensure your UI code works whether it calls 'getUsers' or 'getAllUsers'
-export const getAllUsers = getUsers;
-export const deleteUser = removeUser;
-
-export { User };
+export const removeUser = async (userId: string) => await adminDeleteUser(userId);

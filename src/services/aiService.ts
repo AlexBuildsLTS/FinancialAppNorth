@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { ChatbotMessage } from '../types';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { settingsService } from '../shared/services/settingsService';
 
 // --- CORE GEMINI LOGIC ---
 
@@ -8,7 +9,7 @@ export const getGeminiResponse = async (prompt: string, apiKey: string) => {
   try {
     if (!apiKey) throw new Error("API Key is missing");
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); // Updated model name
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
@@ -62,14 +63,15 @@ export const clearChatbotMessages = async (userId: string) => {
 };
 
 // --- UNIFIED INTERACTION FUNCTION ---
-// This handles the full flow: Save User Msg -> Call AI -> Save AI Msg -> Return Text
+// This is the main function your UI should call.
+// It handles: 1. Getting Key, 2. Saving User Msg, 3. Calling AI, 4. Saving AI Msg
 export const sendUserMessageToAI = async (userId: string, text: string, apiKey: string): Promise<string> => {
   try {
     // 1. Save User Message
     await addChatbotMessage(userId, 'user', text);
 
     // 2. Get Response from Gemini
-    // We use the direct client call here since you are storing keys in Settings
+    // We use the direct client call here since we have the key from settings
     const aiResponseText = await getGeminiResponse(text, apiKey);
 
     // 3. Save AI Message
@@ -78,8 +80,8 @@ export const sendUserMessageToAI = async (userId: string, text: string, apiKey: 
     return aiResponseText;
   } catch (error) {
     console.error("AI Conversation Failed:", error);
-    // Optionally save an error message to the chat
-    await addChatbotMessage(userId, 'ai', "I'm sorry, I encountered an error processing your request.");
+    // Optionally save an error message to the chat so the user sees it in history
+    await addChatbotMessage(userId, 'ai', "I'm sorry, I encountered an error connecting to the AI service. Please check your API key.");
     throw error;
   }
 };

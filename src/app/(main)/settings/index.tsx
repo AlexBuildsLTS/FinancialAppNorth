@@ -106,25 +106,31 @@ export default function SettingsMenu() {
       {/* Currency Modal */}
       <Modal visible={showCurrencyModal} transparent animationType="fade">
         <View className="flex-1 bg-black/80 justify-center items-center px-6">
-          <View className="bg-[#112240] w-full max-w-sm rounded-2xl border border-[#233554] overflow-hidden">
+            <View className="bg-[#112240] w-full max-w-sm rounded-2xl border border-[#233554] overflow-hidden">
             <View className="p-4 border-b border-[#233554] flex-row justify-between items-center">
               <Text className="text-white text-lg font-bold">Select Currency</Text>
-              <TouchableOpacity onPress={() => setShowCurrencyModal(false)}>
-                <X size={20} color="#8892B0" />
+              <TouchableOpacity onPress={() => setShowCurrencyModal(false)} disabled={loading}>
+              <X size={20} color="#8892B0" />
               </TouchableOpacity>
             </View>
             {['USD', 'EUR', 'GBP', 'SEK'].map((curr) => (
               <TouchableOpacity 
-                key={curr}
-                onPress={() => handleCurrencyChange(curr)}
-                className="p-4 border-b border-[#233554] flex-row justify-between items-center active:bg-[#0A192F]"
+              key={curr}
+              onPress={() => handleCurrencyChange(curr)}
+              disabled={loading}
+              className="p-4 border-b border-[#233554] flex-row justify-between items-center active:bg-[#0A192F]"
               >
-                <Text className="text-white font-medium">{curr}</Text>
-                {user?.currency === curr && <Check size={18} color="#64FFDA" />}
+              <Text className="text-white font-medium">{curr}</Text>
+              {user?.currency === curr && <Check size={18} color="#64FFDA" />}
               </TouchableOpacity>
             ))}
-            {loading && <ActivityIndicator className="p-4" color="#64FFDA" />}
-          </View>
+            {loading && (
+              <View className="absolute inset-0 bg-[#112240]/80 justify-center items-center">
+                <View/>
+              <ActivityIndicator size="large" color="#64FFDA" />
+              </View>
+            )}
+            </View>
         </View>
       </Modal>
 

@@ -1,6 +1,23 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 
+export const generateContent = async (question: string): Promise<string> => {
+    try {
+        const ai = new GoogleGenerativeAI(API_KEY!);
+        
+        const response = await ai.getGenerativeModel({ model: 'gemini-1.5-flash' }).generateContent({
+            contents: [{
+                role: 'user',
+                parts: [{ text: question }],
+            }]
+        });
+
+        return response.response.text() || "I couldn't generate a response at this time.";
+    } catch (error) {
+        console.error("Gemini API Error:", error);
+        return "Sorry, I'm having trouble connecting to the AI right now. Please try again.";
+    }
+};
 const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
 if (!API_KEY) {
@@ -10,7 +27,7 @@ if (!API_KEY) {
 
 export const getFinancialAdvice = async (question: string): Promise<string> => {
     try {
-        const ai = new GoogleGenerativeAI(API_KEY);
+        const ai = new GoogleGenerativeAI(API_KEY!);
         
         const response = await ai.getGenerativeModel({ model: 'gemini-1.5-flash' }).generateContent({
             contents: [{
