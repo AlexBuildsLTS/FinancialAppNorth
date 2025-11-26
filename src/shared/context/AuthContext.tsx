@@ -12,7 +12,6 @@ interface AuthContextType {
   login: (email: string, password?: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>; // Added
   isLoading: boolean;
 }
 
@@ -24,9 +23,53 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Helper to fetch profile data
+  useEffect(() => {
+    let mounted = true;
+
+    // 1. Initial Session Check
+    async function initSession() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (mounted) {
+          setSession(data.session);
+          if (data.session) {
+            await fetchProfile(data.session.user.id, data.session.user.email!);
+          } else {
+            setIsLoading(false);
+          }
+        }
+      } catch (err) {
+        console.error("Session check failed:", err);
+        if (mounted) setIsLoading(false);
+      }
+    }
+
+    initSession();
+
+    // 2. Real-time Auth Listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+      
+      setSession(session);
+      if (session) {
+        await fetchProfile(session.user.id, session.user.email!);
+      } else {
+        setUser(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const fetchProfile = async (userId: string, email: string) => {
     try {
+      // 1. Get Profile Data
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -39,15 +82,33 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
       const profileData = data || {};
       
+      // 2. Fix Avatar URL (CRITICAL STEP)
+      let avatarUrl = profileData.avatar_url;
+      
+      // If we have a path but it's not a full URL, get the public URL from Supabase
+      if (avatarUrl && !avatarUrl.startsWith('http')) {
+        const { data: publicUrlData } = supabase
+          .storage
+          .from('avatars')
+          .getPublicUrl(avatarUrl);
+          
+        if (publicUrlData) {
+          avatarUrl = publicUrlData.publicUrl;
+        }
+      }
+
+      // Default avatar if none exists
+      if (!avatarUrl) {
+        avatarUrl = `https://api.dicebear.com/7.x/avataaars/png?seed=${userId}`;
+      }
+      
       const appUser: User = {
         id: userId,
         email: email,
         name: profileData.first_name ? `${profileData.first_name} ${profileData.last_name}` : email.split('@')[0],
         role: profileData.role || UserRole.MEMBER,
         status: 'active',
-        avatar: profileData.avatar_url,
-        currency: profileData.currency || 'USD', // Load currency
-        country: profileData.country || 'US',   // Load country
+        avatar: avatarUrl,
       };
 
       setUser(appUser);
@@ -55,53 +116,6 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       console.error('Profile fetch error:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function initSession() {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        if (mounted) {
-          setSession(data.session);
-          if (data.session) {
-            await fetchProfile(data.session.user.id, data.session.user.email!);
-          }
-        }
-      } catch (err) {
-        console.error("Session check failed:", err);
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    }
-
-    initSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: Session | null) => {
-      if (mounted) {
-        setSession(session);
-        if (session) {
-          await fetchProfile(session.user.id, session.user.email!);
-        } else {
-          setUser(null);
-          setIsLoading(false);
-        }
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const refreshUser = async () => {
-    if (session?.user) {
-      await fetchProfile(session.user.id, session.user.email!);
     }
   };
 
@@ -127,6 +141,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const register = async (email: string, password: string, firstName: string, lastName: string) => {
     setIsLoading(true);
     
+    // 1. Sign up
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -144,6 +159,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       throw error;
     }
 
+    // 2. Create Profile (Failsafe)
     if (data.user) {
        const { error: profileError } = await supabase.from('profiles').upsert({
         id: data.user.id,
@@ -170,7 +186,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isAuthenticated: !!session, login, register, logout, refreshUser, isLoading }}>
+    <AuthContext.Provider value={{ user, session, isAuthenticated: !!session, login, register, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
