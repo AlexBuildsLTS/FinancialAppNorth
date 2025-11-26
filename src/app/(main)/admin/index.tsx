@@ -1,63 +1,70 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { Shield, Users, Database, Activity } from 'lucide-react-native';
-
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { Users, AlertTriangle, Activity, ArrowRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
 export default function AdminDashboard() {
-  return (
-    <ScrollView className="flex-1 bg-nf-bg p-5" contentContainerStyle={{ paddingBottom: 100 }}>
-      <View className="mb-6 flex-row items-center space-x-3">
-        <Shield size={32} color="#F87171" />
-        <View>
-            <Text className="text-white font-inter-bold text-2xl">Admin Panel</Text>
-            <Text className="text-nf-muted text-xs">System Control Center</Text>
+  const router = useRouter();
+
+  const StatCard = ({ title, value, icon: Icon, color, link }: any) => (
+    <TouchableOpacity 
+      onPress={() => link && router.push(link)}
+      className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-1 mx-1 min-w-[150px]"
+    >
+      <View className="flex-row justify-between items-start mb-2">
+        <View className={`p-2 rounded-lg ${color === 'blue' ? 'bg-blue-500/10' : color === 'red' ? 'bg-red-500/10' : 'bg-[#64FFDA]/10'}`}>
+          <Icon size={20} color={color === 'blue' ? '#60A5FA' : color === 'red' ? '#F87171' : '#64FFDA'} />
         </View>
+        {link && <ArrowRight size={16} color="#8892B0" />}
       </View>
-      <Text className="text-white font-inter-bold text-lg mb-4">Overview</Text>
-      <View className="flex-row flex-wrap justify-between mb-6">
-         <View className="w-[ 48%] bg-nf-card border border-nf-border p-4 rounded-xl mb-4">
-             <Text className="text-nf-muted text-xs">Welcome to the Admin Panel. Here you can manage users, monitor system health, and configure application settings.</Text>
-         </View>
-         </View>
+      <Text className="text-2xl font-bold text-white mb-1">{value}</Text>
+      <Text className="text-[#8892B0] text-xs font-medium uppercase">{title}</Text>
+    </TouchableOpacity>
+  );
 
-      <View className="flex-row flex-wrap justify-between mb-6">
-         <View className="w-[48%] bg-nf-card border border-nf-border p-4 rounded-xl mb-4">
-             <Users size={24} color="#60A5FA" className="mb-2" />
-             <Text className="text-2xl font-inter-bold text-white">1,248</Text>
-             <Text className="text-nf-muted text-xs">Total Users</Text>
-         </View>
-         <View className="w-[48%] bg-nf-card border border-nf-border p-4 rounded-xl mb-4">
-             <Database size={24} color="#34D399" className="mb-2" />
-             <Text className="text-2xl font-inter-bold text-white">99.9%</Text>
-             <Text className="text-nf-muted text-xs">Uptime</Text>
-         </View>
-         <View className="w-[48%] bg-nf-card border border-nf-border p-4 rounded-xl mb-4">
-             <Activity size={24} color="#FBBF24" className="mb-2" />
-             <Text className="text-2xl font-inter-bold text-white">42ms</Text>
-             <Text className="text-nf-muted text-xs">Latency</Text>
-         </View>
-      </View>
+  return (
+    <SafeAreaView className="flex-1 bg-[#0A192F]">
+      <ScrollView className="flex-1 px-4 py-6">
+        <View className="mb-8">
+          <Text className="text-white text-3xl font-bold">Admin Portal</Text>
+          <Text className="text-[#8892B0]">System Overview & Controls</Text>
+        </View>
 
-      <Text className="text-white font-inter-bold text-lg mb-3">Quick Actions</Text>
-      <TouchableOpacity className="bg-nf-card p-4 rounded-xl border border-nf-border mb-3">
-          <Text className="text-white font-inter-medium">View All Users</Text>
-          <Text className="text-nf-muted text-xs">Browse, search, and manage user accounts</Text>
-      </TouchableOpacity>
+        {/* Stats Row */}
+        <View className="flex-row flex-wrap justify-between gap-y-4 mb-6">
+          <StatCard 
+            title="Total Users" 
+            value="Manage" 
+            icon={Users} 
+            color="teal" 
+            link="/(main)/admin/users" 
+          />
+          <StatCard 
+            title="System Status" 
+            value="Healthy" 
+            icon={Activity} 
+            color="blue" 
+          />
+        </View>
 
-      <TouchableOpacity className="bg-nf-card p-4 rounded-xl border border-nf-border mb-3">
-          <Text className="text-white font-inter-medium">System Settings</Text>
-          <Text className="text-nf-muted text-xs">Configure application-wide parameters</Text>
-      </TouchableOpacity>
-
-      <Text className="text-white font-inter-bold text-lg mb-3">User Management</Text>
-      <TouchableOpacity className="bg-nf-card p-4 rounded-xl border border-nf-border mb-3">
-          <Text className="text-white font-inter-medium">Manage Roles</Text>
-          <Text className="text-nf-muted text-xs">Assign CPA, Admin, or Premium status</Text>
-      </TouchableOpacity>
-      <TouchableOpacity className="bg-nf-card p-4 rounded-xl border border-nf-border mb-3">
-          <Text className="text-white font-inter-medium">Audit Logs</Text>
-          <Text className="text-nf-muted text-xs">View system access history</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Quick Actions */}
+        <Text className="text-white text-lg font-bold mb-4">Quick Management</Text>
+        <View className="gap-3">
+          <TouchableOpacity 
+            onPress={() => router.push('/(main)/admin/users')}
+            className="flex-row items-center bg-[#112240] p-4 rounded-xl border border-white/5"
+          >
+            <View className="w-10 h-10 rounded-full bg-blue-500/10 items-center justify-center mr-4">
+              <Users size={20} color="#60A5FA" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-white font-bold text-base">Manage Users</Text>
+              <Text className="text-[#8892B0] text-sm">Roles, Bans, and Permissions</Text>
+            </View>
+            <ArrowRight size={20} color="#8892B0" />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

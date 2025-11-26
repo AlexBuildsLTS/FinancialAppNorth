@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
-import { LayoutDashboard, Users, Server } from 'lucide-react-native';
-import React from 'react';
+import { Users, BarChart3, Settings, ShieldAlert } from 'lucide-react-native';
+import { View, Platform } from 'react-native';
 
 export default function AdminLayout() {
   return (
@@ -8,37 +8,46 @@ export default function AdminLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0A192F',
+          backgroundColor: '#112240',
           borderTopWidth: 1,
-          borderTopColor: '#233554',
+          borderTopColor: 'rgba(255,255,255,0.1)',
+          height: Platform.OS === 'ios' ? 85 : 60,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+          paddingTop: 10,
         },
-        tabBarActiveTintColor: '#F87171', // Red tint for Admin area
+        tabBarActiveTintColor: '#64FFDA',
         tabBarInactiveTintColor: '#8892B0',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Overview',
-          tabBarIcon: ({ color }: { color: string }) => <LayoutDashboard size={20} color={color} />,
+          title: 'Dashboard',
+          tabBarIcon: ({ color }: { color: string }) => <ShieldAlert size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="users"
         options={{
           title: 'Users',
-          tabBarIcon: ({ color }: { color: string }) => <Users size={20} color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <Users size={24} color={color} />,
         }}
       />
-      {/* You can add a system status screen here if needed, or hide it */}
-      <Tabs.Screen
-        name="system"
+      {/* If you have reports/settings pages in admin, add them here. 
+          For now I'm hiding them if the files don't exist yet to prevent errors. 
+          Uncomment when created. */}
+      {/* <Tabs.Screen
+        name="reports"
         options={{
-          title: 'System',
-          tabBarIcon: ({ color }: { color: string }) => <Server size={20} color={color} />,
-          href: null, // Hide if you don't have the screen yet
+          title: 'Reports',
+          tabBarIcon: ({ color }) => <BarChart3 size={24} color={color} />,
         }}
       />
+      */}
     </Tabs>
   );
 }

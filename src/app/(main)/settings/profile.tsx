@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, TextInput, TouchableOpacity, Image, Alert, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { supabase } from '../../../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, Camera, Save } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { decode } from 'base64-arraybuffer';
+import { Camera, Save, ArrowLeft, Mail, User } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
-export default function ProfileSettings() {
-  const { user, refreshUser } = useAuth();
+export default function ProfileScreen() {
+  const { user } = useAuth(); 
   const router = useRouter();
-  const [name, setName] = useState(user?.name || '');
+  
+  const [firstName, setFirstName] = useState(user?.name?.split(' ')[0] || '');
+  const [lastName, setLastName] = useState(user?.name?.split(' ')[1] || '');
   const [loading, setLoading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar);
+  const [uploading, setUploading] = useState(false);
 
   const pickImage = async () => {
     try {
@@ -26,46 +26,53 @@ export default function ProfileSettings() {
       });
 
       if (!result.canceled && result.assets[0].base64) {
-        uploadAvatar(result.assets[0].base64);
+        uploadAvatar(result.assets[0].base64, result.assets[0].uri.split('.').pop() || 'jpg');
       }
-    } catch (e) {
-      Alert.alert("Error picking image", String(e));
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick image');
     }
   };
 
-  const uploadAvatar = async (base64: string) => {
+  const uploadAvatar = async (base64: string, fileExt: string) => {
     if (!user) return;
-    setLoading(true);
+    setUploading(true);
+    
     try {
-      // Path: user_id/timestamp.jpg
-      const fileName = `${user.id}/${Date.now()}.jpg`;
-      
-      // 1. Upload
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // 1. Upload to Supabase Storage
+      // We use the arrayBuffer method via base64 decode for compatibility
+      const arrayBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, decode(base64), { contentType: 'image/jpeg', upsert: true });
+        .upload(filePath, arrayBuffer, {
+          contentType: `image/${fileExt}`,
+          upsert: true
+        });
 
       if (uploadError) throw uploadError;
 
-      // 2. Get URL
-      const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
-      
-      // 3. Update Profile
+      // 2. Get Public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // 3. Update Profile Table
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: data.publicUrl })
+        .update({ avatar_url: publicUrl })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
 
-      setAvatarUrl(data.publicUrl);
-      await refreshUser(); // Update global state
-      Alert.alert('Success', 'Avatar updated!');
+      Alert.alert('Success', 'Avatar updated! Please restart the app to see changes.');
     } catch (error: any) {
       console.error(error);
-      Alert.alert('Upload Failed', error.message || "Could not upload image");
+      Alert.alert('Upload Failed', error.message);
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
@@ -73,19 +80,16 @@ export default function ProfileSettings() {
     if (!user) return;
     setLoading(true);
     try {
-      // Basic logic to split name if user inputs full name
-      const parts = name.trim().split(' ');
-      const firstName = parts[0];
-      const lastName = parts.slice(1).join(' ') || '';
-
       const { error } = await supabase
         .from('profiles')
-        .update({ first_name: firstName, last_name: lastName })
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', user.id);
 
       if (error) throw error;
-      
-      await refreshUser();
       Alert.alert('Saved', 'Profile updated successfully.');
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -95,60 +99,72 @@ export default function ProfileSettings() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0A192F]" edges={['top']}>
-      <View className="px-6 py-4 border-b border-[#233554] flex-row items-center gap-4">
-        <TouchableOpacity onPress={() => router.back()}>
+    <SafeAreaView className="flex-1 bg-[#0A192F]">
+      <View className="px-4 py-4 flex-row items-center border-b border-white/5">
+        <TouchableOpacity onPress={() => router.back()} className="mr-4">
           <ArrowLeft size={24} color="white" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-white">Edit Profile</Text>
+        <Text className="text-white text-xl font-bold">Edit Profile</Text>
       </View>
 
-      <ScrollView className="flex-1 p-6">
-        {/* Avatar Section */}
+      <ScrollView className="p-6">
         <View className="items-center mb-8">
-          <TouchableOpacity onPress={pickImage} className="relative">
-            <View className="w-28 h-28 rounded-full bg-[#112240] border-2 border-[#64FFDA] overflow-hidden items-center justify-center">
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} className="w-full h-full" />
+          <View className="relative">
+            <View className="w-24 h-24 rounded-full bg-[#112240] overflow-hidden border-2 border-[#64FFDA]">
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} className="w-full h-full" />
               ) : (
-                <Text className="text-[#64FFDA] text-4xl font-bold">{name?.[0]}</Text>
+                <View className="items-center justify-center h-full"><User size={40} color="#8892B0" /></View>
               )}
             </View>
-            <View className="absolute bottom-0 right-0 bg-[#64FFDA] p-2 rounded-full">
-              <Camera size={16} color="#0A192F" />
-            </View>
-          </TouchableOpacity>
-          <Text className="text-[#8892B0] mt-4 text-sm">Tap to change avatar</Text>
+            <TouchableOpacity 
+              onPress={pickImage}
+              disabled={uploading}
+              className="absolute bottom-0 right-0 bg-[#64FFDA] p-2 rounded-full shadow-lg"
+            >
+              {uploading ? <ActivityIndicator size="small" color="#0A192F" /> : <Camera size={16} color="#0A192F" />}
+            </TouchableOpacity>
+          </View>
+          <Text className="text-[#8892B0] mt-3 text-sm">Tap camera to change photo</Text>
         </View>
 
-        {/* Form */}
-        <View className="gap-4">
+        <View className="gap-5">
           <View>
-            <Text className="text-[#8892B0] mb-2 text-sm font-bold uppercase">Full Name</Text>
-            <TextInput
-              className="bg-[#112240] text-white p-4 rounded-xl border border-[#233554]"
-              value={name}
-              onChangeText={setName}
-            />
+            <Text className="text-[#8892B0] mb-2 font-medium">First Name</Text>
+            <View className="flex-row items-center bg-[#112240] px-4 py-3 rounded-xl border border-white/10">
+              <User size={18} color="#8892B0" />
+              <TextInput 
+                className="flex-1 ml-3 text-white text-base"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholderTextColor="#475569"
+              />
+            </View>
           </View>
 
           <View>
-            <Text className="text-[#8892B0] mb-2 text-sm font-bold uppercase">Email (Read Only)</Text>
-            <TextInput
-              className="bg-[#112240]/50 text-[#8892B0] p-4 rounded-xl border border-[#233554]"
-              value={user?.email}
-              editable={false}
-            />
+            <Text className="text-[#8892B0] mb-2 font-medium">Last Name</Text>
+            <View className="flex-row items-center bg-[#112240] px-4 py-3 rounded-xl border border-white/10">
+              <User size={18} color="#8892B0" />
+              <TextInput 
+                className="flex-1 ml-3 text-white text-base"
+                value={lastName}
+                onChangeText={setLastName}
+                placeholderTextColor="#475569"
+              />
+            </View>
           </View>
 
           <TouchableOpacity 
             onPress={handleSave}
             disabled={loading}
-            className="bg-[#64FFDA] h-14 rounded-xl items-center justify-center mt-4 flex-row gap-2"
+            className="mt-4 bg-[#64FFDA] py-4 rounded-xl flex-row justify-center items-center shadow-lg"
           >
-            {loading ? <ActivityIndicator color="#0A192F" /> : (
+            {loading ? (
+              <ActivityIndicator color="#0A192F" />
+            ) : (
               <>
-                <Save size={20} color="#0A192F" />
+                <Save size={20} color="#0A192F" className="mr-2" />
                 <Text className="text-[#0A192F] font-bold text-lg">Save Changes</Text>
               </>
             )}
