@@ -30,6 +30,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (!user) {
+        return new Response(JSON.stringify({ error: "User not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+    }
+
     const { data: callerProfile, error: pErr } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single();
     if (pErr) {
         console.error('Error fetching caller profile:', pErr);

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { Shield, Users, Database, Activity } from 'lucide-react-native';
 
+
 export default function AdminDashboard() {
   return (
     <ScrollView className="flex-1 bg-nf-bg p-5" contentContainerStyle={{ paddingBottom: 100 }}>
@@ -12,6 +13,12 @@ export default function AdminDashboard() {
             <Text className="text-nf-muted text-xs">System Control Center</Text>
         </View>
       </View>
+      <Text className="text-white font-inter-bold text-lg mb-4">Overview</Text>
+      <View className="flex-row flex-wrap justify-between mb-6">
+         <View className="w-[ 48%] bg-nf-card border border-nf-border p-4 rounded-xl mb-4">
+             <Text className="text-nf-muted text-xs">Welcome to the Admin Panel. Here you can manage users, monitor system health, and configure application settings.</Text>
+         </View>
+         </View>
 
       <View className="flex-row flex-wrap justify-between mb-6">
          <View className="w-[48%] bg-nf-card border border-nf-border p-4 rounded-xl mb-4">
@@ -30,6 +37,17 @@ export default function AdminDashboard() {
              <Text className="text-nf-muted text-xs">Latency</Text>
          </View>
       </View>
+
+      <Text className="text-white font-inter-bold text-lg mb-3">Quick Actions</Text>
+      <TouchableOpacity className="bg-nf-card p-4 rounded-xl border border-nf-border mb-3">
+          <Text className="text-white font-inter-medium">View All Users</Text>
+          <Text className="text-nf-muted text-xs">Browse, search, and manage user accounts</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity className="bg-nf-card p-4 rounded-xl border border-nf-border mb-3">
+          <Text className="text-white font-inter-medium">System Settings</Text>
+          <Text className="text-nf-muted text-xs">Configure application-wide parameters</Text>
+      </TouchableOpacity>
 
       <Text className="text-white font-inter-bold text-lg mb-3">User Management</Text>
       <TouchableOpacity className="bg-nf-card p-4 rounded-xl border border-nf-border mb-3">
