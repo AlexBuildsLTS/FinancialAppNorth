@@ -1,140 +1,81 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
-import { useAuth } from '../../../shared/context/AuthContext';
-import { getTransactions, createTransaction, deleteTransaction } from '../../../services/dataService';
-import { Transaction } from '../../../types';
-import { Plus, X, TrendingUp, TrendingDown, Trash2, Calendar } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Zap, TrendingUp, DollarSign, List, PieChart } from 'lucide-react-native'; 
+import { useRouter } from 'expo-router';
+// FIX: Corrected the path to go up four levels (app/main/finances/index.tsx -> global.css)
+import "../../../../global.css"; 
 
-export default function TransactionsTab() {
-  const { user } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Modal State
-  const [modalVisible, setModalVisible] = useState(false);
-  const [newAmount, setNewAmount] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newType, setNewType] = useState<'income' | 'expense'>('expense');
-  const [submitting, setSubmitting] = useState(false);
+export default function FinanceOverviewScreen() {
+    const router = useRouter();
 
-  const loadData = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const data = await getTransactions(user.id);
-      setTransactions(data);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [user]);
-
-  const handleAdd = async () => {
-    if (!newAmount || !newDesc || !user) return;
-    setSubmitting(true);
-    try {
-      await createTransaction({
-        amount: parseFloat(newAmount) * (newType === 'expense' ? -1 : 1),
-        description: newDesc,
-        type: newType,
-        date: new Date().toISOString(),
-        status: 'completed',
-        category: 'General'
-      }, user.id);
-      setModalVisible(false);
-      setNewAmount('');
-      setNewDesc('');
-      loadData();
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    Alert.alert('Delete', 'Confirm delete?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { await deleteTransaction(id); loadData(); } }
-    ]);
-  };
-
-  const renderItem = ({ item }: { item: Transaction }) => (
-    <View className="bg-[#112240] p-4 rounded-xl border border-[#233554] mb-3 flex-row items-center justify-between">
-      <View className="flex-row items-center gap-4">
-        <View className={`w-10 h-10 rounded-full items-center justify-center ${item.amount >= 0 ? 'bg-[#64FFDA]/10' : 'bg-[#F472B6]/10'}`}>
-          {item.amount >= 0 ? <TrendingUp size={20} color="#64FFDA" /> : <TrendingDown size={20} color="#F472B6" />}
-        </View>
-        <View>
-          <Text className="text-white font-bold text-base">{item.description}</Text>
-          <View className="flex-row items-center gap-1">
-             <Calendar size={12} color="#8892B0" />
-             <Text className="text-[#8892B0] text-xs">{new Date(item.date).toLocaleDateString()}</Text>
-          </View>
-        </View>
-      </View>
-      <View className="items-end">
-        <Text className={`text-lg font-bold ${item.amount >= 0 ? 'text-[#64FFDA]' : 'text-white'}`}>
-          {item.amount >= 0 ? '+' : ''}{item.amount.toFixed(2)}
-        </Text>
-        <TouchableOpacity onPress={() => handleDelete(item.id)} className="mt-1">
-           <Trash2 size={16} color="#EF4444" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  return (
-    <SafeAreaView className="flex-1 bg-[#0A192F]" edges={['top']}>
-      <View className="px-6 py-4 border-b border-[#233554] flex-row justify-between items-center">
-        <Text className="text-xl font-bold text-white">Transactions</Text>
-        <TouchableOpacity onPress={() => setModalVisible(true)} className="bg-[#64FFDA] w-10 h-10 rounded-full items-center justify-center">
-          <Plus size={24} color="#0A192F" />
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View className="flex-1 items-center justify-center"><ActivityIndicator color="#64FFDA" /></View>
-      ) : (
-        <FlatList
-          data={transactions}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 24 }}
-          ListEmptyComponent={<Text className="text-[#8892B0] text-center mt-10">No transactions found.</Text>}
-        />
-      )}
-
-      {/* Add Modal */}
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <View className="flex-1 bg-black/80 justify-end">
-          <View className="bg-[#112240] rounded-t-3xl p-6 border-t border-[#233554]">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-white text-xl font-bold">New Entry</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}><X size={24} color="#8892B0" /></TouchableOpacity>
+    const StatCard = ({ title, value, icon: Icon, color }: any) => (
+        <View className="bg-[#112240] p-4 rounded-xl border border-white/5 flex-1 min-w-[150px]">
+            <View className="flex-row items-center mb-2">
+                <View className={`p-2 rounded-lg ${color === 'green' ? 'bg-[#64FFDA]/10' : 'bg-red-500/10'}`}>
+                    <Icon size={20} color={color === 'green' ? '#64FFDA' : '#F87171'} />
+                </View>
+                <Text className="text-[#8892B0] text-xs font-medium uppercase ml-2">{title}</Text>
             </View>
-            <View className="flex-row gap-4 mb-4">
-              <TouchableOpacity onPress={() => setNewType('expense')} className={`flex-1 p-3 rounded-xl border items-center ${newType === 'expense' ? 'bg-[#F472B6]/20 border-[#F472B6]' : 'bg-[#0A192F] border-[#233554]'}`}>
-                <Text className={`${newType === 'expense' ? 'text-[#F472B6]' : 'text-[#8892B0]'} font-bold`}>Expense</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setNewType('income')} className={`flex-1 p-3 rounded-xl border items-center ${newType === 'income' ? 'bg-[#64FFDA]/20 border-[#64FFDA]' : 'bg-[#0A192F] border-[#233554]'}`}>
-                <Text className={`${newType === 'income' ? 'text-[#64FFDA]' : 'text-[#8892B0]'} font-bold`}>Income</Text>
-              </TouchableOpacity>
-            </View>
-            <TextInput className="bg-[#0A192F] text-white p-4 rounded-xl border border-[#233554] mb-4 text-lg" placeholder="0.00" placeholderTextColor="#475569" keyboardType="numeric" value={newAmount} onChangeText={setNewAmount} />
-            <TextInput className="bg-[#0A192F] text-white p-4 rounded-xl border border-[#233554] mb-6" placeholder="Description" placeholderTextColor="#475569" value={newDesc} onChangeText={setNewDesc} />
-            <TouchableOpacity onPress={handleAdd} disabled={submitting} className="bg-[#64FFDA] h-14 rounded-xl items-center justify-center mb-6">
-              {submitting ? <ActivityIndicator color="#0A192F" /> : <Text className="text-[#0A192F] font-bold text-lg">Save</Text>}
-            </TouchableOpacity>
-          </View>
+            <Text className="text-2xl font-bold text-white">{value}</Text>
         </View>
-      </Modal>
-    </SafeAreaView>
-  );
+    );
+
+    return (
+        <View className="flex-1 bg-[#0A192F]">
+            <ScrollView className="p-6">
+                <View className="mb-8">
+                    <Text className="text-white text-3xl font-bold">Financial Health Dashboard</Text>
+                    <Text className="text-[#8892B0]">Your AI-powered spending insights</Text>
+                </View>
+
+                {/* Stat Cards */}
+                <View className="flex-row justify-between gap-4 mb-6">
+                    <StatCard 
+                        title="Net Flow (AI Est.)" 
+                        value="+$1,250.00" 
+                        icon={TrendingUp} 
+                        color="green" 
+                    />
+                    <StatCard 
+                        title="Month-to-Date Expense" 
+                        value="-$2,100.00" 
+                        icon={DollarSign} 
+                        color="red" 
+                    />
+                </View>
+
+                {/* AI Insight Card */}
+                <View className="bg-[#112240] p-5 rounded-2xl border border-[#64FFDA]/20 mb-6">
+                    <View className="flex-row items-center mb-3">
+                        <Zap size={24} color="#64FFDA" className="mr-2" />
+                        <Text className="text-white font-bold text-lg">NorthFinance AI Analysis</Text>
+                    </View>
+                    <Text className="text-[#8892B0] text-sm leading-6">
+                        "Your non-essential spending is 20% over budget. The largest increase was in 'Entertainment' (up $300). 
+                        Consider reducing spending here or reviewing your Budget tab."
+                    </Text>
+                    <TouchableOpacity onPress={() => router.push('/(main)/finances/budgets')} className="mt-4 self-start flex-row items-center">
+                        <Text className="text-[#64FFDA] font-bold text-sm mr-1">View Budget Recommendations</Text>
+                        <TrendingUp size={14} color="#64FFDA" />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Chart Placeholder */}
+                <View className="bg-[#112240] p-5 rounded-2xl border border-white/10 h-64 justify-center items-center mb-6">
+                    <PieChart size={32} color="#8892B0" />
+                    <Text className="text-white mt-2 font-medium">Spending Distribution Chart Here</Text>
+                    <Text className="text-[#8892B0] text-xs mt-1">Data from Transactions & Scan</Text>
+                </View>
+
+                {/* Link to Full Transactions List */}
+                <TouchableOpacity 
+                    onPress={() => router.push('/(main)/finances/transactions')} 
+                    className="bg-white/5 p-4 rounded-xl border border-white/10 flex-row items-center justify-between"
+                >
+                    <Text className="text-white font-bold text-base">Go to Full Transactions List</Text>
+                    <List size={20} color="white" />
+                </TouchableOpacity>
+            </ScrollView>
+        </View>
+    );
 }

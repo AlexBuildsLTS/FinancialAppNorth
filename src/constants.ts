@@ -1,20 +1,69 @@
-import { UserRole } from '@/types';
+// Assuming your UserRole enum is correctly defined in src/types.ts
 
-export const APP_NAME = "NorthFinance";
+// The list below defines which top-level navigation items are visible to each user role.
+// NOTE: 'Transactions' maps to the /finances hub route in the layout.
+export const ROLE_NAV_ITEMS: Record<string, string[]> = {
+  // Members see core financial tools
+  'member': [
+    'Dashboard', 
+    'Transactions', 
+    'Documents', 
+    'Scan', 
+    'AI Chat',
+    'Settings',
+    'Support'
+  ],
 
-export const ROLE_NAV_ITEMS: Record<UserRole, string[]> = {
-  // Admin: Admin Portal, Documents, Reports, Support, Chat, Settings
-  [UserRole.ADMIN]: ['Dashboard', 'Admin', 'Documents', 'Reports', 'CPA Portal', 'Support', 'AI Chat', 'Settings'],
-  
-  // CPA: Dashboard, Portal, Documents, Reports, Chat, Settings
-  [UserRole.CPA]: ['Dashboard', 'CPA Portal', 'Documents', 'Reports', 'AI Chat', 'Settings'],
-  
-  // Support: Dashboard, Support, Documents, Reports, Portal, Chat, Settings
-  [UserRole.SUPPORT]: ['Dashboard', 'Support', 'Documents', 'Reports', 'CPA Portal', 'AI Chat', 'Settings'],
-  
-  // Premium: Dashboard, Transactions (Tabs), Support, Chat, Portal, Settings
-  [UserRole.PREMIUM]: ['Dashboard', 'Transactions', 'Support', 'AI Chat', 'CPA Portal', 'Settings'],
-  
-  // Member: Dashboard, Transactions (Tabs), Support, Chat, Settings
-  [UserRole.MEMBER]: ['Dashboard', 'Transactions', 'Support', 'AI Chat', 'Settings'],
+  // Premium users get all member features + Messages
+  'premium': [
+    'Dashboard', 
+    'Transactions', 
+    'Documents', 
+    'Scan', 
+    'AI Chat',
+    'Messages',
+    'Settings',
+    'Support'
+  ],
+
+  // FIX: CPA sees all Premium features (minus general Support) + CPA Portal
+  'cpa': [
+    'Dashboard', 
+    'Transactions', 
+    'Documents', 
+    'Scan', 
+    'AI Chat', 
+    'Messages', 
+    'Settings', 
+    'CPA Portal' // Added dedicated CPA management hub
+  ],
+
+  // FIX: Support sees ALL Premium features + Admin for user/ticket management
+  'support': [
+    'Dashboard', 
+    'Transactions', 
+    'Documents', 
+    'Scan', 
+    'AI Chat', 
+    'Messages', 
+    'Settings', 
+    'Support', // For viewing/responding to tickets
+    'Admin' // For limited admin/user lookup/logs
+  ],
+
+  // Admins see every possible feature in the system.
+  'admin': [
+    'Dashboard', 
+    'Transactions', 
+    'Documents', 
+    'Scan', 
+    'CPA Portal',
+    'Support', 
+    'AI Chat',
+    'Messages',
+    'Settings',
+    'Admin' // The dedicated Admin Control Panel route
+  ]
 };
+
+// You may also export other constants here if needed

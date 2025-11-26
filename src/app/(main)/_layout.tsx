@@ -8,7 +8,6 @@ import {
   LayoutDashboard, 
   CreditCard, 
   FileText, 
-  PieChart, 
   Users, 
   LifeBuoy, 
   ShieldAlert, 
@@ -26,18 +25,18 @@ const NAV_CONFIG: Record<string, { name: string, icon: any, path: string, label:
   'Dashboard':    { name: 'index',        icon: LayoutDashboard, path: '/(main)/',             label: 'Home' },
   'Transactions': { name: 'finances',     icon: CreditCard,      path: '/(main)/finances',     label: 'Finances' },
   'Documents':    { name: 'documents',    icon: FileText,        path: '/(main)/documents',    label: 'Docs' },
-  'Reports':      { name: 'reports',      icon: PieChart,        path: '/(main)/reports',      label: 'Reports' },
   'CPA Portal':   { name: 'cpa',          icon: Users,           path: '/(main)/cpa',          label: 'CPA Portal' },
   'Support':      { name: 'support',      icon: LifeBuoy,        path: '/(main)/support',      label: 'Support' },
   'Admin':        { name: 'admin',        icon: ShieldAlert,     path: '/(main)/admin',        label: 'Admin' },
   'AI Chat':      { name: 'aiChat',       icon: Bot,             path: '/(main)/aiChat',       label: 'AI Chat' },
   'Settings':     { name: 'settings',     icon: Settings,        path: '/(main)/settings',     label: 'Settings' },
   'Scan':         { name: 'scan',         icon: ScanLine,        path: '/(main)/scan',         label: 'Scan' },
-  'Messages':     { name: 'messages',     icon: MessageSquare,   path: '/(main)/messages',     label: 'Messages' },
+  // FIX: Explicitly set name to 'messages/index' for mobile tab stability
+  'Messages':     { name: 'messages/index', icon: MessageSquare,   path: '/(main)/messages',     label: 'Messages' },
 };
 
 // --- Desktop Sidebar Components ---
-const RoleBadge = ({ role }: { role: string }) => {
+const RoleBadge = ({ role }: { role: UserRole }) => {
   let bg = 'bg-[#112240]';
   let text = 'text-[#8892B0]';
   switch (role) {
@@ -45,6 +44,9 @@ const RoleBadge = ({ role }: { role: string }) => {
     case UserRole.CPA:   bg = 'bg-purple-500/10'; text = 'text-purple-400'; break;
     case UserRole.PREMIUM: bg = 'bg-[#64FFDA]/10'; text = 'text-[#64FFDA]'; break;
     case UserRole.SUPPORT: bg = 'bg-blue-500/10'; text = 'text-blue-400'; break;
+    case UserRole.MEMBER: 
+    default:
+        bg = 'bg-white/5'; text = 'text-[#8892B0]';
   }
   return (
     <View className={`px-2 py-0.5 rounded-md ${bg} self-start mt-1`}>
@@ -56,9 +58,7 @@ const RoleBadge = ({ role }: { role: string }) => {
 const SidebarContent = ({ user, logout }: any) => {
   const router = useRouter();
   const pathname = usePathname();
-  // FIX: Cast user.role to UserRole to satisfy TypeScript
   const allowedItems = ROLE_NAV_ITEMS[user.role as UserRole] || ROLE_NAV_ITEMS['member'];
-  // FIX: Explicitly type the key parameter
   const navItems = allowedItems.map((key: string) => NAV_CONFIG[key]).filter(Boolean);
 
   return (
@@ -71,7 +71,6 @@ const SidebarContent = ({ user, logout }: any) => {
       </View>
 
       <ScrollView className="flex-1 px-3">
-        {/* FIX: Explicitly type the config parameter */}
         {navItems.map((config: any) => {
           const isActive = pathname.startsWith(config.path);
           return (
@@ -92,20 +91,25 @@ const SidebarContent = ({ user, logout }: any) => {
       </ScrollView>
 
       <View className="p-4 border-t border-[#233554]">
+        {/* User Info & Avatar */}
         <View className="flex-row items-center gap-3 mb-4 px-2">
-          <View className="w-10 h-10 rounded-full bg-[#112240] overflow-hidden border border-[#233554]">
+          <TouchableOpacity 
+            onPress={() => router.push('/(main)/settings/profile')}
+            className="w-10 h-10 rounded-full bg-[#112240] overflow-hidden border border-[#233554]"
+          >
             {user.avatar ? (
-              <Image source={{ uri: user.avatar }} className="w-full h-full" />
+              <Image source={{ uri: user.avatar }} className="w-full h-full" /> 
             ) : (
               <View className="items-center justify-center h-full"><Text className="text-[#64FFDA] font-bold">{user.name?.[0]}</Text></View>
             )}
-          </View>
+          </TouchableOpacity>
           <View className="flex-1 justify-center">
             <Text className="text-white text-sm font-bold truncate">{user.name}</Text>
-            <Text className="text-[#8892B0] text-xs truncate mb-1">{user.email}</Text>
-            <RoleBadge role={user.role} />
+            <RoleBadge role={user.role as UserRole} />
           </View>
         </View>
+        
+        {/* Logout Button */}
         <TouchableOpacity onPress={logout} className="flex-row items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 justify-center">
           <LogOut size={18} color="#F87171" />
           <Text className="text-[#F87171] font-medium">Sign Out</Text>
@@ -132,6 +136,7 @@ export default function MainLayout() {
     return (
       <View style={{ flex: 1, backgroundColor: '#0A192F' }}>
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+          {/* FIX 1: Header Restored for Mobile */}
           <MainHeader />
           <Tabs
             screenOptions={{
@@ -149,7 +154,6 @@ export default function MainLayout() {
               tabBarInactiveTintColor: '#8892B0',
             }}
           >
-            {/* 1. Visible Tabs */}
             {navItems.map((config: any) => {
               renderedScreens.add(config.name);
               return (
@@ -158,31 +162,34 @@ export default function MainLayout() {
                   name={config.name}
                   options={{
                     href: config.path, 
-                    // FIX: Explicitly typed color and focused to satisfy TypeScript
-                    tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+                    tabBarIcon: ({ color }: { color: string }) => (
                        <View className="items-center justify-center gap-1 w-16">
                          <config.icon size={24} color={color} />
-                         {focused && <View className="w-1 h-1 rounded-full bg-[#64FFDA] mt-1" />}
+                         {/* Dynamic indicator dot */}
+                         <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
                        </View>
                     ),
                   }}
                 />
               );
             })}
+            
+            {/* FIX 2: Explicitly Hiding All Sub/Dynamic Screens to fix "Ghost Tabs" */}
+            <Tabs.Screen name="messages/[id]" options={{ href: null, headerShown: false }} />
+            <Tabs.Screen name="finances/index" options={{ href: null, headerShown: false }} />
+            <Tabs.Screen name="finances/transactions" options={{ href: null, headerShown: false }} />
+            <Tabs.Screen name="finances/budgets" options={{ href: null, headerShown: false }} />
+            <Tabs.Screen name="finances/reports" options={{ href: null, headerShown: false }} />
+            <Tabs.Screen name="admin/users" options={{ href: null, headerShown: false }} />
+            <Tabs.Screen name="admin/index" options={{ href: null, headerShown: false }} />
+            <Tabs.Screen name="settings/profile" options={{ href: null, headerShown: false }} />
 
-            {/* 2. Hidden Tabs (Everything else in Config) */}
-            {Object.values(NAV_CONFIG).map((config: any) => {
+            {/* This map ensures any un-linked file in the main directory is also hidden */}
+            {Object.keys(NAV_CONFIG).map((key) => {
+              const config = NAV_CONFIG[key];
               if (renderedScreens.has(config.name)) return null;
-              renderedScreens.add(config.name);
               return <Tabs.Screen key={config.name} name={config.name} options={{ href: null, headerShown: false }} />;
             })}
-            
-            {/* 3. Explicitly Hide Dynamic/Sub-screens to fix "Ghost Tabs" */}
-            <Tabs.Screen name="messages/[id]" options={{ href: null, headerShown: false }} />
-            <Tabs.Screen name="messages/index" options={{ href: null, headerShown: false }} />
-            
-            {/* FORCE HIDE THE PERSISTENT CHAT TAB */}
-            <Tabs.Screen name="chat" options={{ href: null, headerShown: false }} />
             
           </Tabs>
         </SafeAreaView>
