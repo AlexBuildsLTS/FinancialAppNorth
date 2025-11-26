@@ -3,7 +3,7 @@ import { Tabs, Redirect, useRouter, usePathname, Slot } from 'expo-router';
 import { useAuth } from '../../shared/context/AuthContext';
 import { ROLE_NAV_ITEMS } from '../../constants';
 import { UserRole } from '../../types';
-import { MainHeader } from '../../shared/components/MainHeader';
+import { MainHeader } from '../../shared/components/MainHeader'; // KEEP THIS IMPORTED
 import { 
   LayoutDashboard, 
   CreditCard, 
@@ -21,17 +21,17 @@ import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // --- Configuration ---
+// This map uses the final names/paths agreed upon
 const NAV_CONFIG: Record<string, { name: string, icon: any, path: string, label: string }> = {
-  'Dashboard':    { name: 'index',        icon: LayoutDashboard, path: '/(main)/',             label: 'Home' },
-  'Transactions': { name: 'finances',     icon: CreditCard,      path: '/(main)/finances',     label: 'Finances' },
-  'Documents':    { name: 'documents',    icon: FileText,        path: '/(main)/documents',    label: 'Docs' },
-  'CPA Portal':   { name: 'cpa',          icon: Users,           path: '/(main)/cpa',          label: 'CPA Portal' },
-  'Support':      { name: 'support',      icon: LifeBuoy,        path: '/(main)/support',      label: 'Support' },
-  'Admin':        { name: 'admin',        icon: ShieldAlert,     path: '/(main)/admin',        label: 'Admin' },
-  'AI Chat':      { name: 'aiChat',       icon: Bot,             path: '/(main)/aiChat',       label: 'AI Chat' },
-  'Settings':     { name: 'settings',     icon: Settings,        path: '/(main)/settings',     label: 'Settings' },
-  'Scan':         { name: 'scan',         icon: ScanLine,        path: '/(main)/scan',         label: 'Scan' },
-  // FIX: Explicitly set name to 'messages/index' for mobile tab stability
+  'Dashboard':    { name: 'index',          icon: LayoutDashboard, path: '/(main)/',             label: 'Home' },
+  'Transactions': { name: 'finances',       icon: CreditCard,      path: '/(main)/finances',     label: 'Finances' },
+  'Documents':    { name: 'documents',      icon: FileText,        path: '/(main)/documents',    label: 'Docs' },
+  'CPA Portal':   { name: 'cpa',            icon: Users,           path: '/(main)/cpa',          label: 'CPA Portal' },
+  'Support':      { name: 'support',        icon: LifeBuoy,        path: '/(main)/support',      label: 'Support' },
+  'Admin':        { name: 'admin',          icon: ShieldAlert,     path: '/(main)/admin',        label: 'Admin' },
+  'AI Chat':      { name: 'aiChat',         icon: Bot,             path: '/(main)/aiChat',       label: 'AI Chat' },
+  'Settings':     { name: 'settings',       icon: Settings,        path: '/(main)/settings',     label: 'Settings' },
+  'Scan':         { name: 'scan',           icon: ScanLine,        path: '/(main)/scan',         label: 'Scan' },
   'Messages':     { name: 'messages/index', icon: MessageSquare,   path: '/(main)/messages',     label: 'Messages' },
 };
 
@@ -130,13 +130,34 @@ export default function MainLayout() {
 
   const allowedItems = ROLE_NAV_ITEMS[user.role as UserRole] || ROLE_NAV_ITEMS['member'];
   const navItems = allowedItems.map((key: string) => NAV_CONFIG[key]).filter(Boolean);
-  const renderedScreens = new Set();
+  
+  // Create a clean list of allowed names for lookup
+  const visibleTabNames = new Set(navItems.map(item => item.name));
 
   if (isMobile) {
+    // FIX: Filter out Messages from the mobile bottom bar AND all sub-screens
+    const mobileNavItems = navItems.filter(config => 
+        config.name !== 'messages/index' && 
+        !config.name.includes('/') // Keep only single-level routes (e.g., index, documents, scan)
+    ); 
+
+    // Find all unique screen names that exist in the file system for registration
+    // This is the absolute minimum list to register to avoid conflicts.
+    const uniqueScreensToRegister = new Set([
+        ...Object.values(NAV_CONFIG).map(c => c.name),
+        'messages/[id]', 
+        'finances/transactions', 'finances/budgets', 'finances/reports',
+        'admin/users', 'admin/index', 'settings/profile'
+    ]);
+    
+    // We convert the Set to an Array for iteration
+    const allRoutes = Array.from(uniqueScreensToRegister);
+
+
     return (
       <View style={{ flex: 1, backgroundColor: '#0A192F' }}>
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-          {/* FIX 1: Header Restored for Mobile */}
+          {/* FIX 1: Header restored */}
           <MainHeader />
           <Tabs
             screenOptions={{
@@ -154,41 +175,31 @@ export default function MainLayout() {
               tabBarInactiveTintColor: '#8892B0',
             }}
           >
-            {navItems.map((config: any) => {
-              renderedScreens.add(config.name);
-              return (
-                <Tabs.Screen
-                  key={config.name}
-                  name={config.name}
-                  options={{
-                    href: config.path, 
-                    tabBarIcon: ({ color }: { color: string }) => (
-                       <View className="items-center justify-center gap-1 w-16">
-                         <config.icon size={24} color={color} />
-                         {/* Dynamic indicator dot */}
-                         <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
-                       </View>
-                    ),
-                  }}
-                />
-              );
-            })}
-            
-            {/* FIX 2: Explicitly Hiding All Sub/Dynamic Screens to fix "Ghost Tabs" */}
-            <Tabs.Screen name="messages/[id]" options={{ href: null, headerShown: false }} />
-            <Tabs.Screen name="finances/index" options={{ href: null, headerShown: false }} />
-            <Tabs.Screen name="finances/transactions" options={{ href: null, headerShown: false }} />
-            <Tabs.Screen name="finances/budgets" options={{ href: null, headerShown: false }} />
-            <Tabs.Screen name="finances/reports" options={{ href: null, headerShown: false }} />
-            <Tabs.Screen name="admin/users" options={{ href: null, headerShown: false }} />
-            <Tabs.Screen name="admin/index" options={{ href: null, headerShown: false }} />
-            <Tabs.Screen name="settings/profile" options={{ href: null, headerShown: false }} />
+            {/* Loop 1: Register ALL possible files exactly once */}
+            {allRoutes.map((screenName) => {
+                const config = NAV_CONFIG[Object.keys(NAV_CONFIG).find(key => NAV_CONFIG[key].name === screenName) as any] || { name: screenName };
+                
+                // Determine if this screen should have a visible ICON in the bottom bar
+                const isVisibleTab = mobileNavItems.some(item => item.name === screenName);
+                
+                const options = isVisibleTab 
+                    ? { 
+                        href: config.path,
+                        tabBarIcon: ({ color }: { color: string }) => (
+                           <View className="items-center justify-center gap-1 w-16">
+                             <config.icon size={24} color={color} />
+                             <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                           </View>
+                        ),
+                        headerShown: false
+                    }
+                    : { 
+                        // HIDE IT: Ensure it is registered but not visible in the tab bar
+                        href: null,
+                        headerShown: false
+                    };
 
-            {/* This map ensures any un-linked file in the main directory is also hidden */}
-            {Object.keys(NAV_CONFIG).map((key) => {
-              const config = NAV_CONFIG[key];
-              if (renderedScreens.has(config.name)) return null;
-              return <Tabs.Screen key={config.name} name={config.name} options={{ href: null, headerShown: false }} />;
+                return <Tabs.Screen key={screenName} name={screenName} options={options} />;
             })}
             
           </Tabs>
