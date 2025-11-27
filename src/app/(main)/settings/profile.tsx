@@ -3,15 +3,16 @@ import { View, Text, TextInput, TouchableOpacity, Image, Alert, SafeAreaView, Sc
 import { useAuth } from '../../../shared/context/AuthContext';
 import { supabase } from '../../../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Save, ArrowLeft, Mail, User } from 'lucide-react-native';
+import { Camera, Save, ArrowLeft, User, Mail } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { decode } from 'base64-arraybuffer';
 
 export default function ProfileScreen() {
-  const { user } = useAuth(); 
+  const { user, refreshProfile } = useAuth();
   const router = useRouter();
   
   const [firstName, setFirstName] = useState(user?.name?.split(' ')[0] || '');
-  const [lastName, setLastName] = useState(user?.name?.split(' ')[1] || '');
+  const [lastName, setLastName] = useState(user?.name?.split(' ').slice(1).join(' ') || '');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -42,12 +43,9 @@ export default function ProfileScreen() {
       const filePath = `${fileName}`;
 
       // 1. Upload to Supabase Storage
-      // We use the arrayBuffer method via base64 decode for compatibility
-      const arrayBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, arrayBuffer, {
+        .upload(filePath, decode(base64), {
           contentType: `image/${fileExt}`,
           upsert: true
         });
@@ -62,14 +60,18 @@ export default function ProfileScreen() {
       // 3. Update Profile Table
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
+        .upsert({ 
+            id: user.id, 
+            avatar_url: publicUrl,
+            updated_at: new Date().toISOString()
+        });
 
       if (updateError) throw updateError;
 
-      Alert.alert('Success', 'Avatar updated! Please restart the app to see changes.');
+      await refreshProfile();
+      Alert.alert('Success', 'Avatar updated!');
     } catch (error: any) {
-      console.error(error);
+      console.error("Avatar Upload Error:", error);
       Alert.alert('Upload Failed', error.message);
     } finally {
       setUploading(false);
@@ -77,22 +79,41 @@ export default function ProfileScreen() {
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user) {
+        console.log("No user found in context");
+        return;
+    }
+    
     setLoading(true);
+    console.log("Starting Save for:", user.id);
+
     try {
-      const { error } = await supabase
+      // FIX: Use UPSERT instead of UPDATE to ensure row exists
+      const { data, error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: user.id, // Required for upsert
           first_name: firstName,
           last_name: lastName,
+          email: user.email, // Ensure email is preserved
           updated_at: new Date().toISOString(),
         })
-        .eq('id', user.id);
+        .select();
 
-      if (error) throw error;
+      if (error) {
+          console.error("Supabase Error:", error);
+          throw error;
+      }
+
+      console.log("Supabase Update Success:", data);
+
+      // Update Global State
+      await refreshProfile();
+      
       Alert.alert('Saved', 'Profile updated successfully.');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error("Save Crash:", error);
+      Alert.alert('Error', error.message || "Failed to update profile.");
     } finally {
       setLoading(false);
     }
@@ -108,6 +129,7 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView className="p-6">
+        {/* Avatar Section */}
         <View className="items-center mb-8">
           <View className="relative">
             <View className="w-24 h-24 rounded-full bg-[#112240] overflow-hidden border-2 border-[#64FFDA]">
@@ -152,6 +174,14 @@ export default function ProfileScreen() {
                 onChangeText={setLastName}
                 placeholderTextColor="#475569"
               />
+            </View>
+          </View>
+
+          <View>
+            <Text className="text-[#8892B0] mb-2 font-medium">Email (ReadOnly)</Text>
+            <View className="flex-row items-center bg-[#112240]/50 px-4 py-3 rounded-xl border border-white/5">
+              <Mail size={18} color="#475569" />
+              <Text className="flex-1 ml-3 text-gray-500 text-base">{user?.email}</Text>
             </View>
           </View>
 

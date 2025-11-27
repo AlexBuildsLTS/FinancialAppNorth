@@ -1,26 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { ArrowLeft, Save, Key } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { settingsService } from '../../../shared/services/settingsService';
-import { ArrowLeft, Key, Save, CheckCircle2 } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// FIX: Import from aiService, NOT settingsService
+import { saveGeminiKey, getGeminiKey } from '../../../services/aiService'; 
 
-export default function AiKeysSettings() {
+export default function AiKeysScreen() {
   const { user } = useAuth();
   const router = useRouter();
-  const [geminiKey, setGeminiKey] = useState('');
-  const [openaiKey, setOpenaiKey] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
 
-  const handleSave = async (service: 'gemini' | 'openai', key: string) => {
-    if (!user || !key) return;
+  useEffect(() => {
+    if (user) {
+      getGeminiKey(user.id).then((key) => {
+        if (key) setApiKey(key);
+        setFetching(false);
+      });
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    if (!apiKey.trim()) {
+      Alert.alert("Error", "Please enter a valid API Key");
+      return;
+    }
+
     setLoading(true);
     try {
-      await settingsService.saveApiKey(user.id, service, key);
-      Alert.alert('Success', `${service.toUpperCase()} API Key saved.`);
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
+      await saveGeminiKey(user.id, apiKey);
+      Alert.alert("Success", "Gemini API Key saved securely.");
+      router.back();
+    } catch (error: any) {
+      Alert.alert("Error", error.message);
     } finally {
       setLoading(false);
     }
@@ -28,73 +43,53 @@ export default function AiKeysSettings() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
-      <View className="px-6 py-4 border-b border-[#233554] flex-row items-center gap-4">
-        <TouchableOpacity onPress={() => router.back()}>
+      <View className="px-4 py-4 flex-row items-center border-b border-white/5">
+        <TouchableOpacity onPress={() => router.back()} className="mr-4">
           <ArrowLeft size={24} color="white" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-white">AI Configuration</Text>
+        <Text className="text-white text-xl font-bold">AI Configuration</Text>
       </View>
 
-      <ScrollView className="flex-1 p-6">
-        <Text className="text-[#8892B0] mb-6">
-          Manage your API keys to power the AI Chat assistant. Your keys are stored securely.
-        </Text>
-
-        {/* Gemini Section */}
-        <View className="bg-[#112240] p-5 rounded-2xl border border-[#233554] mb-6">
-          <View className="flex-row items-center gap-3 mb-4">
-            <View className="w-10 h-10 rounded-full bg-[#64FFDA]/10 items-center justify-center">
-              <Key size={20} color="#64FFDA" />
-            </View>
-            <Text className="text-white font-bold text-lg">Google Gemini</Text>
+      <View className="p-6">
+        <View className="bg-[#112240] p-6 rounded-2xl border border-white/5 mb-6">
+          <View className="flex-row items-center mb-4">
+            <Key size={24} color="#64FFDA" className="mr-3" />
+            <Text className="text-white text-lg font-bold">Gemini API Key</Text>
           </View>
-          
-          <TextInput 
-            className="bg-[#0A192F] text-white p-4 rounded-xl border border-[#233554] mb-4"
-            placeholder="Paste Gemini API Key"
-            placeholderTextColor="#475569"
-            value={geminiKey}
-            onChangeText={setGeminiKey}
-            secureTextEntry
-          />
-          
+          <Text className="text-[#8892B0] mb-4 leading-5">
+            Enter your Google Gemini API key to enable AI chat and financial analysis features. 
+            Your key is stored securely.
+          </Text>
+
+          {fetching ? (
+             <ActivityIndicator color="#64FFDA" />
+          ) : (
+            <TextInput
+              className="bg-[#0A192F] text-white p-4 rounded-xl border border-white/10 mb-4 font-mono"
+              placeholder="AIzaSy..."
+              placeholderTextColor="#475569"
+              value={apiKey}
+              onChangeText={setApiKey}
+              secureTextEntry
+            />
+          )}
+
           <TouchableOpacity 
-            onPress={() => handleSave('gemini', geminiKey)}
-            disabled={loading || !geminiKey}
-            className="bg-[#64FFDA] h-12 rounded-xl items-center justify-center"
+            onPress={handleSave}
+            disabled={loading}
+            className="bg-[#64FFDA] py-4 rounded-xl items-center flex-row justify-center"
           >
-            {loading ? <ActivityIndicator color="#0A192F" /> : <Text className="text-[#0A192F] font-bold">Save Key</Text>}
+            {loading ? (
+              <ActivityIndicator color="#0A192F" />
+            ) : (
+              <>
+                <Save size={20} color="#0A192F" className="mr-2" />
+                <Text className="text-[#0A192F] font-bold text-lg">Save Key</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
-
-        {/* OpenAI Section */}
-        <View className="bg-[#112240] p-5 rounded-2xl border border-[#233554]">
-          <View className="flex-row items-center gap-3 mb-4">
-            <View className="w-10 h-10 rounded-full bg-[#60A5FA]/10 items-center justify-center">
-              <Key size={20} color="#60A5FA" />
-            </View>
-            <Text className="text-white font-bold text-lg">OpenAI (GPT-4)</Text>
-          </View>
-          
-          <TextInput 
-            className="bg-[#0A192F] text-white p-4 rounded-xl border border-[#233554] mb-4"
-            placeholder="Paste OpenAI API Key"
-            placeholderTextColor="#475569"
-            value={openaiKey}
-            onChangeText={setOpenaiKey}
-            secureTextEntry
-          />
-          
-          <TouchableOpacity 
-            onPress={() => handleSave('openai', openaiKey)}
-            disabled={loading || !openaiKey}
-            className="bg-[#60A5FA] h-12 rounded-xl items-center justify-center"
-          >
-             <Text className="text-[#0A192F] font-bold">Save Key</Text>
-          </TouchableOpacity>
-        </View>
-
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

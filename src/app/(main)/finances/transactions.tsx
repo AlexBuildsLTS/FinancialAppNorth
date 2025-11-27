@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Modal, TextInput, SafeAreaView, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, Modal, TextInput, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Plus, X, DollarSign, AlignLeft, Trash2, Filter } from 'lucide-react-native';
 import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import { getTransactions, createTransaction, deleteTransaction } from '../../../services/dataService';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { Transaction } from '@/types';
+import { supabase } from '../../../lib/supabase'; // Needed for category lookup helper
+import "../../../../global.css";
 
 const CATEGORIES = ['Food', 'Travel', 'Utilities', 'Entertainment', 'Income', 'Business', 'Shopping', 'Healthcare'];
 type FilterType = 'All' | 'Income' | 'Expense';
@@ -15,15 +17,12 @@ export default function TransactionsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filter, setFilter] = useState<FilterType>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   // Form State
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
-
-  useEffect(() => {
-    if (user) loadData();
-  }, [user]);
 
   const loadData = async () => {
     if (!user) return;
@@ -31,24 +30,45 @@ export default function TransactionsScreen() {
     setTransactions(data);
   };
 
+  useEffect(() => {
+    if (user) loadData();
+  }, [user]);
+
   const filteredTransactions = transactions.filter(t => {
+    // Ensure amount is treated as number
+    const amt = Number(t.amount);
     if (filter === 'All') return true;
-    if (filter === 'Income') return t.amount > 0;
-    if (filter === 'Expense') return t.amount < 0;
+    if (filter === 'Income') return amt > 0;
+    if (filter === 'Expense') return amt < 0;
     return true;
   });
 
+  // Helper to get Category ID so DB save doesn't fail
+  const getCategoryId = async (name: string) => {
+    const { data } = await supabase.from('categories').select('id').eq('name', name).single();
+    if (data) return data.id;
+    // Create if missing
+    const { data: newCat } = await supabase.from('categories').insert({ name, type: 'expense', user_id: user?.id }).select().single();
+    return newCat?.id;
+  };
+
   const handleAdd = async () => {
     if (!amount || !description || !user) return;
+    setLoading(true);
     try {
       const val = parseFloat(amount);
       const finalAmount = selectedCategory === 'Income' ? Math.abs(val) : -Math.abs(val);
       
-      const newTx = {
+      // Get valid category ID
+      const catId = await getCategoryId(selectedCategory);
+
+      const newTx: Partial<Transaction> = {
         amount: finalAmount,
         description,
-        category: selectedCategory,
-        date: new Date().toISOString().split('T')[0]
+        // @ts-ignore - we are injecting category_id which might not be in your strict type yet
+        category_id: catId, 
+        date: new Date().toISOString().split('T')[0],
+        type: finalAmount >= 0 ? 'income' : 'expense'
       };
       
       await createTransaction(newTx, user.id);
@@ -56,8 +76,10 @@ export default function TransactionsScreen() {
       setIsModalOpen(false);
       setAmount('');
       setDescription('');
-    } catch (e) {
-      Alert.alert('Error', 'Failed to create transaction');
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -115,16 +137,18 @@ export default function TransactionsScreen() {
             <Swipeable renderRightActions={() => renderRightActions(item.id)}>
               <View className="bg-[#112240] p-4 rounded-xl mb-3 flex-row items-center justify-between border border-white/5">
                 <View className="flex-row items-center gap-4">
-                  <View className={`w-10 h-10 rounded-full items-center justify-center ${item.amount > 0 ? 'bg-[#64FFDA]/10' : 'bg-white/5'}`}>
-                    <Text className={`font-bold ${item.amount > 0 ? 'text-[#64FFDA]' : 'text-[#8892B0]'}`}>{item.description.charAt(0)}</Text>
+                  <View className={`w-10 h-10 rounded-full items-center justify-center ${Number(item.amount) > 0 ? 'bg-[#64FFDA]/10' : 'bg-white/5'}`}>
+                    <Text className={`font-bold ${Number(item.amount) > 0 ? 'text-[#64FFDA]' : 'text-[#8892B0]'}`}>
+                      {item.description ? item.description.charAt(0).toUpperCase() : '$'}
+                    </Text>
                   </View>
                   <View>
                     <Text className="text-white font-bold">{item.description}</Text>
-                    <Text className="text-[#8892B0] text-xs">{item.category} • {item.date}</Text>
+                    <Text className="text-[#8892B0] text-xs">{item.date}</Text>
                   </View>
                 </View>
-                <Text className={`font-bold ${item.amount > 0 ? 'text-[#64FFDA]' : 'text-white'}`}>
-                  {item.amount > 0 ? '+' : ''}{item.amount.toFixed(2)}
+                <Text className={`font-bold ${Number(item.amount) > 0 ? 'text-[#64FFDA]' : 'text-white'}`}>
+                  {Number(item.amount) > 0 ? '+' : ''}{Number(item.amount).toFixed(2)}
                 </Text>
               </View>
             </Swipeable>
@@ -188,8 +212,8 @@ export default function TransactionsScreen() {
                 ))}
               </ScrollView>
 
-              <TouchableOpacity onPress={handleAdd} className="bg-[#64FFDA] py-4 rounded-xl items-center">
-                <Text className="text-[#0A192F] font-bold text-lg">Save Transaction</Text>
+              <TouchableOpacity onPress={handleAdd} disabled={loading} className="bg-[#64FFDA] py-4 rounded-xl items-center">
+                {loading ? <ActivityIndicator color="#0A192F" /> : <Text className="text-[#0A192F] font-bold text-lg">Save Transaction</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

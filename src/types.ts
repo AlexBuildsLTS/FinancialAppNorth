@@ -21,7 +21,7 @@ export interface User {
 }
 
 export interface AppSettings {
-  currency: 'USD' | 'GBP' | 'EUR' | 'SEK';
+  currency: 'USD' | 'GBP' | 'EUR' | 'SEK' | 'JPY';
   country: string;
   theme: 'dark' | 'light';
   notifications: boolean;
@@ -30,17 +30,28 @@ export interface AppSettings {
 // --- Features ---
 export interface Transaction {
   id: string;
+  user_id: string;
+  account_id?: string;
   date: string;
   description: string;
   amount: number;
-  category: string;
-  status: 'pending' | 'completed' | 'failed';
-  type: 'income' | 'expense'; // Critical for dashboard calculations
+  // DB uses category_id, UI uses category (name)
+  category_id?: string; 
+  category?: string; 
+  status: 'pending' | 'completed' | 'failed' | 'cleared';
+  type: 'income' | 'expense';
+  created_at?: string;
 }
 
 export interface DocumentItem {
   id: string;
-  name: string;
+  user_id: string;
+  // DB columns
+  file_name: string;
+  file_path: string;
+  size_bytes?: number;
+  // UI helpers
+  name: string; 
   type: 'receipt' | 'invoice' | 'contract' | 'other';
   url: string;
   date: string;
@@ -51,17 +62,11 @@ export interface DocumentItem {
 // --- Chat & AI ---
 export interface Message {
   id: string;
-  chat_id: string;
+  conversation_id: string;
   sender_id: string;
-  text: string;
+  content_encrypted: string;
+  is_system_message: boolean;
   created_at: string;
-}
-
-export interface Chat {
-  id: string;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface ChatbotMessage {
@@ -72,21 +77,7 @@ export interface ChatbotMessage {
   created_at: string;
 }
 
-export interface AiResponse {
-  id: string;
-  message: string;
-  created_at: string;
-}
-
 // --- Professional & Support ---
-export interface Ticket {
-  id: string;
-  subject: string;
-  status: 'open' | 'closed' | 'pending';
-  priority: 'low' | 'medium' | 'high';
-  created_at: string;
-}
-
 export interface CpaClient {
   id: string;
   name: string;

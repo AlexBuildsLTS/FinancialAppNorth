@@ -1,62 +1,84 @@
-import { createClient } from "@supabase/supabase-js";
-import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "@supabase/supabase-js"
+import { GoogleGenerativeAI } from "@google/generative-ai"
 
-const supabaseAdmin = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-);
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const authHeader = req.headers.get('Authorization')!
 
-    // You might want to use a non-admin client to get the user
-    const supabaseClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-        { global: { headers: { Authorization: authHeader } } }
-    )
+    const supabaseClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } }
+    })
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) throw new Error('Unauthorized')
 
+    const { documentPath } = await req.json()
+    if (!documentPath) throw new Error('No document path provided')
 
-    const { documentPath } = await req.json();
-    if (!documentPath) {
-        return new Response(JSON.stringify({ error: "documentPath required" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+    // 1. Get API Key
+    let geminiKey = Deno.env.get('GEMINI_API_KEY')
+    if (!geminiKey) {
+        const { data: secret } = await supabaseAdmin
+          .from('user_secrets')
+          .select('api_key_encrypted')
+          .eq('user_id', user.id)
+          .eq('service', 'gemini')
+          .single()
+        if (secret) geminiKey = secret.api_key_encrypted
     }
+    if (!geminiKey) throw new Error('No Gemini API Key found.')
 
-    // Placeholder logic: Download a document from storage and return its content.
-    // The user should replace this with the actual document processing logic.
+    // 2. Download
     const { data: fileData, error: downloadError } = await supabaseAdmin
       .storage
       .from('documents')
       .download(documentPath)
-
     if (downloadError) throw downloadError
 
-    const fileContent = await fileData.text();
+    // 3. Process
+    const arrayBuffer = await fileData.arrayBuffer()
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    const mimeType = fileData.type || 'application/pdf'
 
-    return new Response(JSON.stringify({ success: true, content: fileContent }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (e) {
-    console.error(e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // 4. AI Extraction
+    const genAI = new GoogleGenerativeAI(geminiKey)
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+
+    const prompt = `
+      Extract strictly as JSON:
+      - merchant_name (string)
+      - date (YYYY-MM-DD)
+      - total_amount (number)
+      - category (string)
+    `
+
+    const result = await model.generateContent([
+      prompt,
+      { inlineData: { data: base64, mimeType: mimeType } }
+    ])
+
+    const text = result.response.text()
+    const jsonString = text.replace(/```json|```/g, '').trim()
+    const extractedData = JSON.parse(jsonString)
+
+    return new Response(JSON.stringify({ success: true, data: extractedData }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+
+  } catch (error: any) { // FIX: Added type annotation
+    return new Response(JSON.stringify({ error: error.message || "Unknown error" }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
   }
-});
+})

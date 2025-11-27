@@ -1,12 +1,41 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Zap, TrendingUp, DollarSign, List, PieChart } from 'lucide-react-native'; 
 import { useRouter } from 'expo-router';
-// FIX: Corrected the path to go up four levels (app/main/finances/index.tsx -> global.css)
+import { useAuth } from '../../../shared/context/AuthContext';
+import { getFinancialSummary, getTransactions } from '../../../services/dataService';
+import { generateFinancialInsight } from '../../../services/aiService';
 import "../../../../global.css"; 
 
 export default function FinanceOverviewScreen() {
+    const { user } = useAuth();
     const router = useRouter();
+    const [metrics, setMetrics] = useState({ income: 0, expense: 0, balance: 0 });
+    const [insight, setInsight] = useState("Analyzing your spending...");
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (user) loadData();
+    }, [user]);
+
+    const loadData = async () => {
+        if (!user) return;
+        try {
+            // 1. Get Numbers
+            const summary = await getFinancialSummary(user.id);
+            setMetrics(summary);
+
+            // 2. Get AI Insight
+            const txs = await getTransactions(user.id);
+            const aiText = await generateFinancialInsight(user.id, txs);
+            setInsight(aiText);
+
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const StatCard = ({ title, value, icon: Icon, color }: any) => (
         <View className="bg-[#112240] p-4 rounded-xl border border-white/5 flex-1 min-w-[150px]">
@@ -20,25 +49,27 @@ export default function FinanceOverviewScreen() {
         </View>
     );
 
+    if (loading) return <View className="flex-1 bg-[#0A192F] justify-center items-center"><ActivityIndicator color="#64FFDA"/></View>;
+
     return (
         <View className="flex-1 bg-[#0A192F]">
             <ScrollView className="p-6">
                 <View className="mb-8">
-                    <Text className="text-white text-3xl font-bold">Financial Health Dashboard</Text>
-                    <Text className="text-[#8892B0]">Your AI-powered spending insights</Text>
+                    <Text className="text-white text-3xl font-bold">Financial Health</Text>
+                    <Text className="text-[#8892B0]">AI-powered spending insights</Text>
                 </View>
 
                 {/* Stat Cards */}
                 <View className="flex-row justify-between gap-4 mb-6">
                     <StatCard 
-                        title="Net Flow (AI Est.)" 
-                        value="+$1,250.00" 
+                        title="Income (Mo)" 
+                        value={`$${metrics.income.toFixed(2)}`} 
                         icon={TrendingUp} 
                         color="green" 
                     />
                     <StatCard 
-                        title="Month-to-Date Expense" 
-                        value="-$2,100.00" 
+                        title="Expense (Mo)" 
+                        value={`$${metrics.expense.toFixed(2)}`} 
                         icon={DollarSign} 
                         color="red" 
                     />
@@ -50,31 +81,33 @@ export default function FinanceOverviewScreen() {
                         <Zap size={24} color="#64FFDA" className="mr-2" />
                         <Text className="text-white font-bold text-lg">NorthFinance AI Analysis</Text>
                     </View>
-                    <Text className="text-[#8892B0] text-sm leading-6">
-                        "Your non-essential spending is 20% over budget. The largest increase was in 'Entertainment' (up $300). 
-                        Consider reducing spending here or reviewing your Budget tab."
+                    <Text className="text-[#8892B0] text-sm leading-6 italic">
+                        "{insight}"
                     </Text>
                     <TouchableOpacity onPress={() => router.push('/(main)/finances/budgets')} className="mt-4 self-start flex-row items-center">
-                        <Text className="text-[#64FFDA] font-bold text-sm mr-1">View Budget Recommendations</Text>
+                        <Text className="text-[#64FFDA] font-bold text-sm mr-1">Manage Budgets</Text>
                         <TrendingUp size={14} color="#64FFDA" />
                     </TouchableOpacity>
                 </View>
 
-                {/* Chart Placeholder */}
-                <View className="bg-[#112240] p-5 rounded-2xl border border-white/10 h-64 justify-center items-center mb-6">
-                    <PieChart size={32} color="#8892B0" />
-                    <Text className="text-white mt-2 font-medium">Spending Distribution Chart Here</Text>
-                    <Text className="text-[#8892B0] text-xs mt-1">Data from Transactions & Scan</Text>
+                {/* Navigation Links */}
+                <View className="gap-3">
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(main)/finances/transactions')} 
+                        className="bg-white/5 p-4 rounded-xl border border-white/10 flex-row items-center justify-between"
+                    >
+                        <Text className="text-white font-bold text-base">View Transactions</Text>
+                        <List size={20} color="white" />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(main)/finances/reports')} 
+                        className="bg-white/5 p-4 rounded-xl border border-white/10 flex-row items-center justify-between"
+                    >
+                        <Text className="text-white font-bold text-base">View Full Reports</Text>
+                        <PieChart size={20} color="white" />
+                    </TouchableOpacity>
                 </View>
-
-                {/* Link to Full Transactions List */}
-                <TouchableOpacity 
-                    onPress={() => router.push('/(main)/finances/transactions')} 
-                    className="bg-white/5 p-4 rounded-xl border border-white/10 flex-row items-center justify-between"
-                >
-                    <Text className="text-white font-bold text-base">Go to Full Transactions List</Text>
-                    <List size={20} color="white" />
-                </TouchableOpacity>
             </ScrollView>
         </View>
     );

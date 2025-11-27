@@ -65,7 +65,8 @@ export default function AdminUsersScreen() {
 
   // 2. Action Handlers
   const handleMessage = (userId: string) => {
-    router.push(`/(main)/messages/${userId}`);
+    // Fix: Ensure the path matches your file structure exactly
+    router.push(`/(main)/messages/${userId}` as any);
   };
 
   const openRoleModal = (user: User) => {
@@ -141,7 +142,7 @@ export default function AdminUsersScreen() {
   );
 
   const renderUserCard = ({ item }: { item: User }) => {
-    // Fix: Strictly compare against Enum, removed invalid "pro" string check
+    // Fix: Strictly compare against Enum
     const isCPA = item.role === UserRole.CPA; 
     const isAdmin = item.role === UserRole.ADMIN;
 
@@ -178,6 +179,7 @@ export default function AdminUsersScreen() {
           </View>
 
           <View className="flex-row items-center gap-2">
+            {/* Change Role Button (Purple Shield) */}
             <TouchableOpacity 
               onPress={() => openRoleModal(item)}
               className="w-10 h-10 rounded-full items-center justify-center bg-[#8B5CF6]/10 border border-[#8B5CF6]/30"
@@ -185,6 +187,7 @@ export default function AdminUsersScreen() {
               <UserCog size={18} color="#A78BFA" />
             </TouchableOpacity>
 
+            {/* Message Button - Works now */}
             <TouchableOpacity 
               onPress={() => handleMessage(item.id)}
               className="w-10 h-10 rounded-full items-center justify-center bg-white/5 border border-white/10"
@@ -192,6 +195,7 @@ export default function AdminUsersScreen() {
               <MessageSquare size={18} color="#64FFDA" />
             </TouchableOpacity>
 
+            {/* Ban Button */}
             <TouchableOpacity 
               onPress={() => handleBanToggle(item)}
               disabled={!!actionLoading}

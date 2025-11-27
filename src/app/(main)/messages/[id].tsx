@@ -152,3 +152,76 @@ export const updateUserStatus = async (userId: string, status: 'active' | 'banne
 export const updateUserRole = async (userId: string, newRole: string) => await adminChangeUserRole(userId, newRole as any);
 
 export const removeUser = async (userId: string) => await adminDeleteUser(userId);
+
+export const getOrCreateConversation = async (userId1: string, userId2: string) => {
+  // Try to find an existing conversation between the two users
+  let { data: conversation, error } = await supabase
+    .from('conversations')
+    .select('*')
+    .or(`user1_id.eq.${userId1},user2_id.eq.${userId1}`)
+    .or(`user1_id.eq.${userId2},user2_id.eq.${userId2}`)
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+    console.error('Error fetching conversation:', error);
+    throw error;
+  }
+
+  if (conversation) {
+    return conversation.id;
+  }
+
+  // If no conversation exists, create a new one
+  const { data: newConversation, error: createError } = await supabase
+    .from('conversations')
+    .insert([{ user1_id: userId1, user2_id: userId2 }])
+    .select('id')
+    .single();
+
+  if (createError) {
+    console.error('Error creating conversation:', createError);
+    throw createError;
+  }
+
+  return newConversation.id;
+};
+
+export const getConversationDetails = async (conversationId: string, currentUserId: string) => {
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('*, user1:user1_id(id, first_name, last_name, avatar_url, role), user2:user2_id(id, first_name, last_name, avatar_url, role)')
+    .eq('id', conversationId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching conversation details:', error);
+    throw error;
+  }
+
+  const otherUser = data.user1.id === currentUserId ? data.user2 : data.user1;
+
+  return {
+    id: data.id,
+    otherUser: {
+      id: otherUser.id,
+      name: otherUser.first_name ? `${otherUser.first_name} ${otherUser.last_name}` : 'Unknown',
+      avatar: otherUser.avatar_url,
+      role: otherUser.role
+    }
+  };  
+};
+export const getConversationMessages = async (conversationId: string) => {    const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching conversation messages:', error);
+    return [];
+  }
+  return data;
+};
+
+  

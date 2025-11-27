@@ -1,139 +1,136 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Modal, Alert, ActivityIndicator, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, SafeAreaView } from 'react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { settingsService } from '../../../shared/services/settingsService';
-import { ChevronRight, User, Shield, Bell, DollarSign, Key, LogOut, X, Check } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { User, Globe, Moon, Bell, Shield, LogOut, ChevronRight, CreditCard, X, Check } from 'lucide-react-native';
+import { updateCurrency } from '../../../services/dataService'; // Uses your service
 
-const SettingItem = ({ icon: Icon, label, value, onPress, type = 'link', onToggle, avatar }: any) => (
-  <TouchableOpacity 
-    onPress={type === 'link' ? onPress : undefined}
-    activeOpacity={type === 'link' ? 0.7 : 1}
-    className="flex-row items-center justify-between p-4 border-b border-[#233554] bg-[#112240]"
-  >
-    <View className="flex-row items-center gap-3">
-      {/* Show Avatar if provided, otherwise show Icon */}
-      {avatar ? (
-        <View className="w-10 h-10 rounded-full border border-[#64FFDA] overflow-hidden">
-          <Image source={{ uri: avatar }} className="w-full h-full" />
-        </View>
-      ) : (
-        <View className="w-8 h-8 rounded-lg bg-[#0A192F] items-center justify-center">
-          <Icon size={18} color="#64FFDA" />
-        </View>
-      )}
-      <Text className="text-white font-medium text-base">{label}</Text>
-    </View>
-    
-    <View className="flex-row items-center gap-2">
-      {value && <Text className="text-[#8892B0] text-sm">{value}</Text>}
-      {type === 'link' && <ChevronRight size={20} color="#8892B0" />}
-      {type === 'toggle' && (
-        <Switch
-          trackColor={{ false: '#233554', true: '#64FFDA' }}
-          thumbColor={value ? '#0A192F' : '#8892B0'}
-          onValueChange={onToggle}
-          value={value}
-        />
-      )}
-    </View>
-  </TouchableOpacity>
-);
+const SECTIONS = [
+  { 
+    title: 'Account', 
+    items: [
+      { icon: User, label: 'Profile Information', link: '/(main)/settings/profile', color: '#64FFDA' },
+      { icon: Shield, label: 'Security & Keys', link: '/(main)/settings/security', color: '#F472B6' },
+    ]
+  },
+];
 
-export default function SettingsMenu() {
-  const { user, logout, refreshUser } = useAuth();
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'SEK', 'JPY'];
+
+export default function SettingsScreen() {
+  const { user, logout, refreshProfile } = useAuth();
   const router = useRouter();
-  const [notifications, setNotifications] = useState(true);
-  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [currencyModal, setCurrencyModal] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleCurrencyChange = async (currency: string) => {
+  const handleCurrencyChange = async (newCurrency: string) => {
     if (!user) return;
-    setLoading(true);
+    setSaving(true);
     try {
-      await settingsService.updatePreferences(user.id, { currency: currency as any });
-      await refreshUser();
-      Alert.alert('Success', `Currency updated to ${currency}`);
-      setShowCurrencyModal(false);
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
+      // 1. Save to Database
+      await updateCurrency(user.id, newCurrency);
+      // 2. Refresh App State (Crucial!)
+      await refreshProfile();
+      
+      setCurrencyModal(false);
+      Alert.alert("Success", `Currency changed to ${newCurrency}`);
+    } catch (error: any) {
+      Alert.alert("Error", "Failed to update currency.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0A192F]" edges={['top']}>
-      <View className="px-6 py-4 border-b border-[#233554]">
-        <Text className="text-2xl font-bold text-white">Settings</Text>
-      </View>
+    <SafeAreaView className="flex-1 bg-[#0A192F]">
+      <ScrollView className="p-6">
+        <Text className="text-white text-3xl font-bold mb-6">Settings</Text>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        
-        <Text className="px-6 mt-6 mb-2 text-[#64FFDA] text-xs font-bold uppercase tracking-wider">Account</Text>
-        <View className="mx-4 rounded-xl overflow-hidden">
-          {/* PROFILE ITEM NOW SHOWS AVATAR */}
-          <SettingItem 
-            icon={User} 
-            label={user?.name || "Profile"} 
-            value="Edit"
-            avatar={user?.avatar} 
-            onPress={() => router.push('/(main)/settings/profile')} 
-          />
-          <SettingItem icon={Shield} label="Security" value="Password & 2FA" onPress={() => router.push('/(main)/settings/security')} />
+        {/* Account Sections */}
+        {SECTIONS.map((section) => (
+          <View key={section.title} className="mb-8">
+            <Text className="text-[#8892B0] text-xs font-bold uppercase mb-3 ml-1">{section.title}</Text>
+            <View className="bg-[#112240] rounded-2xl overflow-hidden border border-white/5">
+              {section.items.map((item, index) => (
+                <TouchableOpacity 
+                  key={item.label}
+                  onPress={() => router.push(item.link as any)}
+                  className={`flex-row items-center p-4 ${index !== section.items.length - 1 ? 'border-b border-white/5' : ''}`}
+                >
+                  <View className={`w-8 h-8 rounded-lg items-center justify-center`} style={{ backgroundColor: `${item.color}20` }}>
+                    <item.icon size={18} color={item.color} />
+                  </View>
+                  <Text className="text-white flex-1 ml-3 font-medium">{item.label}</Text>
+                  <ChevronRight size={20} color="#8892B0" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        {/* Preferences Section (Manual for Currency Logic) */}
+        <View className="mb-8">
+          <Text className="text-[#8892B0] text-xs font-bold uppercase mb-3 ml-1">Preferences</Text>
+          <View className="bg-[#112240] rounded-2xl overflow-hidden border border-white/5">
+            
+            {/* Currency Picker */}
+            <TouchableOpacity 
+              onPress={() => setCurrencyModal(true)}
+              className="flex-row items-center p-4 border-b border-white/5"
+            >
+              <View className="w-8 h-8 rounded-lg bg-green-500/20 items-center justify-center">
+                <DollarSign size={18} color="#4ADE80" />
+              </View>
+              <View className="flex-1 ml-3">
+                <Text className="text-white font-medium">Currency</Text>
+                <Text className="text-[#8892B0] text-xs">{user?.currency || 'USD'}</Text>
+              </View>
+              <ChevronRight size={20} color="#8892B0" />
+            </TouchableOpacity>
+
+            {/* Theme (Visual only for now) */}
+            <TouchableOpacity className="flex-row items-center p-4">
+              <View className="w-8 h-8 rounded-lg bg-purple-500/20 items-center justify-center">
+                <Moon size={18} color="#A78BFA" />
+              </View>
+              <Text className="text-white flex-1 ml-3 font-medium">Dark Mode</Text>
+              <View className="w-10 h-6 bg-[#64FFDA] rounded-full justify-center items-end px-1">
+                <View className="w-4 h-4 bg-[#0A192F] rounded-full" />
+              </View>
+            </TouchableOpacity>
+
+          </View>
         </View>
 
-        <Text className="px-6 mt-6 mb-2 text-[#64FFDA] text-xs font-bold uppercase tracking-wider">Configuration</Text>
-        <View className="mx-4 rounded-xl overflow-hidden">
-          <SettingItem icon={Key} label="AI API Keys" value="Configure" onPress={() => router.push('/(main)/settings/ai-keys')} />
-          <SettingItem 
-            icon={DollarSign} 
-            label="Currency" 
-            value={user?.currency || 'USD'} 
-            onPress={() => setShowCurrencyModal(true)} 
-          />
-          <SettingItem icon={Bell} label="Notifications" type="toggle" value={notifications} onToggle={setNotifications} />
-        </View>
-
-        <TouchableOpacity onPress={logout} className="mx-4 mt-8 bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex-row items-center justify-center gap-2">
-          <LogOut size={20} color="#EF4444" />
-          <Text className="text-[#EF4444] font-bold text-lg">Sign Out</Text>
+        <TouchableOpacity onPress={logout} className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 flex-row items-center justify-center mt-4">
+          <LogOut size={20} color="#F87171" />
+          <Text className="text-[#F87171] font-bold ml-2">Log Out</Text>
         </TouchableOpacity>
-
       </ScrollView>
 
       {/* Currency Modal */}
-      <Modal visible={showCurrencyModal} transparent animationType="fade">
-        <View className="flex-1 bg-black/80 justify-center items-center px-6">
-            <View className="bg-[#112240] w-full max-w-sm rounded-2xl border border-[#233554] overflow-hidden">
-            <View className="p-4 border-b border-[#233554] flex-row justify-between items-center">
-              <Text className="text-white text-lg font-bold">Select Currency</Text>
-              <TouchableOpacity onPress={() => setShowCurrencyModal(false)} disabled={loading}>
-              <X size={20} color="#8892B0" />
-              </TouchableOpacity>
+      <Modal visible={currencyModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/80 justify-center items-center p-6">
+          <View className="bg-[#112240] w-full max-w-sm rounded-2xl border border-white/10 p-2">
+            <View className="p-4 border-b border-white/10 flex-row justify-between items-center">
+              <Text className="text-white font-bold text-lg">Select Currency</Text>
+              <TouchableOpacity onPress={() => setCurrencyModal(false)}><X size={24} color="#8892B0" /></TouchableOpacity>
             </View>
-            {['USD', 'EUR', 'GBP', 'SEK'].map((curr) => (
+            {CURRENCIES.map((curr) => (
               <TouchableOpacity 
-              key={curr}
-              onPress={() => handleCurrencyChange(curr)}
-              disabled={loading}
-              className="p-4 border-b border-[#233554] flex-row justify-between items-center active:bg-[#0A192F]"
+                key={curr}
+                onPress={() => handleCurrencyChange(curr)}
+                className={`p-4 flex-row justify-between items-center ${curr === user?.currency ? 'bg-white/5' : ''}`}
               >
-              <Text className="text-white font-medium">{curr}</Text>
-              {user?.currency === curr && <Check size={18} color="#64FFDA" />}
+                <Text className={`font-bold ${curr === user?.currency ? 'text-[#64FFDA]' : 'text-white'}`}>{curr}</Text>
+                {curr === user?.currency && <Check size={20} color="#64FFDA" />}
               </TouchableOpacity>
             ))}
-            {loading && (
-              <View className="absolute inset-0 bg-[#112240]/80 justify-center items-center">
-                <View/>
-              <ActivityIndicator size="large" color="#64FFDA" />
-              </View>
-            )}
-            </View>
+          </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
+
+import { DollarSign } from 'lucide-react-native'; // Added missing import
