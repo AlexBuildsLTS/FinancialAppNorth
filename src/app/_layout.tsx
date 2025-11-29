@@ -1,4 +1,5 @@
 import "../../global.css";
+import { LogBox, Platform } from 'react-native';
 import { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -7,19 +8,30 @@ import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { AuthProvider, useAuth } from "../shared/context/AuthContext";
 import { View, ActivityIndicator } from "react-native";
-import { Tabs } from 'expo-router';
-import { 
-  LayoutDashboard, 
-  List, 
-  ScanEye, 
-  Users, 
-  BarChart3, 
-  MessageSquareText,
-  Landmark,
-  Briefcase
-} from 'lucide-react-native';
 
 SplashScreen.preventAutoHideAsync();
+
+// AGGRESSIVE LOG SUPPRESSION
+LogBox.ignoreLogs([
+  'onStartShouldSetResponder',
+  'onResponderGrant',
+  'onResponderRelease',
+  'onResponderTerminate',
+  'onResponderMove',
+  'onResponderTerminationRequest',
+  'onPressOut'
+]);
+
+if (Platform.OS === 'web') {
+  const originalError = console.error;
+  console.error = (...args) => {
+    if (typeof args[0] === 'string' && 
+       (/onStartShouldSetResponder|onResponder|onPressOut/.test(args[0]))) {
+      return;
+    }
+    originalError(...args);
+  };
+}
 
 function RootLayoutNav() {
   const { session, isLoading } = useAuth();
@@ -37,11 +49,8 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === "(auth)";
 
     if (!session && !inAuthGroup) {
-      // If not logged in, go to Login
       router.replace("/login");
     } else if (session && inAuthGroup) {
-      // CRITICAL FIX: Redirect to ROOT ('/') instead of '/(main)'
-      // On web, the group folder is hidden.
       router.replace("/");
     }
   }, [session, isLoading, segments, isMounted]);
@@ -58,6 +67,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0A192F' } }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(main)" />
+      <Stack.Screen name="+not-found" />
     </Stack>
   );
 }

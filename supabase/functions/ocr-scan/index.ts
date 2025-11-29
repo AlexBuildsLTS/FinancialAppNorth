@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import { createClient } from "jsr:@supabase/supabase-js@2"
+import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,37 +7,43 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  // Handle CORS
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
 
   try {
+    // 1. Initialize Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const authHeader = req.headers.get('Authorization')!
+    const authHeader = req.headers.get('Authorization')
+
+    if (!authHeader) throw new Error('Missing Authorization header')
 
     const supabaseClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
       global: { headers: { Authorization: authHeader } }
     })
     
-    // Admin client to read secrets (bypassing RLS if needed, though user policy should allow it)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
+    // 2. Auth Check
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) throw new Error('Unauthorized')
 
+    // 3. Parse Request
     const { documentPath } = await req.json()
     if (!documentPath) throw new Error('No document path provided')
 
-    // 1. Get API Key (FIXED COLUMN NAME)
+    // 4. Get API Key
     let geminiKey = Deno.env.get('GEMINI_API_KEY')
     
-    // Try to get user's key if system key is missing
     if (!geminiKey) {
         const { data: userSecret } = await supabaseAdmin
         .from('user_secrets')
-        .select('api_key_encrypted') // FIX: Correct column name from schema
+        .select('api_key_encrypted')
         .eq('user_id', user.id)
         .eq('service', 'gemini')
-        .single()
+        .maybeSingle()
 
         if (userSecret?.api_key_encrypted) {
             geminiKey = userSecret.api_key_encrypted
@@ -46,32 +52,36 @@ Deno.serve(async (req) => {
 
     if (!geminiKey) throw new Error('No AI configuration found. Please add a Gemini API Key in Settings.')
 
-    // 2. Download File
+    // 5. Download File
     const { data: fileData, error: downloadError } = await supabaseAdmin
       .storage
       .from('documents')
       .download(documentPath)
 
-    if (downloadError) throw downloadError
+    if (downloadError) throw new Error(`Download failed: ${downloadError.message}`)
 
-    // 3. Process Image
+    // 6. Prepare Image
     const arrayBuffer = await fileData.arrayBuffer()
     const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    // Default to jpeg if mimeType is missing
     const mimeType = fileData.type || 'image/jpeg'
 
+    // 7. AI Processing
     const genAI = new GoogleGenerativeAI(geminiKey)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+    
+    // Use the stable model ID
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }) 
 
     const prompt = `
       Analyze this financial document (receipt or invoice). 
-      Extract the following fields strictly as JSON:
+      Extract fields strictly as JSON:
       - merchant_name (string)
       - date (YYYY-MM-DD)
       - total_amount (number)
-      - tax_amount (number)
-      - currency (ISO code, default to user's currency if unknown)
-      - category (Food, Transport, Utilities, Entertainment, Business, Shopping)
-      Return ONLY valid JSON, no markdown formatting.
+      - category (string: Food, Transport, Utilities, Business, Shopping, Other)
+
+      If a field is not found or unclear, set it to null.
+      Return ONLY valid JSON. Do not use markdown blocks.
     `
 
     const result = await model.generateContent([
@@ -81,10 +91,18 @@ Deno.serve(async (req) => {
 
     const response = await result.response
     const text = response.text()
+    console.log("OCR Raw Output:", text)
+
+    // 8. Robust JSON Parsing
+    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim()
     
-    // Clean Response (remove ```json fences)
-    const jsonString = text.replace(/```json|```/g, '').trim()
-    const extractedData = JSON.parse(jsonString)
+    let extractedData
+    try {
+        extractedData = JSON.parse(cleanJson)
+    } catch (e) {
+        console.error("JSON Parse Error:", e)
+        throw new Error("Failed to parse AI response.")
+    }
 
     return new Response(JSON.stringify({ success: true, data: extractedData }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -92,8 +110,10 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('OCR Error:', error)
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    console.error('OCR Error:', errorMessage)
+    
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     })

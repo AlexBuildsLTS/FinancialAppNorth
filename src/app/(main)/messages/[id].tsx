@@ -1,227 +1,166 @@
-import { supabase, adminChangeUserRole, adminDeactivateUser, adminDeleteUser } from '../../../lib/supabase';
-import { Transaction, DocumentItem, User } from '@./../src/types'
-import * as FileSystem from 'expo-file-system';
-import { decode } from 'base64-arraybuffer';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowLeft, Send, Lock } from 'lucide-react-native';
+import { useAuth } from '../../../shared/context/AuthContext';
+import { getOrCreateConversation, sendMessage, subscribeToChat, getConversationMessages, getUserDetails } from '../../../services/dataService';
+import { encryptMessage, decryptMessage } from '../../../lib/crypto';
 
-// --- TRANSACTIONS ---
-export const getTransactions = async (userId: string): Promise<Transaction[]> => {
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('user_id', userId)
-    .order('date', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching transactions:', error);
-    return [];
-  }
-  return data || [];
-};
 
-export const createTransaction = async (transaction: Partial<Transaction>, userId: string) => {
-  const { data, error } = await supabase
-    .from('transactions')
-    .insert([{ ...transaction, user_id: userId }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const deleteTransaction = async (id: string) => {
-  const { error } = await supabase.from('transactions').delete().eq('id', id);
-  if (error) throw error;
-};
-
-// --- DOCUMENTS ---
-export const getDocuments = async (userId: string): Promise<DocumentItem[]> => {
-  const { data, error } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching documents:', error);
-    return [];
-  }
-  return data || [];
-};
-
-export const uploadDocument = async (userId: string, uri: string, fileName: string, type: 'receipt' | 'invoice' | 'contract') => {
-  try {
-    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-    const filePath = `${userId}/${Date.now()}_${fileName}`;
-    
-    const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, decode(base64), { contentType: 'image/jpeg', upsert: true });
-
-    if (uploadError) throw uploadError;
-
-    const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(filePath);
-
-    const { data, error: dbError } = await supabase.from('documents').insert({
-        user_id: userId,
-        name: fileName,
-        type: type,
-        url: publicUrl,
-        size: '2MB',
-        date: new Date().toISOString()
-    }).select().single();
-
-    if (dbError) throw dbError;
-    return data;
-  } catch (e) {
-    console.error('Upload failed:', e);
-    throw e;
-  }
-};
-
-// --- MESSAGING (Real-Time) ---
-export const getConversations = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, avatar_url, role')
-    .neq('id', userId);
-
-  if (error) {
-    console.error('Error fetching contacts:', error);
-    return [];
-  }
-  return data.map((p: any) => ({
-    id: p.id,
-    name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown User',
-    avatar: p.avatar_url,
-    role: p.role,
-    lastMessage: 'Tap to start chatting',
-    time: ''
-  }));
-};
-
-export const getChatHistory = async (conversationId: string) => {
-    const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-    
-    if (error) return [];
-    return data;
-};
-
-export const sendMessage = async (conversationId: string, senderId: string, content: string) => {
-  const { error } = await supabase
-    .from('messages')
-    .insert({
-        conversation_id: conversationId,
-        sender_id: senderId,
-        content_encrypted: content,
-        is_system_message: false
-    });
-
-  if (error) throw error;
-};
-
-export const subscribeToChat = (conversationId: string, callback: (payload: any) => void) => {
-  return supabase
-    .channel(`chat:${conversationId}`)
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-      (payload) => callback(payload.new)
-    )
-    .subscribe();
-};
-
-// --- ADMIN HELPERS ---
-export const getUsers = async (): Promise<User[]> => {
-  const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data || []).map((p: any) => ({
-    id: p.id, email: p.email || 'No Email', name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown',
-    role: p.role, status: 'active', avatar: p.avatar_url, currency: p.currency, country: p.country
-  }));
-};
-
-export const updateUserStatus = async (userId: string, status: 'active' | 'banned') => {
-  if (status === 'banned') await adminDeactivateUser(userId);
-};
-
-export const updateUserRole = async (userId: string, newRole: string) => await adminChangeUserRole(userId, newRole as any);
-
-export const removeUser = async (userId: string) => await adminDeleteUser(userId);
-
-export const getOrCreateConversation = async (userId1: string, userId2: string) => {
-  // Try to find an existing conversation between the two users
-  let { data: conversation, error } = await supabase
-    .from('conversations')
-    .select('*')
-    .or(`user1_id.eq.${userId1},user2_id.eq.${userId1}`)
-    .or(`user1_id.eq.${userId2},user2_id.eq.${userId2}`)
-    .limit(1)
-    .single();
-
-  if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
-    console.error('Error fetching conversation:', error);
-    throw error;
-  }
-
-  if (conversation) {
-    return conversation.id;
-  }
-
-  // If no conversation exists, create a new one
-  const { data: newConversation, error: createError } = await supabase
-    .from('conversations')
-    .insert([{ user1_id: userId1, user2_id: userId2 }])
-    .select('id')
-    .single();
-
-  if (createError) {
-    console.error('Error creating conversation:', createError);
-    throw createError;
-  }
-
-  return newConversation.id;
-};
-
-export const getConversationDetails = async (conversationId: string, currentUserId: string) => {
-  const { data, error } = await supabase
-    .from('conversations')
-    .select('*, user1:user1_id(id, first_name, last_name, avatar_url, role), user2:user2_id(id, first_name, last_name, avatar_url, role)')
-    .eq('id', conversationId)
-    .single();
-
-  if (error) {
-    console.error('Error fetching conversation details:', error);
-    throw error;
-  }
-
-  const otherUser = data.user1.id === currentUserId ? data.user2 : data.user1;
-
-  return {
-    id: data.id,
-    otherUser: {
-      id: otherUser.id,
-      name: otherUser.first_name ? `${otherUser.first_name} ${otherUser.last_name}` : 'Unknown',
-      avatar: otherUser.avatar_url,
-      role: otherUser.role
-    }
-  };  
-};
-export const getConversationMessages = async (conversationId: string) => {    const { data, error } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching conversation messages:', error);
-    return [];
-  }
-  return data;
-};
-
+export default function ChatScreen() {
+  const { id } = useLocalSearchParams(); // Target User ID
+  const targetUserId = Array.isArray(id) ? id[0] : id;
+  const { user } = useAuth();
+  const router = useRouter();
   
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState('');
+  const [targetUser, setTargetUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (user && targetUserId) {
+        initChat();
+        fetchTargetUser();
+    }
+  }, [user, targetUserId]);
+
+  const fetchTargetUser = async () => {
+      const details = await getUserDetails(targetUserId);
+      setTargetUser(details);
+  };
+
+  const initChat = async () => {
+      try {
+          // 1. Find/Create Conversation
+          const convId = await getOrCreateConversation(user!.id, targetUserId);
+          setConversationId(convId);
+
+          // 2. Load History
+          const history = await getConversationMessages(convId);
+          setMessages(history);
+          setLoading(false);
+
+          // 3. Subscribe to Realtime
+          const subscription = subscribeToChat(convId, (newMsg) => {
+             // Add if not mine (mine adds optimistic)
+             if (newMsg.sender_id !== user!.id) {
+                 setMessages(prev => [...prev, newMsg]);
+             }
+          });
+
+          return () => { subscription.unsubscribe(); }
+
+      } catch (e) {
+          console.error("Chat Init Error", e);
+          setLoading(false);
+      }
+  };
+
+  const handleSend = async () => {
+      if (!input.trim() || !conversationId) return;
+
+      const textToSend = input.trim();
+      setInput(''); // Clear immediately
+
+      // Encrypt
+      const encryptedContent = encryptMessage(textToSend);
+
+      try {
+          // Optimistic Update
+          const tempId = Date.now().toString();
+          setMessages(prev => [...prev, {
+              id: tempId,
+              content_encrypted: encryptedContent,
+              sender_id: user!.id,
+              created_at: new Date().toISOString()
+          }]);
+
+          // Send to DB
+          await sendMessage(targetUserId, user!.id, encryptedContent);
+          
+      } catch (e) {
+          console.error("Send Failed", e);
+          // Could add retry logic here
+      }
+  };
+
+  if (loading) return <View className="flex-1 bg-[#0A192F] justify-center items-center"><ActivityIndicator color="#64FFDA"/></View>;
+
+  return (
+    <SafeAreaView className="flex-1 bg-[#0A192F]">
+      {/* Header */}
+      <View className="flex-row items-center p-4 border-b border-white/5 bg-[#112240]">
+        <TouchableOpacity onPress={() => router.back()} className="mr-3">
+            <ArrowLeft size={24} color="#8892B0" />
+        </TouchableOpacity>
+        
+        <View className="w-10 h-10 rounded-full bg-[#0A192F] overflow-hidden border border-white/10 mr-3">
+            {targetUser?.avatar_url ? (
+                <Image source={{ uri: targetUser.avatar_url }} className="w-full h-full" />
+            ) : (
+                <View className="w-full h-full items-center justify-center"><Text className="text-white font-bold">{targetUser?.first_name?.[0] || '?'}</Text></View>
+            )}
+        </View>
+        
+        <View>
+            <Text className="text-white font-bold text-lg">{targetUser?.first_name || 'User'} {targetUser?.last_name || ''}</Text>
+            <View className="flex-row items-center">
+                <Lock size={12} color="#64FFDA" />
+                <Text className="text-[#64FFDA] text-xs ml-1">End-to-End Encrypted</Text>
+            </View>
+        </View>
+      </View>
+
+      {/* Messages */}
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        keyExtractor={item => item.id}
+        contentContainerStyle={{ padding: 16 }}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+        renderItem={({ item }) => {
+            const isMe = item.sender_id === user!.id;
+            // Decrypt for display
+            const decrypted = decryptMessage(item.content_encrypted);
+            
+            return (
+                <View className={`mb-4 flex-row ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <View className={`max-w-[80%] p-3 rounded-2xl ${isMe ? 'bg-[#64FFDA] rounded-tr-sm' : 'bg-[#112240] border border-white/10 rounded-tl-sm'}`}>
+                        <Text className={`text-base ${isMe ? 'text-[#0A192F]' : 'text-white'}`}>{decrypted}</Text>
+                        <Text className={`text-[10px] mt-1 text-right ${isMe ? 'text-[#0A192F]/60' : 'text-gray-500'}`}>
+                            {new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </Text>
+                    </View>
+                </View>
+            );
+        }}
+      />
+
+      {/* Input Area */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View className="p-3 bg-[#112240] border-t border-white/5 flex-row items-center gap-2">
+            <TextInput
+                className="flex-1 bg-[#0A192F] text-white p-3 rounded-xl border border-white/10 max-h-24"
+                placeholder="Type a secure message..."
+                placeholderTextColor="#8892B0"
+                value={input}
+                onChangeText={setInput}
+                multiline
+            />
+            <TouchableOpacity 
+                onPress={handleSend} 
+                disabled={!input.trim()}
+                className={`p-3 rounded-full ${input.trim() ? 'bg-[#64FFDA]' : 'bg-white/10'}`}
+            >
+                <Send size={20} color={input.trim() ? '#0A192F' : '#8892B0'} />
+            </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}

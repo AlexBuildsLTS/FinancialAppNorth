@@ -418,63 +418,99 @@ export const exportDocumentsToCSV = async (userId: string) => {
 };
 
 // ==========================================
-// 7. MESSAGING (E2EE Ready)
+// 7. MESSAGING (Fixed: No Duplicates + E2EE Support)
 // ==========================================
 
-const getConversationId = async (currentUserId: string, targetUserId: string): Promise<string> => {
-  const { data: newConv, error } = await supabase
-    .from('conversations')
-    .insert({ type: 'direct' })
-    .select()
-    .single();
-    
-  if (error) throw error;
-  
-  await supabase.from('conversation_participants').insert([
+// 1. Get or Create a conversation (Prevents duplicates)
+export const getOrCreateConversation = async (currentUserId: string, targetUserId: string) => {
+  try {
+    // A. Check if conversation already exists
+    // We fetch all direct conversations and filter in JS because Supabase simple filtering is limited for many-to-many
+    const { data: conversations, error } = await supabase
+      .from('conversations')
+      .select('*, conversation_participants!inner(user_id)')
+      .eq('type', 'direct');
+
+    if (error) throw error;
+
+    // Find one where BOTH users are participants
+    const existing = conversations?.find((c: any) => {
+        const pIds = c.conversation_participants.map((p: any) => p.user_id);
+        return pIds.includes(currentUserId) && pIds.includes(targetUserId);
+    });
+
+    if (existing) return existing.id;
+
+    // B. If none, Create new one
+    const { data: newConv, error: createError } = await supabase
+      .from('conversations')
+      .insert({ type: 'direct', created_at: new Date().toISOString() })
+      .select()
+      .single();
+
+    if (createError) throw createError;
+
+    // C. Add Participants
+    await supabase.from('conversation_participants').insert([
       { conversation_id: newConv.id, user_id: currentUserId },
       { conversation_id: newConv.id, user_id: targetUserId }
-  ]);
-  
-  return newConv.id;
+    ]);
+
+    return newConv.id;
+  } catch (e) {
+    console.error("Conversation Init Error:", e);
+    throw e;
+  }
 };
 
+// 2. Get List of People to Chat With
 export const getConversations = async (userId: string) => {
+  // In a real app, you'd fetch distinct conversations. 
+  // For this MVP, we fetch all profiles (Contacts list style)
   const { data, error } = await supabase
     .from('profiles')
     .select('id, first_name, last_name, avatar_url, role')
     .neq('id', userId);
 
   if (error) return [];
+  
   return data.map((p: any) => ({
     id: p.id,
     name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown User',
     avatar: p.avatar_url,
     role: p.role,
-    lastMessage: 'Tap to chat',
+    lastMessage: 'Tap to start chatting', 
     time: ''
   }));
 };
 
-export const getChatHistory = async (conversationId: string) => {
-    const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-    
-    if (error) return [];
-    return data;
+// 3. Get Messages for a specific chat
+export const getConversationMessages = async (conversationId: string) => {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error("Fetch Messages Error:", error);
+    return [];
+  }
+  return data;
 };
 
+// 4. Send a Message
 export const sendMessage = async (targetUserId: string, currentUserId: string, content: string) => {
   try {
-      const conversationId = await getConversationId(currentUserId, targetUserId);
+      // Ensure conversation exists first
+      const conversationId = await getOrCreateConversation(currentUserId, targetUserId);
+      
       const { error } = await supabase
         .from('messages')
         .insert({
             conversation_id: conversationId,
             sender_id: currentUserId,
-            content_encrypted: content,
+            content_encrypted: content, // Pass the ALREADY ENCRYPTED string here
             is_system_message: false
         });
 
@@ -485,6 +521,7 @@ export const sendMessage = async (targetUserId: string, currentUserId: string, c
   }
 };
 
+// 5. Subscribe to Realtime Updates
 export const subscribeToChat = (conversationId: string, callback: (payload: any) => void) => {
   return supabase
     .channel(`chat:${conversationId}`)
@@ -494,6 +531,12 @@ export const subscribeToChat = (conversationId: string, callback: (payload: any)
       (payload) => callback(payload.new)
     )
     .subscribe();
+};
+
+// 6. Get User Details (For Header)
+export const getUserDetails = async (userId: string) => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    return data;
 };
 
 // ==========================================
@@ -574,7 +617,38 @@ export const getTickets = async (userId: string) => {
   if (error) return [];
   return data;
 };
+// SUPPORT EXPANSION
+export const updateTicketStatus = async (ticketId: string, status: 'open' | 'closed' | 'pending') => {
+  const { error } = await supabase
+    .from('tickets')
+    .update({ status })
+    .eq('id', ticketId);
+  if (error) throw error;
+};
 
+export const addInternalNote = async (ticketId: string, userId: string, note: string) => {
+  const { error } = await supabase
+    .from('ticket_messages')
+    .insert({
+        ticket_id: ticketId,
+        user_id: userId,
+        message: note,
+        is_internal: true // Special flag for admin eyes only
+    });
+  if (error) throw error;
+};
+
+export const getTicketDetails = async (ticketId: string) => {
+  // Fetch ticket + messages (including internal ones)
+  const { data: ticket, error } = await supabase
+    .from('tickets')
+    .select('*, user:profiles(*), messages:ticket_messages(*)')
+    .eq('id', ticketId)
+    .single();
+    
+  if (error) throw error;
+  return ticket;
+};
 // --- ALIASES ---
 export const getAllUsers = getUsers;
 export const deleteUser = removeUser;

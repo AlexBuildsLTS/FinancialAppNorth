@@ -1,12 +1,12 @@
 import { supabase } from '../lib/supabase';
 import { ChatbotMessage } from '../types';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // ==========================================
 // 1. API KEY MANAGEMENT
 // ==========================================
 
 export const saveGeminiKey = async (userId: string, apiKey: string) => {
-  // Check first to avoid constraint errors
   const { data: existing } = await supabase
     .from('user_secrets')
     .select('id')
@@ -35,37 +35,43 @@ export const getGeminiKey = async (userId: string): Promise<string | null> => {
 };
 
 // ==========================================
-// 2. CORE GEMINI INTERACTION (Robust 'fetch' version)
+// 2. CORE GEMINI INTERACTION (SDK BASED)
 // ==========================================
 
 const callGeminiDirectly = async (prompt: string, apiKey: string) => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }]
-    })
-  });
+  try {
+    // Initialize SDK
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // Use the standard 'gemini-1.5-flash'. 
+    // The SDK automatically handles the v1beta/v1 endpoints.
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error?.message || `AI Error: ${response.status}`);
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    return text;
+  } catch (error: any) {
+    console.error("Gemini SDK Error:", error);
+    // Fallback: If Flash fails, try Pro (older key compatibility)
+    if (error.message?.includes('404') || error.message?.includes('not found')) {
+      console.warn("Retrying with gemini-pro...");
+      try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const fallbackModel = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const result = await fallbackModel.generateContent(prompt);
+        return result.response.text();
+      } catch (retryError) {
+         throw new Error("AI Service Unavailable. Please check your API Key.");
+      }
+    }
+    throw error;
   }
-
-  // Extract text from Gemini response structure
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("AI returned no content.");
-  
-  return text;
 };
 
 // ==========================================
-// 3. CHAT HISTORY (Database)
+// 3. CHAT HISTORY
 // ==========================================
 
 export const getChatbotMessages = async (userId: string): Promise<ChatbotMessage[]> => {
@@ -89,10 +95,7 @@ export const addChatbotMessage = async (userId: string, sender: 'user' | 'ai', t
     .select()
     .single();
 
-  if (error) {
-    console.error('Error adding chatbot message:', error);
-    throw error; 
-  }
+  if (error) throw error; 
   return data;
 };
 
@@ -106,28 +109,29 @@ export const clearChatbotMessages = async (userId: string) => {
 };
 
 // ==========================================
-// 4. UNIFIED CHAT FUNCTION (UI calls this)
+// 4. UNIFIED CHAT FUNCTION
 // ==========================================
 
 export const sendUserMessageToAI = async (userId: string, text: string): Promise<string> => {
   try {
-    // 1. Get API Key
     const apiKey = await getGeminiKey(userId);
     if (!apiKey) throw new Error("No Gemini API Key found. Please add it in Settings > AI Keys.");
 
-    // 2. Save User Message
+    // 1. Save User Message
     await addChatbotMessage(userId, 'user', text);
 
-    // 3. Call AI (Direct Fetch)
+    // 2. Call AI
     const aiResponseText = await callGeminiDirectly(text, apiKey);
 
-    // 4. Save AI Message
+    // 3. Save AI Response
     await addChatbotMessage(userId, 'ai', aiResponseText);
 
     return aiResponseText;
   } catch (error: any) {
     console.error("AI Conversation Failed:", error);
-    throw new Error(error.message || "AI failed to respond.");
+    // Add a system error message to the chat so the user sees it
+    await addChatbotMessage(userId, 'ai', "Error: " + (error.message || "Could not connect to AI."));
+    throw error;
   }
 };
 

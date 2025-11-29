@@ -7,6 +7,7 @@ import { getTransactions, getFinancialSummary, getBudgets } from '../../services
 import { Transaction } from '@/types';
 import { BarChart, LineChart } from "react-native-gifted-charts";
 
+
 const getSymbol = (currencyCode?: string) => {
     switch(currencyCode) {
         case 'EUR': return '€';
@@ -42,14 +43,9 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [budgets, setBudgets] = useState<any[]>([]); // Store budgets for the chart
-  const [metrics, setMetrics] = useState({ 
-      balance: 0, 
-      income: 0, 
-      expense: 0, 
-      trend: [{value: 0}], 
-      activeBudgets: 0 
-  });
+  const [metrics, setMetrics] = useState({ balance: 0, income: 0, expense: 0, trend: [{value: 0}], activeBudgets: 0 });
+  const [barChartData, setBarChartData] = useState<any[]>([]);
+  const [barTitle, setBarTitle] = useState("Cash Flow");
 
   const fetchData = async (showLoader = false) => {
     if (!user?.id) return;
@@ -59,18 +55,37 @@ export default function Dashboard() {
       setTransactions(txs);
       
       const summary = await getFinancialSummary(user.id);
-      const budgetList = await getBudgets(user.id); // Fetch real budgets
-      setBudgets(budgetList);
-
+      const budgets = await getBudgets(user.id);
+      
       setMetrics({
           ...summary,
-          // Ensure trend has valid data points
-          trend: (summary.trend && summary.trend.length > 0) ? summary.trend : [{value: 0}],
-          activeBudgets: budgetList.length
+          trend: (summary.trend && summary.trend.length > 1) ? summary.trend : [{value: 0}, {value: 0}],
+          activeBudgets: budgets.length
       });
 
+      // CHART LOGIC:
+      if (budgets.length > 0) {
+          setBarTitle("Budget Status");
+          setBarChartData(budgets.slice(0, 3).map(b => ({
+              value: b.spent,
+              label: b.category_name.substring(0, 3),
+              frontColor: b.spent > b.amount ? '#F87171' : '#64FFDA',
+              topLabelComponent: () => (
+                  <Text style={{color: '#8892B0', fontSize: 10, marginBottom: 2}}>
+                     {b.amount > 0 ? Math.round((b.spent / b.amount) * 100) : 0}%
+                  </Text>
+              )
+          })));
+      } else {
+          setBarTitle("Cash Flow");
+          setBarChartData([
+            {value: summary.income, label: 'In', frontColor: '#34D399'},
+            {value: summary.expense, label: 'Out', frontColor: '#F472B6'},
+          ]);
+      }
+
     } catch (error) {
-      console.error("Failed to fetch dashboard data", error);
+      console.error("Dashboard Fetch Error:", error);
     } finally {
       setLoading(false);
     }
@@ -78,39 +93,7 @@ export default function Dashboard() {
 
   useEffect(() => { fetchData(true); }, [user]);
 
-  useFocusEffect(
-    useCallback(() => { fetchData(false); }, [user])
-  );
-
-  // --- DYNAMIC CHART LOGIC ---
-  
-  // 1. Bar Chart: Show Budget Utilization if budgets exist
-  let barData = [];
-  let barTitle = "Cash Flow";
-
-  if (budgets.length > 0) {
-      barTitle = "Budget Status";
-      // Take top 3 budgets to show on dashboard
-      barData = budgets.slice(0, 3).map(b => ({
-          value: b.spent,
-          label: b.category_name.substring(0, 3), // Short label (e.g. "Foo")
-          frontColor: b.spent > b.amount ? '#F87171' : '#64FFDA', // Red if over budget
-          topLabelComponent: () => (
-              <Text style={{color: '#8892B0', fontSize: 10, marginBottom: 2}}>
-                 {Math.round((b.spent / b.amount) * 100)}%
-              </Text>
-          )
-      }));
-  } else {
-      // Fallback: Standard Income vs Expense
-      barData = [
-        {value: metrics.income, label: 'In', frontColor: '#34D399'},
-        {value: metrics.expense, label: 'Out', frontColor: '#F472B6'},
-      ];
-  }
-  
-  // 2. Line Chart: Ensure it's not flat if there is data
-  const lineData = metrics.trend.length > 1 ? metrics.trend : [{value: 0}, {value: 0}];
+  useFocusEffect(useCallback(() => { fetchData(false); }, [user]));
 
   if (!user) return null;
 
@@ -133,39 +116,17 @@ export default function Dashboard() {
         </TouchableOpacity>
       </View>
 
+      {/* Metrics */}
       <View className={`flex-row flex-wrap ${isDesktop ? 'justify-between' : ''}`}>
-        <StatCard 
-            title="Net Balance" 
-            value={`${symbol}${metrics.balance.toFixed(2)}`} 
-            icon={DollarSign} 
-            color="#34D399" 
-            link="/(main)/finances/transactions" 
-            router={router} 
-            style={isDesktop ? "flex-1 mr-4" : "w-full"} 
-        />
-        <StatCard 
-            title="Month Expenses" 
-            value={`${symbol}${metrics.expense.toFixed(2)}`} 
-            icon={TrendingDown} 
-            color="#F472B6" 
-            link="/(main)/finances/budgets" 
-            router={router} 
-            style={isDesktop ? "flex-1 mr-4" : "w-full"} 
-        />
-        <StatCard 
-            title="Active Budgets" 
-            value={metrics.activeBudgets.toString()} 
-            icon={BarChart3} 
-            color="#60A5FA" 
-            link="/(main)/finances/budgets" 
-            router={router} 
-            style={isDesktop ? "flex-1" : "w-full"} 
-        />
+        <StatCard title="Net Balance" value={`${symbol}${metrics.balance.toFixed(2)}`} icon={DollarSign} color="#34D399" link="/(main)/finances/transactions" router={router} style={isDesktop ? "flex-1 mr-4" : "w-full"} />
+        <StatCard title="Month Expenses" value={`${symbol}${metrics.expense.toFixed(2)}`} icon={TrendingDown} color="#F472B6" link="/(main)/finances/budgets" router={router} style={isDesktop ? "flex-1 mr-4" : "w-full"} />
+        <StatCard title="Active Budgets" value={metrics.activeBudgets.toString()} icon={BarChart3} color="#60A5FA" link="/(main)/finances/budgets" router={router} style={isDesktop ? "flex-1" : "w-full"} />
       </View> 
 
+      {/* Charts */}
       <View className={`mt-4 ${isDesktop ? 'flex-row gap-6' : 'flex-col gap-6'}`}>
         
-        {/* Dynamic Bar Chart (Budgets or Cash Flow) */}
+        {/* Bar Chart */}
         <View className={`bg-[#112240] p-5 rounded-2xl border border-white/5 ${isDesktop ? 'flex-1' : 'w-full'}`}>
           <View className="flex-row items-center gap-2 mb-6">
             <Activity size={20} color="#64FFDA" />
@@ -173,7 +134,7 @@ export default function Dashboard() {
           </View>
           <View className="items-center justify-center overflow-hidden">
              <BarChart 
-                data={barData} 
+                data={barChartData} 
                 barWidth={30} 
                 noOfSections={3} 
                 barBorderRadius={4} 
@@ -191,7 +152,7 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* Spending Trend (Line Chart) */}
+        {/* Trend Chart */}
         <View className={`bg-[#112240] p-5 rounded-2xl border border-white/5 ${isDesktop ? 'flex-1' : 'w-full'}`}>
           <View className="flex-row items-center gap-2 mb-6">
             <TrendingUp size={20} color="#F472B6" />
@@ -199,7 +160,7 @@ export default function Dashboard() {
           </View>
           <View className="items-center justify-center overflow-hidden">
             <LineChart 
-                data={lineData} 
+                data={metrics.trend} 
                 color="#F472B6" 
                 thickness={3} 
                 dataPointsColor="#F472B6" 
@@ -222,7 +183,7 @@ export default function Dashboard() {
         </View>
       </View>
 
-      {/* Activity List */}
+      {/* Transactions List */}
       <View className="bg-[#112240] rounded-2xl border border-white/5 p-6 mt-6">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-white text-lg font-bold">Recent Activity</Text>
@@ -230,10 +191,11 @@ export default function Dashboard() {
             <Text className="text-[#64FFDA] text-sm font-bold">View All</Text>
           </TouchableOpacity>
         </View>
+
         {loading ? (
           <ActivityIndicator color="#64FFDA" />
         ) : transactions.length === 0 ? (
-          <Text className="text-[#8892B0] py-4">No transactions yet. Tap the + button!</Text>
+          <Text className="text-[#8892B0] py-4">No transactions yet.</Text>
         ) : (
           <View className="gap-4">
             {transactions.slice(0, 5).map((tx) => (

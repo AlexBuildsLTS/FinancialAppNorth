@@ -1,9 +1,11 @@
+import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, useWindowDimensions, Image, Platform } from 'react-native';
 import { Tabs, Redirect, useRouter, usePathname, Slot } from 'expo-router';
 import { useAuth } from '../../shared/context/AuthContext';
 import { ROLE_NAV_ITEMS } from '../../constants';
 import { UserRole } from '../../types';
-import { MainHeader } from '../../shared/components/MainHeader'; // KEEP THIS IMPORTED
+import { MainHeader } from '../../shared/components/MainHeader'; 
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   LayoutDashboard, 
   CreditCard, 
@@ -14,14 +16,12 @@ import {
   MessageSquare, 
   Settings,
   LogOut,
-  ScanLine,
-  Bot
+  Bot,
+  ScanLine
 } from 'lucide-react-native';
-import React from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-// --- Configuration ---
-// This map uses the final names/paths agreed upon
+// --- 1. NAVIGATION CONFIGURATION ---
+// Maps "Friendly Names" to "File Routes"
 const NAV_CONFIG: Record<string, { name: string, icon: any, path: string, label: string }> = {
   'Dashboard':    { name: 'index',          icon: LayoutDashboard, path: '/(main)/',             label: 'Home' },
   'Transactions': { name: 'finances',       icon: CreditCard,      path: '/(main)/finances',     label: 'Finances' },
@@ -31,11 +31,10 @@ const NAV_CONFIG: Record<string, { name: string, icon: any, path: string, label:
   'Admin':        { name: 'admin',          icon: ShieldAlert,     path: '/(main)/admin',        label: 'Admin' },
   'AI Chat':      { name: 'aiChat',         icon: Bot,             path: '/(main)/aiChat',       label: 'AI Chat' },
   'Settings':     { name: 'settings',       icon: Settings,        path: '/(main)/settings',     label: 'Settings' },
-  'Scan':         { name: 'scan',           icon: ScanLine,        path: '/(main)/scan',         label: 'Scan' },
   'Messages':     { name: 'messages/index', icon: MessageSquare,   path: '/(main)/messages',     label: 'Messages' },
 };
 
-// --- Desktop Sidebar Components ---
+// --- 2. DESKTOP SIDEBAR COMPONENT ---
 const RoleBadge = ({ role }: { role: UserRole }) => {
   let bg = 'bg-[#112240]';
   let text = 'text-[#8892B0]';
@@ -58,6 +57,7 @@ const RoleBadge = ({ role }: { role: UserRole }) => {
 const SidebarContent = ({ user, logout }: any) => {
   const router = useRouter();
   const pathname = usePathname();
+  
   const allowedItems = ROLE_NAV_ITEMS[user.role as UserRole] || ROLE_NAV_ITEMS['member'];
   const navItems = allowedItems.map((key: string) => NAV_CONFIG[key]).filter(Boolean);
 
@@ -91,7 +91,6 @@ const SidebarContent = ({ user, logout }: any) => {
       </ScrollView>
 
       <View className="p-4 border-t border-[#233554]">
-        {/* User Info & Avatar */}
         <View className="flex-row items-center gap-3 mb-4 px-2">
           <TouchableOpacity 
             onPress={() => router.push('/(main)/settings/profile')}
@@ -109,8 +108,7 @@ const SidebarContent = ({ user, logout }: any) => {
           </View>
         </View>
         
-        {/* Logout Button */}
-        <TouchableOpacity onPress={logout} className="flex-row items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 justify-center">
+        <TouchableOpacity onPress={logout} className="flex-row items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 justify-center">
           <LogOut size={18} color="#F87171" />
           <Text className="text-[#F87171] font-medium">Sign Out</Text>
         </TouchableOpacity>
@@ -119,7 +117,7 @@ const SidebarContent = ({ user, logout }: any) => {
   );
 };
 
-// --- Main Layout ---
+// --- 3. MAIN LAYOUT (RESPONSIVE SWITCHER) ---
 export default function MainLayout() {
   const { user, isLoading, logout } = useAuth();
   const { width } = useWindowDimensions();
@@ -130,35 +128,20 @@ export default function MainLayout() {
 
   const allowedItems = ROLE_NAV_ITEMS[user.role as UserRole] || ROLE_NAV_ITEMS['member'];
   const navItems = allowedItems.map((key: string) => NAV_CONFIG[key]).filter(Boolean);
-  
-  // Create a clean list of allowed names for lookup
-  const visibleTabNames = new Set(navItems.map(item => item.name));
 
   if (isMobile) {
-    // FIX: Filter out Messages from the mobile bottom bar AND all sub-screens
+    // Mobile Navigation: Bottom Tabs
+    // Remove 'Messages' from bottom bar (it lives in Header)
     const mobileNavItems = navItems.filter(config => 
         config.name !== 'messages/index' && 
-        !config.name.includes('/') // Keep only single-level routes (e.g., index, documents, scan)
+        !config.name.includes('/') // Keep only single-level routes
     ); 
-
-    // Find all unique screen names that exist in the file system for registration
-    // This is the absolute minimum list to register to avoid conflicts.
-    const uniqueScreensToRegister = new Set([
-        ...Object.values(NAV_CONFIG).map(c => c.name),
-        'messages/[id]', 
-        'finances/transactions', 'finances/budgets', 'finances/reports',
-        'admin/users', 'admin/index', 'settings/profile'
-    ]);
-    
-    // We convert the Set to an Array for iteration
-    const allRoutes = Array.from(uniqueScreensToRegister);
-
 
     return (
       <View style={{ flex: 1, backgroundColor: '#0A192F' }}>
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-          {/* FIX 1: Header restored */}
           <MainHeader />
+          
           <Tabs
             screenOptions={{
               headerShown: false,
@@ -175,47 +158,121 @@ export default function MainLayout() {
               tabBarInactiveTintColor: '#8892B0',
             }}
           >
-            {/* Loop 1: Register ALL possible files exactly once */}
-            {allRoutes.map((screenName) => {
-                const config = NAV_CONFIG[Object.keys(NAV_CONFIG).find(key => NAV_CONFIG[key].name === screenName) as any] || { name: screenName };
-                
-                // Determine if this screen should have a visible ICON in the bottom bar
-                const isVisibleTab = mobileNavItems.some(item => item.name === screenName);
-                
-                const options = isVisibleTab 
-                    ? { 
-                        href: config.path,
-                        tabBarIcon: ({ color }: { color: string }) => (
-                           <View className="items-center justify-center gap-1 w-16">
-                             <config.icon size={24} color={color} />
-                             <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
-                           </View>
-                        ),
-                        headerShown: false
-                    }
-                    : { 
-                        // HIDE IT: Ensure it is registered but not visible in the tab bar
-                        href: null,
-                        headerShown: false
-                    };
+            {/* 1. Dashboard */}
+            <Tabs.Screen name="index" options={{
+                href: '/(main)/',
+                tabBarIcon: ({ color }: { color: string }) => (
+                    <View className="items-center justify-center gap-1 w-16">
+                        <LayoutDashboard size={24} color={color} />
+                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                    </View>
+                )
+            }} />
 
-                return <Tabs.Screen key={screenName} name={screenName} options={options} />;
-            })}
+            {/* 2. Finances Folder */}
+            <Tabs.Screen name="finances" options={{
+                href: '/(main)/finances',
+                tabBarIcon: ({ color }: { color: string }) => (
+                    <View className="items-center justify-center gap-1 w-16">
+                        <CreditCard size={24} color={color} />
+                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                    </View>
+                )
+            }} />
+
+            {/* 3. Documents */}
+            <Tabs.Screen name="documents" options={{
+                href: '/(main)/documents',
+                tabBarIcon: ({ color }: { color: string }) => (
+                    <View className="items-center justify-center gap-1 w-16">
+                        <FileText size={24} color={color} />
+                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                    </View>
+                )
+            }} />
+
+            {/* 4. AI Chat */}
+            <Tabs.Screen name="aiChat" options={{
+                href: '/(main)/aiChat',
+                tabBarIcon: ({ color }: { color: string }) => (
+                    <View className="items-center justify-center gap-1 w-16">
+                        <Bot size={24} color={color} />
+                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                    </View>
+                )
+            }} />
+
+            {/* 5. Support (NEW VISIBLE TAB) */}
+            <Tabs.Screen name="support" options={{
+                href: '/(main)/support',
+                tabBarIcon: ({ color }: { color: string }) => (
+                    <View className="items-center justify-center gap-1 w-16">
+                        <LifeBuoy size={24} color={color} />
+                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                    </View>
+                )
+            }} />
+
+            {/* 6. Settings Folder */}
+            <Tabs.Screen name="settings" options={{
+                href: '/(main)/settings',
+                tabBarIcon: ({ color }: { color: string }) => (
+                    <View className="items-center justify-center gap-1 w-16">
+                        <Settings size={24} color={color} />
+                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                    </View>
+                )
+            }} />
+
+            {/* --- ADMIN / CPA TABS (Conditional) --- */}
+            {/* Only show Admin tab if user is Admin */}
+            <Tabs.Screen name="admin" options={{
+                href: user.role === UserRole.ADMIN ? '/(main)/admin' : null,
+                tabBarIcon: ({ color }: { color: string }) => (
+                    <View className="items-center justify-center gap-1 w-16">
+                        <ShieldAlert size={24} color={color} />
+                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                    </View>
+                )
+            }} />
             
+            {/* Only show CPA tab if user is CPA */}
+            <Tabs.Screen name="cpa" options={{
+                href: user.role === UserRole.CPA ? '/(main)/cpa' : null,
+                tabBarIcon: ({ color }: { color: string }) => (
+                    <View className="items-center justify-center gap-1 w-16">
+                        <Users size={24} color={color} />
+                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                    </View>
+                )
+            }} />
+
+            {/* --- HIDDEN SCREENS (Registered but No Icon) --- */}
+            {/* Messages Folder (Index + Dynamic ID) */}
+            <Tabs.Screen name="messages/index" options={{ href: null }} />
+            <Tabs.Screen name="messages/[id]" options={{ href: null }} />
+            
+            {/* Other Hidden Screens */}
+            <Tabs.Screen name="scan" options={{ href: null }} />
+
           </Tabs>
         </SafeAreaView>
       </View>
     );
   }
 
-  // Desktop Layout
+  // --- DESKTOP LAYOUT ---
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
       <View className="flex-1 flex-row">
+        {/* Left Sidebar */}
         <View className="w-64 bg-[#0A192F] border-r border-[#233554] h-full">
           <SidebarContent user={user} logout={logout} />
         </View>
+        
+        {/* Main Content */}
         <View className="flex-1 bg-[#0A192F]">
+          {/* Use Slot to render the child route */}
           <Slot />
         </View>
       </View>
