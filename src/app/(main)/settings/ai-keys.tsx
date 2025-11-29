@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, SafeAreaView, Alert, ActivityI
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Save, Key } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-// FIX: Import from aiService, NOT settingsService
+// Import from aiService (Single Source of Truth)
 import { saveGeminiKey, getGeminiKey } from '../../../services/aiService'; 
 
 export default function AiKeysScreen() {
@@ -14,12 +14,29 @@ export default function AiKeysScreen() {
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      getGeminiKey(user.id).then((key) => {
-        if (key) setApiKey(key);
-        setFetching(false);
-      });
-    }
+    let isMounted = true;
+    
+    const loadKey = async () => {
+        if (!user) return;
+        try {
+            // Timeout protection: Stop waiting after 3 seconds
+            const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
+            const fetch = getGeminiKey(user.id);
+            
+            const key = await Promise.race([fetch, timeout]);
+
+            if (typeof key === 'string' && isMounted) {
+                setApiKey(key);
+            }
+        } catch (e) {
+            console.log("Key fetch skipped.");
+        } finally {
+            if (isMounted) setFetching(false);
+        }
+    };
+
+    loadKey();
+    return () => { isMounted = false; };
   }, [user]);
 
   const handleSave = async () => {
@@ -35,7 +52,7 @@ export default function AiKeysScreen() {
       Alert.alert("Success", "Gemini API Key saved securely.");
       router.back();
     } catch (error: any) {
-      Alert.alert("Error", error.message);
+      Alert.alert("Error", error.message || "Failed to save key.");
     } finally {
       setLoading(false);
     }
@@ -57,12 +74,14 @@ export default function AiKeysScreen() {
             <Text className="text-white text-lg font-bold">Gemini API Key</Text>
           </View>
           <Text className="text-[#8892B0] mb-4 leading-5">
-            Enter your Google Gemini API key to enable AI chat and financial analysis features. 
-            Your key is stored securely.
+            Enter your Google Gemini API key to enable AI chat and financial analysis.
           </Text>
 
           {fetching ? (
-             <ActivityIndicator color="#64FFDA" />
+             <View className="py-4 items-center">
+                 <ActivityIndicator color="#64FFDA" />
+                 <Text className="text-[#8892B0] text-xs mt-2">Checking secure storage...</Text>
+             </View>
           ) : (
             <TextInput
               className="bg-[#0A192F] text-white p-4 rounded-xl border border-white/10 mb-4 font-mono"

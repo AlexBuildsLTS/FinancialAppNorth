@@ -7,7 +7,6 @@ import { getTransactions, getFinancialSummary, getBudgets } from '../../services
 import { Transaction } from '@/types';
 import { BarChart, LineChart } from "react-native-gifted-charts";
 
-// Currency Helper
 const getSymbol = (currencyCode?: string) => {
     switch(currencyCode) {
         case 'EUR': return '€';
@@ -18,7 +17,6 @@ const getSymbol = (currencyCode?: string) => {
     }
 };
 
-// Reusable Card Component
 const StatCard = ({ title, value, icon: Icon, color, link, router, style }: any) => (
   <TouchableOpacity 
     onPress={() => link && router.push(link)}
@@ -44,13 +42,12 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  
-  // Initialize with safe defaults so it never crashes on "undefined"
+  const [budgets, setBudgets] = useState<any[]>([]); // Store budgets for the chart
   const [metrics, setMetrics] = useState({ 
       balance: 0, 
       income: 0, 
       expense: 0, 
-      trend: [{value: 0}, {value: 0}], // Default flat line
+      trend: [{value: 0}], 
       activeBudgets: 0 
   });
 
@@ -58,24 +55,18 @@ export default function Dashboard() {
     if (!user?.id) return;
     if (showLoader) setLoading(true);
     try {
-      // 1. Fetch Transactions
       const txs = await getTransactions(user.id);
       setTransactions(txs);
       
-      // 2. Fetch Financial Summary (Math)
       const summary = await getFinancialSummary(user.id);
-      
-      // 3. Fetch Budget Count
-      const budgets = await getBudgets(user.id);
-      
-      // 4. Update State safely
+      const budgetList = await getBudgets(user.id); // Fetch real budgets
+      setBudgets(budgetList);
+
       setMetrics({
-          balance: summary.balance,
-          income: summary.income,
-          expense: summary.expense,
-          // If trend is empty (new user), give it a flat line so chart renders
-          trend: (summary.trend && summary.trend.length > 1) ? summary.trend : [{value: 0}, {value: 0}],
-          activeBudgets: budgets.length
+          ...summary,
+          // Ensure trend has valid data points
+          trend: (summary.trend && summary.trend.length > 0) ? summary.trend : [{value: 0}],
+          activeBudgets: budgetList.length
       });
 
     } catch (error) {
@@ -85,24 +76,42 @@ export default function Dashboard() {
     }
   };
 
-  // Initial Load
-  useEffect(() => {
-    fetchData(true);
-  }, [user]);
+  useEffect(() => { fetchData(true); }, [user]);
 
-  // Update when coming back to screen
   useFocusEffect(
-    useCallback(() => {
-      fetchData(false); 
-    }, [user])
+    useCallback(() => { fetchData(false); }, [user])
   );
 
-  // Prepare Bar Data
-  const barData = [
-    {value: metrics.income, label: 'In', frontColor: '#34D399'},
-    {value: metrics.expense, label: 'Out', frontColor: '#F472B6'},
-  ];
+  // --- DYNAMIC CHART LOGIC ---
   
+  // 1. Bar Chart: Show Budget Utilization if budgets exist
+  let barData = [];
+  let barTitle = "Cash Flow";
+
+  if (budgets.length > 0) {
+      barTitle = "Budget Status";
+      // Take top 3 budgets to show on dashboard
+      barData = budgets.slice(0, 3).map(b => ({
+          value: b.spent,
+          label: b.category_name.substring(0, 3), // Short label (e.g. "Foo")
+          frontColor: b.spent > b.amount ? '#F87171' : '#64FFDA', // Red if over budget
+          topLabelComponent: () => (
+              <Text style={{color: '#8892B0', fontSize: 10, marginBottom: 2}}>
+                 {Math.round((b.spent / b.amount) * 100)}%
+              </Text>
+          )
+      }));
+  } else {
+      // Fallback: Standard Income vs Expense
+      barData = [
+        {value: metrics.income, label: 'In', frontColor: '#34D399'},
+        {value: metrics.expense, label: 'Out', frontColor: '#F472B6'},
+      ];
+  }
+  
+  // 2. Line Chart: Ensure it's not flat if there is data
+  const lineData = metrics.trend.length > 1 ? metrics.trend : [{value: 0}, {value: 0}];
+
   if (!user) return null;
 
   return (
@@ -111,7 +120,6 @@ export default function Dashboard() {
       contentContainerStyle={{ paddingBottom: 40 }}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={() => fetchData(true)} tintColor="#64FFDA" />}
     >
-      {/* Header */}
       <View className="mb-8 flex-row justify-between items-center">
         <View>
           <Text className="text-white text-3xl font-bold mb-1">Dashboard</Text>
@@ -125,7 +133,6 @@ export default function Dashboard() {
         </TouchableOpacity>
       </View>
 
-      {/* Metrics Row */}
       <View className={`flex-row flex-wrap ${isDesktop ? 'justify-between' : ''}`}>
         <StatCard 
             title="Net Balance" 
@@ -156,14 +163,13 @@ export default function Dashboard() {
         />
       </View> 
 
-      {/* CHARTS SECTION */}
       <View className={`mt-4 ${isDesktop ? 'flex-row gap-6' : 'flex-col gap-6'}`}>
         
-        {/* Cash Flow (Bar) */}
+        {/* Dynamic Bar Chart (Budgets or Cash Flow) */}
         <View className={`bg-[#112240] p-5 rounded-2xl border border-white/5 ${isDesktop ? 'flex-1' : 'w-full'}`}>
           <View className="flex-row items-center gap-2 mb-6">
             <Activity size={20} color="#64FFDA" />
-            <Text className="text-white font-bold text-lg">Cash Flow</Text>
+            <Text className="text-white font-bold text-lg">{barTitle}</Text>
           </View>
           <View className="items-center justify-center overflow-hidden">
              <BarChart 
@@ -185,7 +191,7 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* Spending Trend (Line) */}
+        {/* Spending Trend (Line Chart) */}
         <View className={`bg-[#112240] p-5 rounded-2xl border border-white/5 ${isDesktop ? 'flex-1' : 'w-full'}`}>
           <View className="flex-row items-center gap-2 mb-6">
             <TrendingUp size={20} color="#F472B6" />
@@ -193,7 +199,7 @@ export default function Dashboard() {
           </View>
           <View className="items-center justify-center overflow-hidden">
             <LineChart 
-                data={metrics.trend} 
+                data={lineData} 
                 color="#F472B6" 
                 thickness={3} 
                 dataPointsColor="#F472B6" 
@@ -216,7 +222,7 @@ export default function Dashboard() {
         </View>
       </View>
 
-      {/* Recent Activity List */}
+      {/* Activity List */}
       <View className="bg-[#112240] rounded-2xl border border-white/5 p-6 mt-6">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-white text-lg font-bold">Recent Activity</Text>
@@ -224,7 +230,6 @@ export default function Dashboard() {
             <Text className="text-[#64FFDA] text-sm font-bold">View All</Text>
           </TouchableOpacity>
         </View>
-
         {loading ? (
           <ActivityIndicator color="#64FFDA" />
         ) : transactions.length === 0 ? (

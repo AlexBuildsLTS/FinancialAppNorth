@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { useRouter } from 'expo-router';
-import { User, Globe, Moon, Bell, Shield, LogOut, ChevronRight, CreditCard, X, Check } from 'lucide-react-native';
-import { updateCurrency } from '../../../services/dataService'; // Uses your service
+import { User, Globe, Moon, Bell, Shield, LogOut, ChevronRight, CreditCard, X, Check, DollarSign, Key } from 'lucide-react-native';
+import { updateCurrency } from '../../../services/dataService';
 
 const SECTIONS = [
   { 
     title: 'Account', 
     items: [
       { icon: User, label: 'Profile Information', link: '/(main)/settings/profile', color: '#64FFDA' },
-      { icon: Shield, label: 'Security & Keys', link: '/(main)/settings/security', color: '#F472B6' },
+      { icon: Key, label: 'AI Configuration', link: '/(main)/settings/ai-keys', color: '#F472B6' }, // Added AI Keys link
+      { icon: Shield, label: 'Security', link: '/(main)/settings/security', color: '#60A5FA' },
     ]
   },
 ];
@@ -29,13 +30,14 @@ export default function SettingsScreen() {
     try {
       // 1. Save to Database
       await updateCurrency(user.id, newCurrency);
-      // 2. Refresh App State (Crucial!)
+      
+      // 2. Refresh App State (Crucial for Dashboard update)
       await refreshProfile();
       
       setCurrencyModal(false);
       Alert.alert("Success", `Currency changed to ${newCurrency}`);
     } catch (error: any) {
-      Alert.alert("Error", "Failed to update currency.");
+      Alert.alert("Error", "Failed to update currency: " + error.message);
     } finally {
       setSaving(false);
     }
@@ -68,7 +70,7 @@ export default function SettingsScreen() {
           </View>
         ))}
 
-        {/* Preferences Section (Manual for Currency Logic) */}
+        {/* Preferences Section */}
         <View className="mb-8">
           <Text className="text-[#8892B0] text-xs font-bold uppercase mb-3 ml-1">Preferences</Text>
           <View className="bg-[#112240] rounded-2xl overflow-hidden border border-white/5">
@@ -85,10 +87,10 @@ export default function SettingsScreen() {
                 <Text className="text-white font-medium">Currency</Text>
                 <Text className="text-[#8892B0] text-xs">{user?.currency || 'USD'}</Text>
               </View>
-              <ChevronRight size={20} color="#8892B0" />
+              {saving ? <ActivityIndicator size="small" color="#64FFDA" /> : <ChevronRight size={20} color="#8892B0" />}
             </TouchableOpacity>
 
-            {/* Theme (Visual only for now) */}
+            {/* Theme (Visual Placeholder) */}
             <TouchableOpacity className="flex-row items-center p-4">
               <View className="w-8 h-8 rounded-lg bg-purple-500/20 items-center justify-center">
                 <Moon size={18} color="#A78BFA" />
@@ -132,5 +134,3 @@ export default function SettingsScreen() {
     </SafeAreaView>
   );
 }
-
-import { DollarSign } from 'lucide-react-native'; // Added missing import

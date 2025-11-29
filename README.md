@@ -42,208 +42,124 @@ Data is brought to life through a suite of modern, interactive, and smoothly ani
 
 ```
 
-└── 📁services
-
-    └── geminiService.ts
-
-└── 📁src
-
-    └── 📁app
-
-        └── 📁(auth)
-
+ └── 📁src
+        └── 📁app
+            └── 📁(auth)
+                ├── _layout.tsx
+                ├── login.tsx
+                ├── register.tsx
+            └── 📁(main)
+                └── 📁admin
+                    ├── _layout.tsx
+                    ├── index.tsx
+                    ├── users.tsx
+                └── 📁cpa
+                    ├── _layout.tsx
+                    ├── index.tsx
+                └── 📁finances
+                    ├── _layout.tsx
+                    ├── budgets.tsx
+                    ├── index.tsx
+                    ├── reports.tsx
+                    ├── transactions.tsx
+                └── 📁messages
+                    ├── [id].tsx
+                    ├── index.tsx
+                └── 📁settings
+                    ├── _layout.tsx
+                    ├── ai-keys.tsx
+                    ├── index.tsx
+                    ├── profile.tsx
+                    ├── security.tsx
+                ├── _layout.tsx
+                ├── aiChat.tsx
+                ├── documents.tsx
+                ├── index.tsx
+                ├── scan.tsx
+                ├── support.tsx
             ├── _layout.tsx
-
-            ├── login.tsx
-
-            ├── register.tsx
-
-        └── 📁(main)
-
-            └── 📁admin
-
-                ├── users.tsx
-
-            └── 📁messages
-
-                ├── [id].tsx
-
-            └── 📁settings
-
-            ├── _layout.tsx
-
-            ├── aiChat.tsx
-
-            ├── documents.tsx
-
-            ├── index.tsx
-
-            ├── scan.tsx
-
-            ├── settings.tsx
-
-            ├── support.tsx
-
-            ├── transactions.tsx
-
-        ├── _layout.tsx
-
-    └── 📁assets
-
-        └── 📁fonts
-
-            ├── Inter-Italic-VariableFont_opsz,wght.ttf
-
-            ├── Inter-VariableFont_opsz,wght.ttf
-
-        └── 📁images
-
-            ├── favicon.png
-
-            ├── NFIconDark.png
-
-            ├── NFIconLight.png
-
-            ├── NFIconLight1.png
-
-    └── 📁lib
-
-        ├── localStorage.ts
-
-        ├── secureStorage.ts
-
-        ├── supabase.ts
-
-    └── 📁services
-
-        ├── aiService.ts
-
-        ├── dataService.ts
-
-    └── 📁shared
-
-        └── 📁components
-
-            ├── GlassCard.tsx
-
-            ├── PasswordStrengthIndicator.tsx
-
-        └── 📁context
-
-            ├── AuthContext.tsx
-
+            ├── +not-found.tsx
+        └── 📁assets
+            └── 📁fonts
+                ├── Inter-Italic-VariableFont_opsz,wght.ttf
+                ├── Inter-VariableFont_opsz,wght.ttf
+            └── 📁images
+                ├── favicon.png
+                ├── NFIconDark.png
+                ├── NFIconLight.png
+                ├── NFIconLight1.png
+        └── 📁lib
+            ├── localStorage.ts
+            ├── secureStorage.ts
+            ├── supabase.ts
         └── 📁services
-
-            ├── settingsService.ts
-
-    ├── constants.ts
-
-    └── types.ts
-
+            ├── aiService.ts
+            ├── dataService.ts
+        └── 📁shared
+            └── 📁components
+                ├── GlassCard.tsx
+                ├── input.tsx
+                ├── MainHeader.tsx
+                ├── PasswordStrengthIndicator.tsx
+            └── 📁context
+                ├── AuthContext.tsx
+            └── 📁services
+                ├── geminiService.ts
+                ├── settingsService.ts
+        ├── constants.ts
+        ├── types.ts
     └── 📁supabase
-
         └── 📁.branches
-
             ├── _current_branch
-
         └── 📁.temp
-
             ├── cli-latest
-
             ├── gotrue-version
-
             ├── pooler-url
-
             ├── postgres-version
-
+            ├── project-ref
             ├── rest-version
-
+            ├── storage-migration
             ├── storage-version
-
         └── 📁functions
-
             └── 📁_shared
-
                 ├── cors.ts
-
             └── 📁admin-change-role
-
                 ├── index.ts
-
             └── 📁admin-deactivate
-
                 ├── index.ts
-
             └── 📁admin-delete
-
                 ├── index.ts
-
             └── 📁ocr-scan
-
                 ├── index.ts
-
             └── 📁process-document
-
                 ├── .npmrc
-
                 ├── index.ts
-
             ├── deno.json
-
-            ├── deno.lock
-
-            ├── import_map.json
-
         └── 📁migrations
-
             ├── 20250827111825_initial_schema.sql
-
             ├── 20251118_core_schema.sql
-
             ├── 20251119_consolidated_schema.sql
-
             ├── 20251119_fix_rls.sql
-
         ├── .gitignore
-
         ├── config.toml
-
+    └── 📁test
     ├── .env
-
-    ├── .env.local
-
     ├── .gitignore
-
     ├── .hintrc
-
     ├── .npmrc
-
     ├── .prettierrc
-
     ├── app.json
-
     ├── babel.config.js
-
+    ├── deno.json
     ├── eas.json
-
     ├── expo-env.d.ts
-
     ├── global.css
-
     ├── metadata.json
-
     ├── metro.config.js
-
     ├── nativewind-env.d.ts
-
     ├── package-lock.json
-
     ├── package.json
-
     ├── README.md
-
     ├── tailwind.config.js
-
     └── tsconfig.json
-
 ```

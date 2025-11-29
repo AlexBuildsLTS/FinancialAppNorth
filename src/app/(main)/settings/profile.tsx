@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, Alert, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Image, Alert, SafeAreaView, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { supabase } from '../../../lib/supabase';
+import { updateProfileName } from '../../../services/dataService';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, Save, ArrowLeft, User, Mail } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -27,37 +28,49 @@ export default function ProfileScreen() {
       });
 
       if (!result.canceled && result.assets[0].base64) {
-        uploadAvatar(result.assets[0].base64, result.assets[0].uri.split('.').pop() || 'jpg');
+        // Pass URI too so we can detect file type correctly
+        uploadAvatar(result.assets[0].base64, result.assets[0].uri);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to pick image');
     }
   };
 
-  const uploadAvatar = async (base64: string, fileExt: string) => {
+  const uploadAvatar = async (base64: string, uri: string) => {
     if (!user) return;
     setUploading(true);
     
     try {
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      // 1. SMART MIME TYPE DETECTION (Fixes the crash)
+      const isDataUrl = uri.startsWith('data:');
+      let fileExt = 'jpg'; // Default
+      if (!isDataUrl) {
+          const parts = uri.split('.');
+          if (parts.length > 1) fileExt = parts.pop()?.toLowerCase() || 'jpg';
+      }
+      
+      // Clean up extension (remove query params if any)
+      fileExt = fileExt.split('?')[0];
+      const mimeType = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
-      // 1. Upload to Supabase Storage
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      // 2. Upload
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, decode(base64), {
-          contentType: `image/${fileExt}`,
+        .upload(fileName, decode(base64), {
+          contentType: mimeType,
           upsert: true
         });
 
       if (uploadError) throw uploadError;
 
-      // 2. Get Public URL
+      // 3. Get Public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
-      // 3. Update Profile Table
+      // 4. Update Profile
       const { error: updateError } = await supabase
         .from('profiles')
         .upsert({ 
@@ -68,52 +81,26 @@ export default function ProfileScreen() {
 
       if (updateError) throw updateError;
 
+      // 5. Refresh App
       await refreshProfile();
       Alert.alert('Success', 'Avatar updated!');
     } catch (error: any) {
-      console.error("Avatar Upload Error:", error);
-      Alert.alert('Upload Failed', error.message);
+      console.error("Avatar Error:", error);
+      Alert.alert('Upload Failed', error.message || "Unknown error");
     } finally {
       setUploading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!user) {
-        console.log("No user found in context");
-        return;
-    }
-    
+    if (!user) return;
     setLoading(true);
-    console.log("Starting Save for:", user.id);
-
     try {
-      // FIX: Use UPSERT instead of UPDATE to ensure row exists
-      const { data, error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id, // Required for upsert
-          first_name: firstName,
-          last_name: lastName,
-          email: user.email, // Ensure email is preserved
-          updated_at: new Date().toISOString(),
-        })
-        .select();
-
-      if (error) {
-          console.error("Supabase Error:", error);
-          throw error;
-      }
-
-      console.log("Supabase Update Success:", data);
-
-      // Update Global State
+      await updateProfileName(user.id, firstName, lastName);
       await refreshProfile();
-      
       Alert.alert('Saved', 'Profile updated successfully.');
     } catch (error: any) {
-      console.error("Save Crash:", error);
-      Alert.alert('Error', error.message || "Failed to update profile.");
+      Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
@@ -129,7 +116,6 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView className="p-6">
-        {/* Avatar Section */}
         <View className="items-center mb-8">
           <View className="relative">
             <View className="w-24 h-24 rounded-full bg-[#112240] overflow-hidden border-2 border-[#64FFDA]">

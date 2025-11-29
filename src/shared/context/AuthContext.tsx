@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { User, UserRole } from '../../types';
 import { Session } from '@supabase/supabase-js';
@@ -12,6 +12,8 @@ export type ProfileRow = {
   last_name?: string | null;
   role?: string | null;
   avatar_url?: string | null;
+  currency?: string | null;
+  country?: string | null;
   updated_at?: string | null;
   [key: string]: any;
 };
@@ -37,19 +39,20 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const router = useRouter();
 
-  // Constants for Avatar Logic
   const AVATARS_BUCKET = 'avatars';
-  const SIGNED_URL_EXPIRES = 60; 
+  const SIGNED_URL_EXPIRES = 60;
 
   const resolveAvatarUrl = async (avatarPath: string | null | undefined, userId: string): Promise<string | null> => {
     if (!avatarPath) return null;
     if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) return avatarPath;
 
     try {
+      // 1. Try Public URL
       const publicUrlResult = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(avatarPath);
       const publicUrl = publicUrlResult?.data?.publicUrl ?? null;
       if (publicUrl) return publicUrl;
 
+      // 2. Try Signed URL (Fallback)
       const { data: signedData, error: signedError } = await supabase
         .storage
         .from(AVATARS_BUCKET)
@@ -62,18 +65,17 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     }
   };
 
-  // Fetch profile and set user state
   const fetchAndSetProfile = async (userId: string, email: string) => {
-    // CRITICAL FIX: Do NOT set isLoading(true) here. This prevents global flashing.
     try {
-      const res = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      const data = res.data as ProfileRow | null;
-      const profileData = data ?? null;
+      if (error && error.code !== 'PGRST116') console.error('Error fetching profile:', error.message);
+
+      const profileData = (data as ProfileRow) || null;
       setProfile(profileData);
 
       let avatarUrl = profileData ? await resolveAvatarUrl(profileData.avatar_url, userId) : null;
@@ -88,13 +90,17 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         role: (profileData?.role as UserRole) ?? UserRole.MEMBER,
         status: 'active',
         avatar: avatarUrl,
+        currency: profileData?.currency || 'USD', 
+        country: profileData?.country || 'US'
       };
 
-      setUser(appUser);
+      // Force new object reference to trigger re-render
+      setUser({ ...appUser });
+
     } catch (err) {
       console.error('fetchAndSetProfile error:', err);
-    } 
-    // Note: We don't need to set isLoading(false) here because initSession handles the initial load state
+    }
+    // Note: isLoading is handled in initSession and login/register
   };
 
   useEffect(() => {
@@ -114,7 +120,6 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       } catch (err) {
         console.error('Session check failed:', err);
       } finally {
-        // Only stop loading once after the initial check is complete
         if (mounted) setIsLoading(false);
       }
     }
@@ -125,12 +130,11 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       if (!mounted) return;
       setSession(session);
       if (session) {
-        // Background update - keeps UI stable
         await fetchAndSetProfile(session.user.id, session.user.email!);
       } else {
         setUser(null);
         setProfile(null);
-        setIsLoading(false); // Ensure loading stops on logout
+        setIsLoading(false);
       }
     });
 
@@ -142,16 +146,19 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const refreshProfile = useCallback(async () => {
     if (!session?.user?.id || !session.user.email) return;
+    // Small delay to allow DB write to propagate
+    await new Promise(r => setTimeout(r, 100));
     await fetchAndSetProfile(session.user.id, session.user.email);
   }, [session]);
 
   const login = async (email: string, password?: string) => {
-    setIsLoading(true); // Manual actions like login SHOULD show loading
+    setIsLoading(true);
     if (!password) {
       Alert.alert('Error', 'Password is required.');
       setIsLoading(false);
       return;
     }
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setIsLoading(false);
@@ -161,6 +168,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   const register = async (email: string, password: string, firstName: string, lastName: string) => {
     setIsLoading(true);
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -193,7 +201,11 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     setProfile(null);
     setSession(null);
     setIsLoading(false);
-    router.replace('/login');
+    try {
+      router.replace('/login');
+    } catch (e) {
+      // ignore nav errors
+    }
   };
 
   return (
@@ -209,21 +221,29 @@ export const useAuth = () => {
   return context;
 };
 
-// Keep your existing useProfile hook exactly as is
+// Restored full useProfile hook implementation
 export const useProfile = () => {
   const { profile, isLoading, refreshProfile, user } = useAuth();
   const [resolvedAvatar, setResolvedAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
+    const AVATARS_BUCKET = 'avatars';
+    const SIGNED_URL_EXPIRES = 60;
+
     const resolve = async () => {
       if (!user) { if (mounted) setResolvedAvatar(null); return; }
       const avatarPath = profile?.avatar_url;
       if (!avatarPath) { if (mounted) setResolvedAvatar(`https://api.dicebear.com/7.x/avataaars/png?seed=${user.id}`); return; }
       
       if (avatarPath.startsWith('http')) { if (mounted) setResolvedAvatar(avatarPath); return; }
-      const { data } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
-      if (mounted) setResolvedAvatar(data.publicUrl);
+      
+      try {
+        const { data } = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(avatarPath);
+        if (mounted) setResolvedAvatar(data.publicUrl);
+      } catch (e) {
+         if (mounted) setResolvedAvatar(`https://api.dicebear.com/7.x/avataaars/png?seed=${user.id}`);
+      }
     };
     resolve();
     return () => { mounted = false; };

@@ -2,39 +2,45 @@ import { supabase, adminChangeUserRole, adminDeactivateUser, adminDeleteUser } f
 import { Transaction, DocumentItem, User, Message } from '../types';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing'; 
+import * as DocumentPicker from 'expo-document-picker';
 import { decode } from 'base64-arraybuffer';
+import { Platform } from 'react-native';
 
 // ==========================================
 // 1. ACCOUNTS (Critical for Transactions)
 // ==========================================
 
-// Helper to get a valid account ID (required by your schema)
 const getDefaultAccountId = async (userId: string): Promise<string> => {
-  const { data: accounts } = await supabase
-    .from('accounts')
-    .select('id')
-    .eq('user_id', userId)
-    .limit(1);
+  try {
+    const { data: accounts } = await supabase
+      .from('accounts')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1);
 
-  if (accounts && accounts.length > 0) {
-    return accounts[0].id;
+    if (accounts && accounts.length > 0) {
+      return accounts[0].id;
+    }
+
+    // Create default account if none exists
+    const { data: newAccount, error } = await supabase
+      .from('accounts')
+      .insert([{
+        user_id: userId,
+        name: 'Main Wallet',
+        type: 'cash',
+        currency: 'USD',
+        balance: 0
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return newAccount.id;
+  } catch (e: any) {
+    console.error("Account Init Error:", e.message);
+    throw e;
   }
-
-  // Create default account if none exists
-  const { data: newAccount, error } = await supabase
-    .from('accounts')
-    .insert([{
-      user_id: userId,
-      name: 'Main Wallet',
-      type: 'cash',
-      currency: 'USD',
-      balance: 0
-    }])
-    .select()
-    .single();
-
-  if (error) throw new Error(`Failed to create default account: ${error.message}`);
-  return newAccount.id;
 };
 
 // ==========================================
@@ -42,7 +48,6 @@ const getDefaultAccountId = async (userId: string): Promise<string> => {
 // ==========================================
 
 export const getTransactions = async (userId: string): Promise<Transaction[]> => {
-  // Join with categories to get the name for the UI
   const { data, error } = await supabase
     .from('transactions')
     .select('*, categories(name)')
@@ -54,7 +59,6 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
     return [];
   }
   
-  // Map DB result to UI Type
   return data.map((t: any) => ({
       ...t,
       category: t.categories?.name || 'Uncategorized'
@@ -63,11 +67,27 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
 
 export const createTransaction = async (transaction: Partial<Transaction>, userId: string) => {
   try {
+    // 1. Ensure Account Exists (Fixes "0 Balance" bug)
     const accountId = await getDefaultAccountId(userId);
     
-    let finalAmount = transaction.amount || 0;
-    if (transaction.type === 'expense' && finalAmount > 0) {
-      finalAmount = -finalAmount;
+    // 2. Resolve Category ID
+    let categoryId = transaction.category_id;
+    if (!categoryId && transaction.category) {
+        // Try to find category by name
+        const { data: cat } = await supabase.from('categories').select('id').eq('name', transaction.category).limit(1).maybeSingle();
+        if (cat) categoryId = cat.id;
+        else {
+             // Create if missing
+             const { data: newCat } = await supabase.from('categories').insert({ name: transaction.category, type: 'expense', user_id: userId, icon: 'tag' }).select().single();
+             if (newCat) categoryId = newCat.id;
+        }
+    }
+    
+    let finalAmount = Number(transaction.amount || 0);
+    if (transaction.type === 'expense') {
+        finalAmount = -Math.abs(finalAmount);
+    } else {
+        finalAmount = Math.abs(finalAmount);
     }
 
     const { data, error } = await supabase
@@ -75,10 +95,11 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
       .insert([{
         ...transaction,
         user_id: userId,
-        account_id: accountId, // REQUIRED by your schema
+        account_id: accountId, // REQUIRED
+        category_id: categoryId,
         amount: finalAmount,
         status: 'cleared',
-        type: transaction.type || (finalAmount >= 0 ? 'income' : 'expense') // Ensure type enum is set
+        type: transaction.type || (finalAmount >= 0 ? 'income' : 'expense')
       }])
       .select()
       .single();
@@ -97,11 +118,10 @@ export const deleteTransaction = async (id: string) => {
 };
 
 // ==========================================
-// 3. BUDGETS (Schema-Compliant)
+// 3. BUDGETS
 // ==========================================
 
 export const getBudgets = async (userId: string) => {
-  // Join with categories to get the NAME
   const { data: budgets, error } = await supabase
     .from('budgets')
     .select('*, categories(name)') 
@@ -112,7 +132,6 @@ export const getBudgets = async (userId: string) => {
       throw error;
   }
 
-  // Calculate spending by matching category_id
   const { data: transactions } = await supabase
     .from('transactions')
     .select('amount, category_id') 
@@ -121,8 +140,6 @@ export const getBudgets = async (userId: string) => {
 
   return budgets.map((b: any) => {
     const categoryName = b.categories?.name || 'Unknown';
-    
-    // Strict matching on category_id (Your schema relates them)
     const spent = transactions
       ?.filter((t: any) => t.category_id === b.category_id) 
       .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0) || 0;
@@ -132,7 +149,6 @@ export const getBudgets = async (userId: string) => {
 };
 
 export const createBudget = async (userId: string, categoryName: string, limit: number) => {
-  // 1. Find or Create Category ID (Required by Budgets FK)
   let categoryId: string | undefined;
   
   const { data: existingCats } = await supabase
@@ -147,12 +163,7 @@ export const createBudget = async (userId: string, categoryName: string, limit: 
   } else {
     const { data: newCat, error: catError } = await supabase
       .from('categories')
-      .insert({ 
-          name: categoryName, 
-          type: 'expense', 
-          user_id: userId,
-          icon: 'tag' // Default icon
-      })
+      .insert({ name: categoryName, type: 'expense', user_id: userId, icon: 'tag' })
       .select()
       .single();
       
@@ -160,7 +171,6 @@ export const createBudget = async (userId: string, categoryName: string, limit: 
     categoryId = newCat.id;
   }
 
-  // 2. Create Budget
   const { data, error } = await supabase
     .from('budgets')
     .insert([{
@@ -178,11 +188,7 @@ export const createBudget = async (userId: string, categoryName: string, limit: 
 };
 
 export const deleteBudget = async (id: string) => {
-  const { error } = await supabase
-    .from('budgets')
-    .delete()
-    .eq('id', id);
-
+  const { error } = await supabase.from('budgets').delete().eq('id', id);
   if (error) throw error;
 };
 
@@ -223,7 +229,7 @@ export const getFinancialSummary = async (userId: string) => {
 };
 
 // ==========================================
-// 5. SETTINGS & PROFILE
+// 5. SETTINGS & PROFILE & AI KEYS
 // ==========================================
 
 export const updateCurrency = async (userId: string, currency: string) => {
@@ -251,6 +257,36 @@ export const updateProfileName = async (userId: string, firstName: string, lastN
   if (error) throw error;
 };
 
+// FIX: AI Key Functions (Restored)
+export const saveGeminiKey = async (userId: string, apiKey: string) => {
+  // Check if exists first to avoid constraint errors
+  const { data: existing } = await supabase
+    .from('user_secrets')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('service', 'gemini')
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase.from('user_secrets').update({ api_key_encrypted: apiKey }).eq('id', existing.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('user_secrets').insert({ user_id: userId, service: 'gemini', api_key_encrypted: apiKey });
+    if (error) throw error;
+  }
+};
+
+export const getGeminiKey = async (userId: string): Promise<string | null> => {
+  const { data } = await supabase
+    .from('user_secrets')
+    .select('api_key_encrypted')
+    .eq('user_id', userId)
+    .eq('service', 'gemini')
+    .maybeSingle();
+    
+  return data?.api_key_encrypted || null;
+};
+
 // ==========================================
 // 6. DOCUMENTS & EXPORT
 // ==========================================
@@ -262,45 +298,55 @@ export const getDocuments = async (userId: string): Promise<DocumentItem[]> => {
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching documents:', error);
-    return [];
-  }
+  if (error) return [];
   
   return data.map((d: any) => ({
       ...d,
-      name: d.file_name, // Map DB 'file_name' to UI 'name'
+      name: d.file_name,
       size: d.size_bytes ? `${(d.size_bytes / 1024).toFixed(1)} KB` : 'Unknown',
-      date: d.created_at
+      date: d.created_at,
+      url: d.url
   }));
 };
 
-export const uploadDocument = async (userId: string, uri: string, fileName: string, type: 'receipt' | 'invoice' | 'contract') => {
+export const uploadDocument = async (
+    userId: string, 
+    uri: string, 
+    fileName: string, 
+    type: 'receipt' | 'invoice' | 'contract' | 'other' // Fixed Type
+) => {
   try {
-    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
     const filePath = `${userId}/${Date.now()}_${fileName}`;
-    
+    let fileBody: any;
+
+    if (Platform.OS === 'web') {
+        const response = await fetch(uri);
+        fileBody = await response.blob();
+    } else {
+        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+        fileBody = decode(base64);
+    }
+
     const { error: uploadError } = await supabase.storage
         .from('documents')
-        .upload(filePath, decode(base64), { contentType: 'image/jpeg', upsert: true });
+        .upload(filePath, fileBody, { contentType: 'image/jpeg', upsert: true });
 
     if (uploadError) throw uploadError;
 
     const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(filePath);
     
-    // Get info to convert size to number if possible, or use static for now if FS doesn't return it easily
-    const fileInfo = await FileSystem.getInfoAsync(uri);
-    const sizeBytes = fileInfo.exists ? fileInfo.size : 0;
+    // Simple size check
+    const sizeBytes = 0; 
 
     const { data, error: dbError } = await supabase.from('documents').insert({
         user_id: userId,
-        file_name: fileName, // Schema uses 'file_name', not 'name'
-        file_path: filePath, // Schema uses 'file_path'
+        file_name: fileName,
+        file_path: filePath, 
         mime_type: 'image/jpeg',
-        size_bytes: sizeBytes, // Schema uses BIGINT
-        status: 'scanning',
+        size_bytes: sizeBytes,
+        status: 'processed',
         extracted_data: {},
-        type: type, // Ensure type matches schema enum or text
+        type: type, 
         url: publicUrl,
         date: new Date().toISOString()
     }).select().single();
@@ -313,7 +359,26 @@ export const uploadDocument = async (userId: string, uri: string, fileName: stri
   }
 };
 
-// NEW: Call the AI Edge Function
+// FIX: pickAndUploadFile (Restored)
+export const pickAndUploadFile = async (userId: string) => {
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf', 'image/*'],
+      copyToCacheDirectory: true
+    });
+
+    if (result.canceled) return null;
+
+    const asset = result.assets[0];
+    // Fixed: Passes 'other' correctly now
+    return await uploadDocument(userId, asset.uri, asset.name, 'other');
+
+  } catch (e: any) {
+    console.error("File Picker Error:", e.message);
+    throw e;
+  }
+};
+
 export const processReceiptAI = async (documentPath: string) => {
   const { data, error } = await supabase.functions.invoke('ocr-scan', {
     body: { documentPath }
@@ -322,37 +387,29 @@ export const processReceiptAI = async (documentPath: string) => {
   if (error) throw new Error(error.message || 'AI processing failed');
   if (data?.error) throw new Error(data.error);
   
-  return data.data; // Returns { merchant_name, total_amount, etc. }
+  return data.data; 
 };
 
-// NEW: Export Data to CSV
 export const exportDocumentsToCSV = async (userId: string) => {
-  // 1. Fetch Data
   const docs = await getDocuments(userId);
   const txs = await getTransactions(userId);
 
   if (docs.length === 0 && txs.length === 0) throw new Error("No data to export.");
 
-  // 2. Build CSV Content
   let csvContent = "Type,Date,Description,Amount,Category,File Name\n";
-
-  // Add Transactions
+  
   txs.forEach(t => {
     const amount = t.amount ? t.amount.toFixed(2) : "0.00";
-    csvContent += `Transaction,${t.date},"${t.description || ''}",${amount},${t.category_id || ''},-\n`;
+    csvContent += `Transaction,${t.date},"${t.description || ''}",${amount},${t.category || ''},-\n`;
   });
-
-  // Add Documents
+  
   docs.forEach(d => {
-    // Note: Adjust property names to match DB response (file_name vs name)
     csvContent += `Document,${d.date},"${d.name || 'Doc'}",-,-,"${d.file_name || ''}"\n`;
   });
 
-  // 3. Save to File
   const fileUri = FileSystem.documentDirectory + `NorthFinance_Report_${Date.now()}.csv`;
   await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
 
-  // 4. Share/Export
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(fileUri);
   } else {
@@ -364,9 +421,7 @@ export const exportDocumentsToCSV = async (userId: string) => {
 // 7. MESSAGING (E2EE Ready)
 // ==========================================
 
-// Helper: Find or create conversation between two users
 const getConversationId = async (currentUserId: string, targetUserId: string): Promise<string> => {
-  // Simplified: Create new if not found (Robust for MVP)
   const { data: newConv, error } = await supabase
     .from('conversations')
     .insert({ type: 'direct' })
@@ -384,7 +439,6 @@ const getConversationId = async (currentUserId: string, targetUserId: string): P
 };
 
 export const getConversations = async (userId: string) => {
-  // Fetching profiles for UI contact list
   const { data, error } = await supabase
     .from('profiles')
     .select('id, first_name, last_name, avatar_url, role')
@@ -392,7 +446,7 @@ export const getConversations = async (userId: string) => {
 
   if (error) return [];
   return data.map((p: any) => ({
-    id: p.id, // This is the USER ID
+    id: p.id,
     name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown User',
     avatar: p.avatar_url,
     role: p.role,
@@ -402,9 +456,6 @@ export const getConversations = async (userId: string) => {
 };
 
 export const getChatHistory = async (conversationId: string) => {
-    // Note: This function is called by the UI with 'conversationId'. 
-    // If the UI passes a User ID instead (as in current mockup), this will fail to find messages.
-    // For the MVP to work with your current chat screen, we fetch messages where conversation_id matches.
     const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -417,9 +468,7 @@ export const getChatHistory = async (conversationId: string) => {
 
 export const sendMessage = async (targetUserId: string, currentUserId: string, content: string) => {
   try {
-      // Auto-find conversation logic
       const conversationId = await getConversationId(currentUserId, targetUserId);
-      
       const { error } = await supabase
         .from('messages')
         .insert({
@@ -448,7 +497,7 @@ export const subscribeToChat = (conversationId: string, callback: (payload: any)
 };
 
 // ==========================================
-// 8. ADMIN & CPA
+// 8. ADMIN, CPA & SUPPORT
 // ==========================================
 
 export const getUsers = async (): Promise<User[]> => {
@@ -497,6 +546,33 @@ export const getCpaClients = async (cpaId: string) => {
     status: item.status,
     last_audit: item.last_audit,
   })) || [];
+};
+
+// FIX: Support Tickets (Restored)
+export const createTicket = async (userId: string, subject: string, message: string, category: string) => {
+  const { data: ticket, error } = await supabase
+    .from('tickets')
+    .insert({ user_id: userId, subject, category, status: 'open' })
+    .select().single();
+  
+  if (error) throw error;
+
+  await supabase
+    .from('ticket_messages')
+    .insert({ ticket_id: ticket.id, user_id: userId, message, is_internal: false });
+    
+  return ticket;
+};
+
+export const getTickets = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('tickets')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+    
+  if (error) return [];
+  return data;
 };
 
 // --- ALIASES ---

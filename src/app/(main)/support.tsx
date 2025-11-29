@@ -1,56 +1,77 @@
-
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, SafeAreaView, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Stack } from 'expo-router';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, FlatList, SafeAreaView, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { Stack, useFocusEffect } from 'expo-router';
 import { Plus, MessageSquare, HelpCircle, X, Send } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useAuth } from '../../shared/context/AuthContext';
+// FIX: Import real service functions
+import { createTicket, getTickets } from '../../services/dataService'; 
+
 
 type Tab = 'tickets' | 'faq';
 
-interface Ticket {
-  id: string;
-  title: string;
-  status: string;
-  date: string;
-  description?: string;
-}
+const MOCK_FAQ = [
+  { id: '1', q: 'How do I reset password?', a: 'Go to Settings > Security.' },
+  { id: '2', q: 'Where are keys stored?', a: 'Securely in your encrypted database.' },
+  { id: '3', q: 'Is my data encrypted?', a: 'Yes, using AES-256 encryption.' },
+];
 
 export default function SupportScreen() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('tickets');
   const [isModalVisible, setModalVisible] = useState(false);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Form State
   const [newTicketSubject, setNewTicketSubject] = useState('');
   const [newTicketDesc, setNewTicketDesc] = useState('');
+  const [ticketCategory, setTicketCategory] = useState('General');
 
-  const [tickets, setTickets] = useState<Ticket[]>([
-    { id: '1', title: 'Login Issue', status: 'Open', date: '2h ago', description: 'Cannot access dashboard' },
-    { id: '2', title: 'Billing Inquiry', status: 'Closed', date: '1d ago', description: 'Invoice #1023 discrepancy' },
-  ]);
+  const loadData = async () => {
+    if (!user) return;
+    // Only show spinner on first load, not refreshing
+    if (tickets.length === 0) setLoading(true);
+    try {
+      const data = await getTickets(user.id);
+      setTickets(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const MOCK_FAQ = [
-    { id: '1', q: 'How do I reset password?', a: 'Go to Settings > Security.' },
-    { id: '2', q: 'Where are keys stored?', a: 'Locally on device.' },
-    { id: '3', q: 'Is my data encrypted?', a: 'Yes, using AES-256 encryption.' },
-  ];
+  useEffect(() => {
+      if (user) loadData();
+  }, [user]);
 
-  const handleCreateTicket = () => {
-    if (!newTicketSubject.trim() || !newTicketDesc.trim()) {
+  useFocusEffect(
+      useCallback(() => {
+          if (user) loadData();
+      }, [user])
+  );
+
+  const handleCreateTicket = async () => {
+    if (!newTicketSubject.trim() || !newTicketDesc.trim() || !user) {
       Alert.alert('Error', 'Please fill in both subject and description.');
       return;
     }
 
-    const newTicket: Ticket = {
-      id: Date.now().toString(),
-      title: newTicketSubject,
-      status: 'Open',
-      date: 'Just now',
-      description: newTicketDesc
-    };
-
-    setTickets([newTicket, ...tickets]);
-    setModalVisible(false);
-    setNewTicketSubject('');
-    setNewTicketDesc('');
-    Alert.alert('Success', 'Ticket created successfully. A support agent will review it shortly.');
+    setSubmitting(true);
+    try {
+        await createTicket(user.id, newTicketSubject, newTicketDesc, ticketCategory);
+        Alert.alert('Success', 'Ticket created successfully.');
+        setModalVisible(false);
+        setNewTicketSubject('');
+        setNewTicketDesc('');
+        loadData(); // Refresh list
+    } catch (e: any) {
+        Alert.alert("Error", "Failed to create ticket: " + e.message);
+    } finally {
+        setSubmitting(false);
+    }
   };
 
   return (
@@ -76,27 +97,32 @@ export default function SupportScreen() {
       {/* List */}
       <View className="flex-1 px-4 pt-4">
         {activeTab === 'tickets' ? (
-          <FlatList
-            data={tickets}
-            keyExtractor={item => item.id}
-            renderItem={({ item, index }) => (
-              <Animated.View entering={FadeInDown.delay(index * 100)} className="bg-[#112240] p-4 rounded-xl mb-3 border border-white/5 flex-row items-center gap-4">
-                <View className="w-10 h-10 rounded-full bg-[#64FFDA]/10 items-center justify-center">
-                  <MessageSquare size={20} color="#64FFDA" />
+          loading ? (
+              <ActivityIndicator color="#64FFDA" />
+          ) : (
+            <FlatList
+                data={tickets}
+                keyExtractor={item => item.id}
+                refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} tintColor="#64FFDA" />}
+                renderItem={({ item, index }) => (
+                <Animated.View entering={FadeInDown.delay(index * 100)} className="bg-[#112240] p-4 rounded-xl mb-3 border border-white/5 flex-row items-center gap-4">
+                    <View className="w-10 h-10 rounded-full bg-[#64FFDA]/10 items-center justify-center">
+                    <MessageSquare size={20} color="#64FFDA" />
+                    </View>
+                    <View className="flex-1">
+                    <Text className="text-white font-bold">{item.subject}</Text>
+                    <Text className="text-[#8892B0] text-xs">#{item.id.substring(0,8)} • {new Date(item.created_at).toLocaleDateString()}</Text>
+                    </View>
+                    <Text className={`text-xs font-bold uppercase ${item.status === 'open' ? 'text-[#64FFDA]' : 'text-[#8892B0]'}`}>{item.status}</Text>
+                </Animated.View>
+                )}
+                ListEmptyComponent={
+                <View className="items-center justify-center py-10">
+                    <Text className="text-[#8892B0]">No tickets found.</Text>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-white font-bold">{item.title}</Text>
-                  <Text className="text-[#8892B0] text-xs">#{item.id} • {item.date}</Text>
-                </View>
-                <Text className={`text-xs font-bold uppercase ${item.status === 'Open' ? 'text-[#64FFDA]' : 'text-[#8892B0]'}`}>{item.status}</Text>
-              </Animated.View>
-            )}
-            ListEmptyComponent={
-              <View className="items-center justify-center py-10">
-                <Text className="text-[#8892B0]">No tickets found.</Text>
-              </View>
-            }
-          />
+                }
+            />
+          )
         ) : (
           <FlatList
             data={MOCK_FAQ}
@@ -115,13 +141,15 @@ export default function SupportScreen() {
       </View>
 
       {/* FAB */}
-      <TouchableOpacity 
-        onPress={() => setModalVisible(true)}
-        className="absolute bottom-8 right-6 w-14 h-14 bg-[#64FFDA] rounded-full items-center justify-center shadow-lg shadow-[#64FFDA]/30 z-10"
-        activeOpacity={0.8}
-      >
-        <Plus size={28} color="#0A192F" />
-      </TouchableOpacity>
+      {activeTab === 'tickets' && (
+        <TouchableOpacity 
+            onPress={() => setModalVisible(true)}
+            className="absolute bottom-8 right-6 w-14 h-14 bg-[#64FFDA] rounded-full items-center justify-center shadow-lg shadow-[#64FFDA]/30 z-10"
+            activeOpacity={0.8}
+        >
+            <Plus size={28} color="#0A192F" />
+        </TouchableOpacity>
+      )}
 
       {/* Create Ticket Modal */}
       <Modal
@@ -147,7 +175,7 @@ export default function SupportScreen() {
                 <Text className="text-[#8892B0] text-xs font-bold uppercase mb-2">Subject</Text>
                 <View className="bg-[#0A192F] border border-white/10 rounded-xl px-4 py-3 mb-4">
                   <TextInput
-                    placeholder="Brief summary of the issue..."
+                    placeholder="Brief summary..."
                     placeholderTextColor="#475569"
                     className="text-white text-base"
                     value={newTicketSubject}
@@ -158,7 +186,7 @@ export default function SupportScreen() {
                 <Text className="text-[#8892B0] text-xs font-bold uppercase mb-2">Description</Text>
                 <View className="bg-[#0A192F] border border-white/10 rounded-xl px-4 py-3 mb-6 h-40">
                   <TextInput
-                    placeholder="Describe the problem in detail..."
+                    placeholder="Describe the problem..."
                     placeholderTextColor="#475569"
                     className="text-white text-base flex-1"
                     multiline
@@ -168,22 +196,19 @@ export default function SupportScreen() {
                   />
                 </View>
 
-                <View className="bg-blue-500/10 p-4 rounded-xl border border-blue-500/20 mb-6">
-                    <View className="flex-row items-center gap-2 mb-1">
-                        <HelpCircle size={16} color="#60A5FA" />
-                        <Text className="text-blue-400 font-bold text-xs uppercase">Note</Text>
-                    </View>
-                    <Text className="text-[#8892B0] text-xs leading-5">
-                        Our support team typically responds within 24 hours. Premium members receive priority handling.
-                    </Text>
-                </View>
-
                 <TouchableOpacity 
                     onPress={handleCreateTicket}
+                    disabled={submitting}
                     className="bg-[#64FFDA] py-4 rounded-xl items-center flex-row justify-center gap-2"
                 >
-                  <Text className="text-[#0A192F] font-bold text-lg">Submit Ticket</Text>
-                  <Send size={20} color="#0A192F" />
+                  {submitting ? (
+                      <ActivityIndicator color="#0A192F" />
+                  ) : (
+                      <>
+                        <Text className="text-[#0A192F] font-bold text-lg">Submit Ticket</Text>
+                        <Send size={20} color="#0A192F" />
+                      </>
+                  )}
                 </TouchableOpacity>
               </ScrollView>
             </View>

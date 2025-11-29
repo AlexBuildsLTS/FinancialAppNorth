@@ -1,56 +1,67 @@
 import { supabase } from '../lib/supabase';
 import { ChatbotMessage } from '../types';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // ==========================================
 // 1. API KEY MANAGEMENT
 // ==========================================
 
 export const saveGeminiKey = async (userId: string, apiKey: string) => {
-  // FIX: Uses upsert to ensure the row is created if it doesn't exist
-  const { error } = await supabase
+  // Check first to avoid constraint errors
+  const { data: existing } = await supabase
     .from('user_secrets')
-    .upsert(
-      { user_id: userId, service: 'gemini', api_key_encrypted: apiKey },
-      { onConflict: 'user_id, service' }
-    );
+    .select('id')
+    .eq('user_id', userId)
+    .eq('service', 'gemini')
+    .maybeSingle();
 
-  if (error) {
-    console.error("Save API Key Error:", error);
-    throw error;
+  if (existing) {
+    const { error } = await supabase.from('user_secrets').update({ api_key_encrypted: apiKey }).eq('id', existing.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('user_secrets').insert({ user_id: userId, service: 'gemini', api_key_encrypted: apiKey });
+    if (error) throw error;
   }
 };
 
 export const getGeminiKey = async (userId: string): Promise<string | null> => {
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('user_secrets')
     .select('api_key_encrypted')
     .eq('user_id', userId)
     .eq('service', 'gemini')
-    .single();
+    .maybeSingle();
 
-  if (error || !data) return null;
-  return data.api_key_encrypted;
+  return data?.api_key_encrypted || null;
 };
 
 // ==========================================
-// 2. CORE GEMINI INTERACTION
+// 2. CORE GEMINI INTERACTION (Robust 'fetch' version)
 // ==========================================
 
-export const getGeminiResponse = async (prompt: string, apiKey: string) => {
-  try {
-    if (!apiKey) throw new Error("API Key is missing");
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    return text;
-  } catch (error: any) {
-    console.error('Gemini Service Error:', error);
-    throw new Error(error.message || 'Failed to get response from AI.');
+const callGeminiDirectly = async (prompt: string, apiKey: string) => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }]
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || `AI Error: ${response.status}`);
   }
+
+  // Extract text from Gemini response structure
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("AI returned no content.");
+  
+  return text;
 };
 
 // ==========================================
@@ -107,16 +118,16 @@ export const sendUserMessageToAI = async (userId: string, text: string): Promise
     // 2. Save User Message
     await addChatbotMessage(userId, 'user', text);
 
-    // 3. Call AI
-    const aiResponseText = await getGeminiResponse(text, apiKey);
+    // 3. Call AI (Direct Fetch)
+    const aiResponseText = await callGeminiDirectly(text, apiKey);
 
     // 4. Save AI Message
     await addChatbotMessage(userId, 'ai', aiResponseText);
 
     return aiResponseText;
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI Conversation Failed:", error);
-    throw error;
+    throw new Error(error.message || "AI failed to respond.");
   }
 };
 
@@ -143,7 +154,7 @@ export const generateFinancialInsight = async (userId: string, transactions: any
       Be concise and friendly.
     `;
 
-    return await getGeminiResponse(prompt, apiKey);
+    return await callGeminiDirectly(prompt, apiKey);
   } catch (e) {
     return "Insight unavailable.";
   }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -13,9 +13,10 @@ import {
   Modal,
 } from 'react-native';
 import { Search, Ban, CheckCircle, MessageSquare, Mail, Shield, Briefcase, X, UserCog, Check } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase, adminDeactivateUser, adminChangeUserRole } from '../../../lib/supabase';
-import { User, UserRole, UserStatus } from '../../../types'; // Imported strict types
+import { User, UserRole, UserStatus } from '../../../types'; 
+
 
 export default function AdminUsersScreen() {
   const router = useRouter();
@@ -25,12 +26,10 @@ export default function AdminUsersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Role Modal State
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // 1. Fetch Real Users
-  const loadUsers = useCallback(async () => {
+  const loadUsers = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -43,29 +42,31 @@ export default function AdminUsersScreen() {
         id: p.id,
         email: p.email || 'No Email',
         name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown',
-        // Fix: Cast string to UserRole Enum, default to MEMBER if invalid
         role: (Object.values(UserRole).includes(p.role) ? p.role : UserRole.MEMBER) as UserRole,
         status: (p.status || 'active') as UserStatus,
         avatar: p.avatar_url || `https://api.dicebear.com/7.x/avataaars/png?seed=${p.id}`,
+        currency: p.currency,
+        country: p.country
       }));
 
       setUsers(formattedUsers);
     } catch (e: any) {
       console.error('Fetch error:', e);
-      Alert.alert("Error", "Failed to load users.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+  // Re-fetch every time screen focuses (Fixes the "Hard Refresh" need)
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      loadUsers();
+    }, [])
+  );
 
-  // 2. Action Handlers
   const handleMessage = (userId: string) => {
-    // Fix: Ensure the path matches your file structure exactly
     router.push(`/(main)/messages/${userId}` as any);
   };
 
@@ -74,13 +75,11 @@ export default function AdminUsersScreen() {
     setRoleModalVisible(true);
   };
 
-  // Fix: Argument must be UserRole, not string
   const handleRoleUpdate = async (newRole: UserRole) => {
     if (!selectedUser) return;
     
     const originalRole = selectedUser.role;
     
-    // Optimistic Update with strict typing
     setUsers(prev => prev.map(u => 
       u.id === selectedUser.id ? { ...u, role: newRole } : u
     ));
@@ -91,7 +90,6 @@ export default function AdminUsersScreen() {
       await adminChangeUserRole(selectedUser.id, newRole);
       Alert.alert("Success", `User role updated to ${newRole.toUpperCase()}`);
     } catch (error: any) {
-      // Revert if failed
       setUsers(prev => prev.map(u => 
         u.id === selectedUser.id ? { ...u, role: originalRole } : u
       ));
@@ -142,7 +140,6 @@ export default function AdminUsersScreen() {
   );
 
   const renderUserCard = ({ item }: { item: User }) => {
-    // Fix: Strictly compare against Enum
     const isCPA = item.role === UserRole.CPA; 
     const isAdmin = item.role === UserRole.ADMIN;
 
@@ -179,7 +176,6 @@ export default function AdminUsersScreen() {
           </View>
 
           <View className="flex-row items-center gap-2">
-            {/* Change Role Button (Purple Shield) */}
             <TouchableOpacity 
               onPress={() => openRoleModal(item)}
               className="w-10 h-10 rounded-full items-center justify-center bg-[#8B5CF6]/10 border border-[#8B5CF6]/30"
@@ -187,7 +183,6 @@ export default function AdminUsersScreen() {
               <UserCog size={18} color="#A78BFA" />
             </TouchableOpacity>
 
-            {/* Message Button - Works now */}
             <TouchableOpacity 
               onPress={() => handleMessage(item.id)}
               className="w-10 h-10 rounded-full items-center justify-center bg-white/5 border border-white/10"
@@ -195,7 +190,6 @@ export default function AdminUsersScreen() {
               <MessageSquare size={18} color="#64FFDA" />
             </TouchableOpacity>
 
-            {/* Ban Button */}
             <TouchableOpacity 
               onPress={() => handleBanToggle(item)}
               disabled={!!actionLoading}
@@ -265,6 +259,7 @@ export default function AdminUsersScreen() {
         />
       )}
 
+      {/* Role Modal */}
       <Modal
         visible={roleModalVisible}
         transparent={true}
@@ -284,7 +279,7 @@ export default function AdminUsersScreen() {
             </View>
 
             <View className="gap-3">
-              {/* Fix: Pass UserRole.MEMBER enum */}
+              {/* Member */}
               <TouchableOpacity 
                 onPress={() => handleRoleUpdate(UserRole.MEMBER)}
                 className={`flex-row items-center justify-between p-4 rounded-xl border ${selectedUser?.role === UserRole.MEMBER ? 'bg-[#64FFDA]/10 border-[#64FFDA]' : 'bg-[#0A192F] border-white/5'}`}
@@ -301,7 +296,7 @@ export default function AdminUsersScreen() {
                 {selectedUser?.role === UserRole.MEMBER && <Check size={20} color="#64FFDA" />}
               </TouchableOpacity>
 
-              {/* Fix: Pass UserRole.CPA enum */}
+              {/* CPA */}
               <TouchableOpacity 
                 onPress={() => handleRoleUpdate(UserRole.CPA)}
                 className={`flex-row items-center justify-between p-4 rounded-xl border ${selectedUser?.role === UserRole.CPA ? 'bg-[#64FFDA]/10 border-[#64FFDA]' : 'bg-[#0A192F] border-white/5'}`}
@@ -318,7 +313,7 @@ export default function AdminUsersScreen() {
                 {selectedUser?.role === UserRole.CPA && <Check size={20} color="#64FFDA" />}
               </TouchableOpacity>
 
-              {/* Fix: Pass UserRole.ADMIN enum */}
+              {/* Admin */}
               <TouchableOpacity 
                 onPress={() => handleRoleUpdate(UserRole.ADMIN)}
                 className={`flex-row items-center justify-between p-4 rounded-xl border ${selectedUser?.role === UserRole.ADMIN ? 'bg-[#F59E0B]/10 border-[#F59E0B]' : 'bg-[#0A192F] border-white/5'}`}
@@ -334,12 +329,6 @@ export default function AdminUsersScreen() {
                 </View>
                 {selectedUser?.role === UserRole.ADMIN && <Check size={20} color="#F59E0B" />}
               </TouchableOpacity>
-            </View>
-
-            <View className="mt-6 pt-4 border-t border-white/5">
-              <Text className="text-[#8892B0] text-xs text-center">
-                Changing a role updates permissions immediately.
-              </Text>
             </View>
           </View>
         </View>
