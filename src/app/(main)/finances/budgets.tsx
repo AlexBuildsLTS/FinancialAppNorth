@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Modal, TextInput, SafeAreaView, ScrollView, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { Plus, X, BarChart, Target, Settings } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { getBudgets, createBudget, deleteBudget } from '../../../services/dataService'; // Added deleteBudget
+import { BudgetService } from '../../../services/budgetService';
 import { useFocusEffect } from 'expo-router';
+import { supabase } from '../../../lib/supabase';
 import "../../../../global.css";
 
 const CATEGORIES = ['Food', 'Travel', 'Utilities', 'Entertainment', 'Business', 'Healthcare'];
@@ -81,7 +82,7 @@ export default function BudgetsScreen() {
   const loadBudgets = async () => {
     if (!user) return;
     try {
-      const data = await getBudgets(user.id);
+      const data = await BudgetService.getBudgets(user.id);
       setBudgets(data);
     } catch (e) {
       console.error(e);
@@ -90,8 +91,47 @@ export default function BudgetsScreen() {
     }
   };
 
-  useEffect(() => { loadBudgets(); }, [user]);
-  
+  useEffect(() => {
+    loadBudgets();
+
+    // Set up real-time subscription for transactions that affect budgets
+    if (user) {
+      const subscription = supabase
+        .channel('budget-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'transactions',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            // Refresh budgets when new transactions are added
+            loadBudgets();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'transactions',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            // Refresh budgets when transactions are updated
+            loadBudgets();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [user]);
+
   useFocusEffect(
     useCallback(() => { loadBudgets(); }, [user])
   );
@@ -100,8 +140,8 @@ export default function BudgetsScreen() {
     if (!newLimit || !user) return;
     setSubmitting(true);
     try {
-        await createBudget(user.id, selectedCategory, parseFloat(newLimit));
-        await loadBudgets(); 
+        await BudgetService.createBudget(user.id, selectedCategory, parseFloat(newLimit));
+        await loadBudgets();
         setIsModalOpen(false);
         setNewLimit('');
     } catch (e: any) {
@@ -114,7 +154,7 @@ export default function BudgetsScreen() {
   // Added Delete Function
   const handleDeleteBudget = async (budgetId: string) => {
     try {
-        await deleteBudget(budgetId);
+        await BudgetService.deleteBudget(budgetId);
         // Optimistic update
         setBudgets(prev => prev.filter(b => b.id !== budgetId));
     } catch (e: any) {

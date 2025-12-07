@@ -6,18 +6,19 @@ import { ROLE_NAV_ITEMS } from '../../constants';
 import { UserRole } from '../../types';
 import { MainHeader } from '../../shared/components/MainHeader'; 
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { 
-  LayoutDashboard, 
-  CreditCard, 
-  FileText, 
-  Users, 
-  LifeBuoy, 
-  ShieldAlert, 
-  MessageSquare, 
+import {
+  LayoutDashboard,
+  CreditCard,
+  FileText,
+  Users,
+  LifeBuoy,
+  ShieldAlert,
+  MessageSquare,
   Settings,
   LogOut,
   Bot,
-  ScanLine
+  ScanLine,
+  Search
 } from 'lucide-react-native';
 
 // --- 1. NAVIGATION CONFIGURATION ---
@@ -26,6 +27,7 @@ const NAV_CONFIG: Record<string, { name: string, icon: any, path: string, label:
   'Dashboard':    { name: 'index',          icon: LayoutDashboard, path: '/(main)/',             label: 'Home' },
   'Transactions': { name: 'finances',       icon: CreditCard,      path: '/(main)/finances',     label: 'Finances' },
   'Documents':    { name: 'documents',      icon: FileText,        path: '/(main)/documents',    label: 'Docs' },
+  'Find CPA':     { name: 'find-cpa',       icon: Search,          path: '/(main)/find-cpa',     label: 'Find CPA' },
   'CPA Portal':   { name: 'cpa',            icon: Users,           path: '/(main)/cpa',          label: 'CPA Portal' },
   'Support':      { name: 'support',        icon: LifeBuoy,        path: '/(main)/support',      label: 'Support' },
   'Admin':        { name: 'admin',          icon: ShieldAlert,     path: '/(main)/admin',        label: 'Admin' },
@@ -251,9 +253,10 @@ export default function MainLayout() {
             {/* Messages Folder (Index + Dynamic ID) */}
             <Tabs.Screen name="messages/index" options={{ href: null }} />
             <Tabs.Screen name="messages/[id]" options={{ href: null }} />
-            
+
             {/* Other Hidden Screens */}
             <Tabs.Screen name="scan" options={{ href: null }} />
+            <Tabs.Screen name="find-cpa" options={{ href: null }} />
 
           </Tabs>
         </SafeAreaView>

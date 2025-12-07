@@ -1,3 +1,12 @@
+import { Database } from './types/supabase';
+
+// Re-export common types from Supabase
+export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
+export type TablesInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
+export type TablesUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];
+export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
+
+// Legacy enums for backward compatibility
 export enum UserRole {
   ADMIN = 'admin',
   CPA = 'cpa',
@@ -28,30 +37,13 @@ export interface AppSettings {
 }
 
 // --- Features ---
-export interface Transaction {
-  id: string;
-  user_id: string;
-  account_id?: string;
-  date: string;
-  description: string;
-  amount: number;
-  // DB uses category_id, UI uses category (name)
-  category_id?: string; 
-  category?: string; 
-  status: 'pending' | 'completed' | 'failed' | 'cleared';
-  type: 'income' | 'expense';
-  created_at?: string;
+export interface Transaction extends Tables<'transactions'> {
+  category?: string; // UI helper
 }
 
-export interface DocumentItem {
-  id: string;
-  user_id: string;
-  // DB columns
-  file_name: string;
-  file_path: string;
-  size_bytes?: number;
+export interface DocumentItem extends Tables<'documents'> {
   // UI helpers
-  name: string; 
+  name: string;
   type: 'receipt' | 'invoice' | 'contract' | 'other';
   url: string;
   date: string;
@@ -60,22 +52,9 @@ export interface DocumentItem {
 }
 
 // --- Chat & AI ---
-export interface Message {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  content_encrypted: string;
-  is_system_message: boolean;
-  created_at: string;
-}
+export interface Message extends Tables<'messages'> {}
 
-export interface ChatbotMessage {
-  id: string;
-  user_id: string;
-  sender: 'user' | 'ai';
-  text: string;
-  created_at: string;
-}
+export interface ChatbotMessage extends Tables<'chatbot_messages'> {}
 
 // --- Professional & Support ---
 export interface CpaClient {
@@ -84,4 +63,18 @@ export interface CpaClient {
   email: string;
   status: 'active' | 'pending';
   last_audit: string;
+}
+
+// --- Budget with computed fields ---
+export interface BudgetWithSpent extends Tables<'budgets'> {
+  category_name: string;
+  spent: number;
+}
+
+// --- Financial Summary ---
+export interface FinancialSummary {
+  balance: number;
+  income: number;
+  expense: number;
+  trend: { value: number }[];
 }

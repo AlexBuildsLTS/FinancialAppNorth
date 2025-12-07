@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Modal, TextInput, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Plus, X, DollarSign, AlignLeft, Trash2, Filter } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, Modal, TextInput, SafeAreaView, ScrollView, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { Plus, X, DollarSign, AlignLeft, Trash2, Filter, Search } from 'lucide-react-native';
 import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
-import { getTransactions, createTransaction, deleteTransaction } from '../../../services/dataService';
+import { FlashList } from '@shopify/flash-list';
+import { TransactionService } from '../../../services/transactionService';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { Transaction } from '@/types';
-import { supabase } from '../../../lib/supabase'; // Needed for category lookup helper
 import "../../../../global.css";
 
 const CATEGORIES = ['Food', 'Travel', 'Utilities', 'Entertainment', 'Income', 'Business', 'Shopping', 'Healthcare'];
@@ -18,39 +18,69 @@ export default function TransactionsScreen() {
   const [filter, setFilter] = useState<FilterType>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   // Form State
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async (refresh = false, loadMore = false) => {
     if (!user) return;
-    const data = await getTransactions(user.id);
-    setTransactions(data);
-  };
+
+    if (refresh) setRefreshing(true);
+    if (loadMore) setLoadingMore(true);
+    else setLoading(true);
+
+    try {
+      const offset = loadMore ? transactions.length : 0;
+      const type = filter === 'All' ? undefined : filter === 'Income' ? 'income' : 'expense';
+
+      const result = await TransactionService.getTransactionsPaginated(user.id, {
+        limit: 20,
+        offset,
+        type,
+        search: searchQuery || undefined
+      });
+
+      if (loadMore) {
+        setTransactions(prev => [...prev, ...result.transactions]);
+      } else {
+        setTransactions(result.transactions);
+      }
+
+      setHasMore(result.transactions.length === 20);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
+  }, [user, filter, searchQuery, transactions.length]);
 
   useEffect(() => {
-    if (user) loadData();
-  }, [user]);
+    loadData();
+  }, [loadData]);
 
-  const filteredTransactions = transactions.filter(t => {
-    // Ensure amount is treated as number
-    const amt = Number(t.amount);
-    if (filter === 'All') return true;
-    if (filter === 'Income') return amt > 0;
-    if (filter === 'Expense') return amt < 0;
-    return true;
-  });
+  const handleRefresh = useCallback(() => {
+    loadData(true);
+  }, [loadData]);
 
-  // Helper to get Category ID so DB save doesn't fail
-  const getCategoryId = async (name: string) => {
-    const { data } = await supabase.from('categories').select('id').eq('name', name).single();
-    if (data) return data.id;
-    // Create if missing
-    const { data: newCat } = await supabase.from('categories').insert({ name, type: 'expense', user_id: user?.id }).select().single();
-    return newCat?.id;
-  };
+  const handleLoadMore = useCallback(() => {
+    if (hasMore && !loadingMore) {
+      loadData(false, true);
+    }
+  }, [hasMore, loadingMore, loadData]);
+
+  // Search input handler with debounce
+  const handleSearch = useCallback((text: string) => {
+    setSearchQuery(text);
+  }, []);
+
 
   const handleAdd = async () => {
     if (!amount || !description || !user) return;
@@ -58,21 +88,17 @@ export default function TransactionsScreen() {
     try {
       const val = parseFloat(amount);
       const finalAmount = selectedCategory === 'Income' ? Math.abs(val) : -Math.abs(val);
-      
-      // Get valid category ID
-      const catId = await getCategoryId(selectedCategory);
 
       const newTx: Partial<Transaction> = {
         amount: finalAmount,
         description,
-        // @ts-ignore - we are injecting category_id which might not be in your strict type yet
-        category_id: catId, 
+        category: selectedCategory,
         date: new Date().toISOString().split('T')[0],
         type: finalAmount >= 0 ? 'income' : 'expense'
       };
-      
-      await createTransaction(newTx, user.id);
-      await loadData();
+
+      await TransactionService.createTransaction(newTx, user.id);
+      loadData(true); // Refresh data
       setIsModalOpen(false);
       setAmount('');
       setDescription('');
@@ -88,7 +114,7 @@ export default function TransactionsScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
           try {
-            await deleteTransaction(id);
+            await TransactionService.deleteTransaction(id);
             setTransactions(prev => prev.filter(t => t.id !== id));
           } catch (e) {
             Alert.alert('Error', 'Failed to delete transaction');
@@ -118,7 +144,7 @@ export default function TransactionsScreen() {
       {/* Filters */}
       <View className="px-4 mb-4 flex-row gap-3">
         {['All', 'Income', 'Expense'].map((f) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={f}
             onPress={() => setFilter(f as FilterType)}
             className={`px-5 py-2 rounded-full border ${filter === f ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-transparent border-white/20'}`}
@@ -128,8 +154,22 @@ export default function TransactionsScreen() {
         ))}
       </View>
 
-      <FlatList
-        data={filteredTransactions}
+      {/* Search */}
+      <View className="px-4 mb-4">
+        <View className="bg-[#112240] rounded-xl flex-row items-center px-4 py-3 border border-white/5">
+          <Search size={20} color="#8892B0" />
+          <TextInput
+            className="flex-1 text-white ml-3"
+            placeholder="Search transactions..."
+            placeholderTextColor="#8892B0"
+            value={searchQuery}
+            onChangeText={handleSearch}
+          />
+        </View>
+      </View>
+
+      <FlashList
+        data={transactions}
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: 16 }}
         renderItem={({ item, index }) => (
@@ -155,11 +195,28 @@ export default function TransactionsScreen() {
           </Animated.View>
         )}
         ListEmptyComponent={
-          <View className="mt-20 items-center">
-            <Filter size={40} color="#112240" />
-            <Text className="text-[#8892B0] mt-4">No transactions found.</Text>
-          </View>
+          loading ? (
+            <ActivityIndicator color="#64FFDA" style={{ marginTop: 50 }} />
+          ) : (
+            <View className="mt-20 items-center">
+              <Filter size={40} color="#112240" />
+              <Text className="text-[#8892B0] mt-4">No transactions found.</Text>
+            </View>
+          )
         }
+        ListFooterComponent={
+          loadingMore ? (
+            <View className="py-4 items-center">
+              <ActivityIndicator color="#64FFDA" />
+            </View>
+          ) : null
+        }
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#64FFDA" />
+        }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        estimatedItemSize={80}
       />
 
       {/* Add Modal */}

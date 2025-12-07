@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { User, UserRole } from '../../types';
 import { Session } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 
 export type ProfileRow = {
   id: string;
@@ -25,6 +26,8 @@ interface AuthContextType {
   login: (email: string, password?: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
   profile?: ProfileRow | null;
@@ -39,8 +42,60 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const router = useRouter();
 
+  // Session monitoring
+  const [sessionExpiry, setSessionExpiry] = useState<Date | null>(null);
+
   const AVATARS_BUCKET = 'avatars';
   const SIGNED_URL_EXPIRES = 60;
+
+  // Handle deep linking for password reset
+  const handleDeepLink = useCallback(async (url: string) => {
+    const { path, queryParams } = Linking.parse(url);
+
+    if (path === 'reset-password' && queryParams?.access_token && queryParams?.refresh_token) {
+      try {
+        const { error } = await supabase.auth.setSession({
+          access_token: queryParams.access_token as string,
+          refresh_token: queryParams.refresh_token as string,
+        });
+
+        if (error) throw error;
+
+        // Navigate to login with reset mode
+        router.replace('/(auth)/login?mode=reset');
+      } catch (error) {
+        console.error('Error handling password reset link:', error);
+        Alert.alert('Error', 'Invalid or expired password reset link');
+      }
+    }
+  }, [router]);
+
+  // Monitor session expiry and refresh tokens
+  const monitorSession = useCallback(() => {
+    if (!session?.expires_at) return;
+
+    const expiryTime = new Date(session.expires_at * 1000);
+    setSessionExpiry(expiryTime);
+
+    // Refresh token 5 minutes before expiry
+    const refreshTime = new Date(expiryTime.getTime() - 5 * 60 * 1000);
+    const now = new Date();
+
+    if (now >= refreshTime) {
+      supabase.auth.refreshSession().catch(error => {
+        console.error('Session refresh failed:', error);
+        // Force logout if refresh fails
+        logout();
+      });
+    }
+  }, [session]);
+
+  // Check if session needs refresh
+  useEffect(() => {
+    if (session) {
+      monitorSession();
+    }
+  }, [session, monitorSession]);
 
   const resolveAvatarUrl = async (avatarPath: string | null | undefined, userId: string): Promise<string | null> => {
     if (!avatarPath) return null;
@@ -126,7 +181,20 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
     initSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Handle deep links
+    const handleUrl = (event: { url: string }) => {
+      handleDeepLink(event.url);
+    };
+
+    // Listen for deep links
+    const subscription = Linking.addEventListener('url', handleUrl);
+
+    // Check initial URL
+    Linking.getInitialURL().then(url => {
+      if (url) handleDeepLink(url);
+    });
+
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) return;
       setSession(session);
       if (session) {
@@ -140,9 +208,10 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      subscription.remove();
+      authSubscription.unsubscribe();
     };
-  }, []);
+  }, [handleDeepLink]);
 
   const refreshProfile = useCallback(async () => {
     if (!session?.user?.id || !session.user.email) return;
@@ -200,16 +269,43 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     setUser(null);
     setProfile(null);
     setSession(null);
+    setSessionExpiry(null);
     setIsLoading(false);
     try {
-      router.replace('/login');
+      router.replace('/(auth)/login');
     } catch (e) {
       // ignore nav errors
     }
   };
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: Linking.createURL('reset-password'),
+    });
+    if (error) throw error;
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    if (error) throw error;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, isAuthenticated: !!session, login, register, logout, isLoading, refreshProfile, profile }}>
+    <AuthContext.Provider value={{
+      user,
+      session,
+      isAuthenticated: !!session,
+      login,
+      register,
+      logout,
+      resetPassword,
+      updatePassword,
+      isLoading,
+      refreshProfile,
+      profile
+    }}>
       {children}
     </AuthContext.Provider>
   );

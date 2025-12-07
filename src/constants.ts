@@ -5,23 +5,25 @@
 export const ROLE_NAV_ITEMS: Record<string, string[]> = {
   // Members see core financial tools
   'member': [
-    'Dashboard', 
-    'Transactions', 
-    'Documents', 
-    'Scan', 
+    'Dashboard',
+    'Transactions',
+    'Documents',
+    'Scan',
     'AI Chat',
+    'Find CPA',
     'Settings',
     'Support'
   ],
 
   // Premium users get all member features + Messages
   'premium': [
-    'Dashboard', 
-    'Transactions', 
-    'Documents', 
-    'Scan', 
+    'Dashboard',
+    'Transactions',
+    'Documents',
+    'Scan',
     'AI Chat',
     'Messages',
+    'Find CPA',
     'Settings',
     'Support'
   ],
