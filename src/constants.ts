@@ -1,10 +1,11 @@
 // Assuming your UserRole enum is correctly defined in src/types.ts
+import { UserRole } from './types';
 
 // The list below defines which top-level navigation items are visible to each user role.
 // NOTE: 'Transactions' maps to the /finances hub route in the layout.
-export const ROLE_NAV_ITEMS: Record<string, string[]> = {
+export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
   // Members see core financial tools
-  'member': [
+  [UserRole.MEMBER]: [
     'Dashboard',
     'Transactions',
     'Documents',
@@ -16,7 +17,7 @@ export const ROLE_NAV_ITEMS: Record<string, string[]> = {
   ],
 
   // Premium users get all member features + Messages
-  'premium': [
+  [UserRole.PREMIUM]: [
     'Dashboard',
     'Transactions',
     'Documents',
@@ -29,7 +30,7 @@ export const ROLE_NAV_ITEMS: Record<string, string[]> = {
   ],
 
   // FIX: CPA sees all Premium features (minus general Support) + CPA Portal
-  'cpa': [
+  [UserRole.CPA]: [
     'Dashboard', 
     'Transactions', 
     'Documents', 
@@ -41,7 +42,7 @@ export const ROLE_NAV_ITEMS: Record<string, string[]> = {
   ],
 
   // FIX: Support sees ALL Premium features + Admin for user/ticket management
-  'support': [
+  [UserRole.SUPPORT]: [
     'Dashboard', 
     'Transactions', 
     'Documents', 
@@ -54,7 +55,7 @@ export const ROLE_NAV_ITEMS: Record<string, string[]> = {
   ],
 
   // Admins see every possible feature in the system.
-  'admin': [
+  [UserRole.ADMIN]: [
     'Dashboard', 
     'Transactions', 
     'Documents', 
@@ -62,10 +63,15 @@ export const ROLE_NAV_ITEMS: Record<string, string[]> = {
     'CPA Portal',
     'Support', 
     'AI Chat',
-    'Messages',
+    'Messages', 
     'Settings',
     'Admin' // The dedicated Admin Control Panel route
   ]
 };
 
 // You may also export other constants here if needed
+export const APP_CONFIG = {
+  MAX_FILE_SIZE_MB: 10,
+  SUPPORTED_MIME_TYPES: ['image/jpeg', 'image/png', 'application/pdf'],
+  PAGINATION_LIMIT: 20,
+};
