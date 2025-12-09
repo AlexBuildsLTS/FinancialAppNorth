@@ -626,7 +626,7 @@ export const getOrCreateConversation = async (
       .from('conversations')
       .select(`
         id,
-        conversation_participants!conversation_participants_user_id_fkey!inner (user_id)
+        conversation_participants!conversation_participants_conversation_id_fkey!inner (user_id)
       `)
       .eq('type', 'direct');
 

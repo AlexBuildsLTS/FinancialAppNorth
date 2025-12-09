@@ -37,8 +37,20 @@ CREATE POLICY "conversation_participants_manage_own" ON public.conversation_part
 -- Conversations: Users can access conversations they are members of
 CREATE POLICY "conversations_member_access" ON public.conversations
   FOR ALL TO authenticated
-  USING (public.is_conversation_member(id, auth.uid()))
-  WITH CHECK (public.is_conversation_member(id, auth.uid()));
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.conversation_participants cp
+      WHERE cp.conversation_id = conversations.id
+      AND cp.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.conversation_participants cp
+      WHERE cp.conversation_id = conversations.id
+      AND cp.user_id = auth.uid()
+    )
+  );
 
 -- Messages: Users can access messages in conversations they are members of, and send messages
 CREATE POLICY "messages_member_access" ON public.messages
