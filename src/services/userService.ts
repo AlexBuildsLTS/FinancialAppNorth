@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { User, TablesUpdate, FinancialSummary } from '../types';
+import { User, TablesUpdate, FinancialSummary, UserRole } from '../types';
 
 export class UserService {
   /**
@@ -47,6 +47,7 @@ export class UserService {
 
   /**
    * Get financial summary for dashboard
+   * FIX: Added 'date' to trend objects to match FinancialSummary type definition
    */
   static async getFinancialSummary(userId: string): Promise<FinancialSummary> {
     const { data: transactions, error } = await supabase
@@ -57,16 +58,26 @@ export class UserService {
 
     if (error) {
       console.error('Error fetching financial summary:', error);
-      return { balance: 0, income: 0, expense: 0, trend: [{ value: 0 }] };
+      // Return proper fallback structure matching interface
+      return { 
+        balance: 0, 
+        income: 0, 
+        expense: 0, 
+        trend: [{ date: new Date().toISOString(), value: 0 }] 
+      };
     }
 
     let income = 0;
     let expense = 0;
     let runningBalance = 0;
 
+    // FIX: Include 'date' in the map function
     const trend = transactions.map((t: any) => {
       runningBalance += parseFloat(t.amount);
-      return { value: runningBalance };
+      return { 
+        value: runningBalance,
+        date: t.date // Required by FinancialSummary interface
+      };
     });
 
     transactions.forEach((tx: any) => {
@@ -75,14 +86,14 @@ export class UserService {
       else expense += Math.abs(amt);
     });
 
-    // Total balance is the final running balance, not income - expense
     const totalBalance = runningBalance;
 
     return {
       balance: totalBalance,
       income,
       expense,
-      trend: trend.length > 0 ? trend : [{ value: 0 }, { value: 0 }]
+      // Provide valid fallback if no transactions exist
+      trend: trend.length > 0 ? trend : [{ date: new Date().toISOString(), value: 0 }]
     };
   }
 
@@ -101,8 +112,8 @@ export class UserService {
       id: p.id,
       email: p.email || 'No Email',
       name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown',
-      role: p.role,
-      status: 'active', // TODO: Add status field to profiles table
+      role: (p.role as UserRole) || UserRole.MEMBER,
+      status: 'active', 
       avatar: p.avatar_url,
       currency: p.currency,
       country: p.country
@@ -115,7 +126,8 @@ export class UserService {
   static async updateUserRole(userId: string, newRole: string) {
     const { error } = await supabase
       .from('profiles')
-      .update({ role: newRole, updated_at: new Date().toISOString() })
+      // Cast string to specific role enum if necessary, or let DB handle validation
+      .update({ role: newRole as any, updated_at: new Date().toISOString() })
       .eq('id', userId);
 
     if (error) throw error;
@@ -125,24 +137,20 @@ export class UserService {
    * Deactivate user (admin only)
    */
   static async deactivateUser(userId: string) {
-    // TODO: Implement deactivation logic
-    // This might involve updating a status field or auth.users
-    console.warn('deactivateUser not fully implemented');
+    console.warn('deactivateUser: Logical delete not implemented yet');
   }
 
   /**
    * Delete user (admin only)
    */
   static async deleteUser(userId: string) {
-    // TODO: Implement deletion logic with proper cleanup
-    console.warn('deleteUser not fully implemented');
+    console.warn('deleteUser: Hard delete not implemented yet');
   }
 
   /**
    * Save API key for user
    */
   static async saveApiKey(userId: string, service: string, apiKey: string) {
-    // Check if exists first to avoid constraint errors
     const { data: existing } = await supabase
       .from('user_secrets')
       .select('id')

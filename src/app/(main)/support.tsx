@@ -4,11 +4,11 @@ import { View, Text, TouchableOpacity, FlatList, SafeAreaView, Alert, Modal, Tex
 
 import { Stack, useFocusEffect } from 'expo-router';
 
-import { Plus, MessageSquare, HelpCircle, X, Send, Lock, CheckCircle, AlertCircle, Filter, ShieldAlert } from 'lucide-react-native';
+import { Plus, MessageSquare, HelpCircle, X, Send, Lock, CheckCircle, AlertCircle, Filter, ShieldAlert, ChevronDown } from 'lucide-react-native';
 
 import { useAuth } from '../../shared/context/AuthContext';
 
-import { createTicket, getTickets, updateTicketStatus, addInternalNote, getTicketDetails, getUsers } from '../../services/dataService'; 
+import { createTicket, getTickets, getAllTickets, updateTicketStatus, addInternalNote, addTicketReply, getTicketDetails, getUsers } from '../../services/dataService';
 
 import { UserRole } from '../../types'; // Import UserRole enum
 
@@ -58,6 +58,10 @@ export default function SupportScreen() {
 
   const [internalNote, setInternalNote] = useState('');
 
+  const [reply, setReply] = useState('');
+
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+
 
 
   const loadData = async () => {
@@ -72,17 +76,7 @@ export default function SupportScreen() {
 
       if (isStaff && activeTab === 'all_tickets') {
 
-          // For Admin: In a real app, you would have a getAllTickets() function.
-
-          // Reusing getTickets for now (which fetches user's own), but assuming 
-
-          // you might implement admin logic later. 
-
-          // If getTickets only returns own tickets, admins will only see their own.
-
-          // To fix, add getAllTickets in dataService or update RLS policies.
-
-          data = await getTickets(user.id); 
+          data = await getAllTickets();
 
       } else {
 
@@ -196,9 +190,31 @@ export default function SupportScreen() {
 
   };
 
+  const handleAddReply = async () => {
 
+      if (!reply.trim()) return;
 
-  const handleStatusChange = async (newStatus: 'open' | 'closed') => {
+      try {
+
+          await addTicketReply(selectedTicket.id, user!.id, reply);
+
+          setReply('');
+
+          // Refresh details
+
+          const updated = await getTicketDetails(selectedTicket.id);
+
+          setSelectedTicket(updated);
+
+      } catch (e: any) {
+
+          Alert.alert("Error", e.message);
+
+      }
+
+  };
+
+  const handleStatusChange = async (newStatus: 'open' | 'in_progress' | 'pending' | 'resolved' | 'closed') => {
 
       try {
 
@@ -207,6 +223,8 @@ export default function SupportScreen() {
           const updated = await getTicketDetails(selectedTicket.id);
 
           setSelectedTicket(updated);
+
+          setStatusModalVisible(false);
 
           loadData(); // Refresh list
 
@@ -220,37 +238,54 @@ export default function SupportScreen() {
 
 
 
-  const renderTicketItem = ({ item }: { item: any }) => (
+  const renderTicketItem = ({ item }: { item: any }) => {
+    const userInfo = isStaff && activeTab === 'all_tickets' ? item.user : null;
+    const displayName = userInfo ? `${userInfo.first_name || ''} ${userInfo.last_name || ''}`.trim() || userInfo.email : `Ticket #${item.id.slice(0, 8)}`;
 
-    <TouchableOpacity 
+    return (
 
-        onPress={() => handleViewDetails(item.id)}
+      <TouchableOpacity
 
-        className="bg-[#112240] p-4 rounded-xl mb-3 border border-white/5 flex-row justify-between items-center active:bg-white/5"
+          onPress={() => handleViewDetails(item.id)}
 
-    >
+          className="bg-[#112240] p-4 rounded-xl mb-3 border border-white/5 flex-row justify-between items-center active:bg-white/5"
 
-        <View className="flex-1 mr-4">
+      >
 
-            <Text className="text-white font-bold text-base mb-1" numberOfLines={1}>{item.subject}</Text>
+          <View className="flex-1 mr-4">
 
-            <Text className="text-[#8892B0] text-xs">#{item.id.slice(0, 8)} • {new Date(item.created_at).toLocaleDateString()}</Text>
+              <Text className="text-white font-bold text-base mb-1" numberOfLines={1}>{item.subject}</Text>
 
-        </View>
+              <Text className="text-[#8892B0] text-xs">{displayName} • {new Date(item.created_at).toLocaleDateString()}</Text>
 
-        <View className={`px-3 py-1 rounded-full ${item.status === 'open' ? 'bg-green-500/20 border-green-500/30' : 'bg-red-500/20 border-red-500/30'} border`}>
+          </View>
 
-            <Text className={`text-[10px] font-bold uppercase ${item.status === 'open' ? 'text-green-400' : 'text-red-400'}`}>
+          <View className={`px-3 py-1 rounded-full border ${
+              item.status === 'open' ? 'bg-green-500/20 border-green-500/30' :
+              item.status === 'in_progress' ? 'bg-blue-500/20 border-blue-500/30' :
+              item.status === 'pending' ? 'bg-yellow-500/20 border-yellow-500/30' :
+              item.status === 'resolved' ? 'bg-purple-500/20 border-purple-500/30' :
+              'bg-red-500/20 border-red-500/30'
+          }`}>
+  
+              <Text className={`text-[10px] font-bold uppercase ${
+                  item.status === 'open' ? 'text-green-400' :
+                  item.status === 'in_progress' ? 'text-blue-400' :
+                  item.status === 'pending' ? 'text-yellow-400' :
+                  item.status === 'resolved' ? 'text-purple-400' :
+                  'text-red-400'
+              }`}>
+  
+                  {item.status.replace('_', ' ')}
+  
+              </Text>
+  
+          </View>
 
-                {item.status}
+      </TouchableOpacity>
 
-            </Text>
-
-        </View>
-
-    </TouchableOpacity>
-
-  );
+    );
+  };
 
 
 
@@ -484,33 +519,65 @@ export default function SupportScreen() {
 
                   
 
-                  {/* Admin Status Toggle */}
+                  {/* Status Display/Change */}
 
                   {isStaff ? (
 
-                      <TouchableOpacity 
+                      <TouchableOpacity
 
-                        onPress={() => handleStatusChange(selectedTicket.status === 'open' ? 'closed' : 'open')}
+                        onPress={() => setStatusModalVisible(true)}
 
-                        className={`px-3 py-1.5 rounded-lg ${selectedTicket?.status === 'open' ? 'bg-red-500/20' : 'bg-green-500/20'}`}
+                        className={`px-3 py-1.5 rounded-lg flex-row items-center ${
+                            selectedTicket?.status === 'open' ? 'bg-green-500/20' :
+                            selectedTicket?.status === 'in_progress' ? 'bg-blue-500/20' :
+                            selectedTicket?.status === 'pending' ? 'bg-yellow-500/20' :
+                            selectedTicket?.status === 'resolved' ? 'bg-purple-500/20' :
+                            'bg-red-500/20'
+                        }`}
 
                       >
 
-                          <Text className={`text-xs font-bold ${selectedTicket?.status === 'open' ? 'text-red-400' : 'text-green-400'}`}>
+                          <Text className={`text-xs font-bold uppercase mr-1 ${
+                              selectedTicket?.status === 'open' ? 'text-green-400' :
+                              selectedTicket?.status === 'in_progress' ? 'text-blue-400' :
+                              selectedTicket?.status === 'pending' ? 'text-yellow-400' :
+                              selectedTicket?.status === 'resolved' ? 'text-purple-400' :
+                              'text-red-400'
+                          }`}>
 
-                              {selectedTicket?.status === 'open' ? 'CLOSE TICKET' : 'REOPEN'}
+                              {selectedTicket?.status.replace('_', ' ')}
 
                           </Text>
+
+                          <ChevronDown size={12} color={
+                              selectedTicket?.status === 'open' ? '#34D399' :
+                              selectedTicket?.status === 'in_progress' ? '#60A5FA' :
+                              selectedTicket?.status === 'pending' ? '#FBBF24' :
+                              selectedTicket?.status === 'resolved' ? '#A78BFA' :
+                              '#F87171'
+                          } />
 
                       </TouchableOpacity>
 
                   ) : (
 
-                      <View className={`px-3 py-1.5 rounded-lg ${selectedTicket?.status === 'open' ? 'bg-green-500/20' : 'bg-white/10'}`}>
+                      <View className={`px-3 py-1.5 rounded-lg ${
+                          selectedTicket?.status === 'open' ? 'bg-green-500/20' :
+                          selectedTicket?.status === 'in_progress' ? 'bg-blue-500/20' :
+                          selectedTicket?.status === 'pending' ? 'bg-yellow-500/20' :
+                          selectedTicket?.status === 'resolved' ? 'bg-purple-500/20' :
+                          'bg-red-500/20'
+                      }`}>
 
-                           <Text className={`text-xs font-bold uppercase ${selectedTicket?.status === 'open' ? 'text-green-400' : 'text-gray-400'}`}>
+                           <Text className={`text-xs font-bold uppercase ${
+                               selectedTicket?.status === 'open' ? 'text-green-400' :
+                               selectedTicket?.status === 'in_progress' ? 'text-blue-400' :
+                               selectedTicket?.status === 'pending' ? 'text-yellow-400' :
+                               selectedTicket?.status === 'resolved' ? 'text-purple-400' :
+                               'text-red-400'
+                           }`}>
 
-                              {selectedTicket?.status}
+                              {selectedTicket?.status.replace('_', ' ')}
 
                           </Text>
 
@@ -564,11 +631,14 @@ export default function SupportScreen() {
 
                       <Text className="text-[#8892B0] font-bold mb-4 uppercase text-xs tracking-widest">Conversation History</Text>
 
-                      
+
 
                       <View className="gap-4 pb-10">
 
-                        {selectedTicket?.messages?.map((msg: any) => (
+                        {selectedTicket?.messages
+                          ?.filter((msg: any) => isStaff || !msg.is_internal) // Staff see all, users see public only
+                          ?.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) // Sort by time
+                          ?.map((msg: any) => (
 
                             <View key={msg.id} className={`p-4 rounded-2xl border ${msg.is_internal ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-[#112240] border-white/5'}`}>
 
@@ -604,39 +674,79 @@ export default function SupportScreen() {
 
 
 
-              {/* Admin Internal Note Input */}
+              {/* Staff Inputs */}
 
               {isStaff && (
 
                   <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
 
-                      <View className="p-4 border-t border-white/10 bg-[#0D1F3A]">
+                      <View className="border-t border-white/10 bg-[#0D1F3A]">
 
-                          <Text className="text-[#64FFDA] font-bold mb-2 text-xs uppercase tracking-wide">Add Internal Note</Text>
+                          {/* Public Reply Input */}
 
-                          <View className="flex-row gap-3 items-center">
+                          <View className="p-4">
 
-                              <TextInput 
+                              <Text className="text-[#64FFDA] font-bold mb-2 text-xs uppercase tracking-wide">Send Public Reply</Text>
 
-                                  className="flex-1 bg-[#0A192F] text-white p-4 rounded-xl border border-white/10 min-h-[50px]"
+                              <View className="flex-row gap-3 items-end">
 
-                                  placeholder="Write a note for other staff..."
+                                  <TextInput
 
-                                  placeholderTextColor="#475569"
+                                      className="flex-1 bg-[#0A192F] text-white p-4 rounded-xl border border-white/10 min-h-[50px]"
 
-                                  value={internalNote}
+                                      placeholder="Reply to the customer..."
 
-                                  onChangeText={setInternalNote}
+                                      placeholderTextColor="#475569"
 
-                                  multiline
+                                      value={reply}
 
-                              />
+                                      onChangeText={setReply}
 
-                              <TouchableOpacity onPress={handleAddNote} className="bg-[#64FFDA] w-12 h-12 rounded-xl items-center justify-center shadow-lg">
+                                      multiline
 
-                                  <Send size={20} color="#0A192F" />
+                                  />
 
-                              </TouchableOpacity>
+                                  <TouchableOpacity onPress={handleAddReply} disabled={!reply.trim()} className={`w-12 h-12 rounded-xl items-center justify-center shadow-lg ${reply.trim() ? 'bg-[#64FFDA]' : 'bg-white/10'}`}>
+
+                                      <Send size={20} color={reply.trim() ? '#0A192F' : '#8892B0'} />
+
+                                  </TouchableOpacity>
+
+                              </View>
+
+                          </View>
+
+                          {/* Internal Note Input */}
+
+                          <View className="p-4 border-t border-white/5">
+
+                              <Text className="text-[#64FFDA] font-bold mb-2 text-xs uppercase tracking-wide">Add Internal Note</Text>
+
+                              <View className="flex-row gap-3 items-center">
+
+                                  <TextInput
+
+                                      className="flex-1 bg-[#0A192F] text-white p-4 rounded-xl border border-white/10 min-h-[50px]"
+
+                                      placeholder="Write a note for other staff..."
+
+                                      placeholderTextColor="#475569"
+
+                                      value={internalNote}
+
+                                      onChangeText={setInternalNote}
+
+                                      multiline
+
+                                  />
+
+                                  <TouchableOpacity onPress={handleAddNote} disabled={!internalNote.trim()} className={`w-12 h-12 rounded-xl items-center justify-center shadow-lg ${internalNote.trim() ? 'bg-[#64FFDA]' : 'bg-white/10'}`}>
+
+                                      <Send size={20} color={internalNote.trim() ? '#0A192F' : '#8892B0'} />
+
+                                  </TouchableOpacity>
+
+                              </View>
 
                           </View>
 
@@ -647,6 +757,60 @@ export default function SupportScreen() {
               )}
 
           </SafeAreaView>
+
+      </Modal>
+
+      {/* STATUS CHANGE MODAL */}
+
+      <Modal visible={statusModalVisible} transparent animationType="fade" onRequestClose={() => setStatusModalVisible(false)}>
+
+          <View className="flex-1 bg-black/50 justify-center items-center p-6">
+
+              <View className="bg-[#112240] rounded-2xl border border-white/5 p-6 w-full max-w-sm">
+
+                  <View className="flex-row justify-between items-center mb-6">
+
+                      <Text className="text-white text-xl font-bold">Change Status</Text>
+
+                      <TouchableOpacity onPress={() => setStatusModalVisible(false)}>
+
+                          <X size={24} color="#8892B0" />
+
+                      </TouchableOpacity>
+
+                  </View>
+
+                  <View className="gap-3">
+
+                      {[
+                          { key: 'open', label: 'Open', color: 'bg-green-500/20 border-green-500/30', textColor: 'text-green-400' },
+                          { key: 'in_progress', label: 'In Progress', color: 'bg-blue-500/20 border-blue-500/30', textColor: 'text-blue-400' },
+                          { key: 'pending', label: 'Pending', color: 'bg-yellow-500/20 border-yellow-500/30', textColor: 'text-yellow-400' },
+                          { key: 'resolved', label: 'Resolved', color: 'bg-purple-500/20 border-purple-500/30', textColor: 'text-purple-400' },
+                          { key: 'closed', label: 'Closed', color: 'bg-red-500/20 border-red-500/30', textColor: 'text-red-400' }
+                      ].map((status) => (
+
+                          <TouchableOpacity
+
+                              key={status.key}
+
+                              onPress={() => handleStatusChange(status.key as any)}
+
+                              className={`p-4 rounded-xl border ${status.color} ${selectedTicket?.status === status.key ? 'border-opacity-100' : 'border-opacity-50'}`}
+
+                          >
+
+                              <Text className={`font-bold text-center ${status.textColor}`}>{status.label}</Text>
+
+                          </TouchableOpacity>
+
+                      ))}
+
+                  </View>
+
+              </View>
+
+          </View>
 
       </Modal>
 

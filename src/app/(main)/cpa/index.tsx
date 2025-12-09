@@ -17,8 +17,9 @@ export default function CpaDashboard() {
     try {
       const data = await CpaService.getCpaClients(user.id);
       setClients(data);
-    } catch (error) {
-      console.error('Error loading clients:', error);
+    } catch (error: any) {
+      console.error('Error loading clients:', error.message || error);
+      Alert.alert('Error', 'Failed to load clients. Please try again.');
     } finally {
       setLoading(false);
     }

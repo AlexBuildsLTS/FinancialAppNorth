@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, Modal, Platform, useWindowDimensions } from 'react-native';
 import { Bell, MessageSquare, LogOut, User as UserIcon, Settings, ShieldAlert } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
+import { getNotifications, subscribeToNotifications, markAllNotificationsRead, NotificationItem } from '../../services/dataService';
 
 export function MainHeader() {
   const { user, logout } = useAuth();
@@ -13,16 +14,50 @@ export function MainHeader() {
   // UI State
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
-  
-  // Notification Logic
-  const [notifications, setNotifications] = useState([
-      { id: 1, text: "Budget 'Food' exceeded by $20", read: false },
-      { id: 2, text: "New document processed", read: false },
-  ]);
-  const unreadCount = notifications.filter(n => !n.read).length;
 
-  const handleMarkRead = () => {
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  // Real Notifications
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  // Load notifications on mount
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadNotifications = async () => {
+      try {
+        const notifs = await getNotifications(user.id);
+        setNotifications(notifs);
+      } catch (error) {
+        console.error('Failed to load notifications:', error);
+      }
+    };
+
+    loadNotifications();
+
+    // Subscribe to real-time notifications
+    const subscription = subscribeToNotifications(user.id, (newNotif) => {
+      setNotifications(prev => {
+        // Avoid duplicates
+        if (prev.some(n => n.id === newNotif.id)) return prev;
+        return [newNotif, ...prev];
+      });
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user?.id]);
+
+  const handleMarkRead = async () => {
+    if (!user?.id) return;
+    try {
+      // Mark all as read in DB
+      await markAllNotificationsRead(user.id);
+      // Update local state
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (error) {
+      console.error('Failed to mark notifications read:', error);
+    }
   };
 
   return (
@@ -65,8 +100,8 @@ export function MainHeader() {
                         )}
                     </View>
                     {notifications.map((n) => (
-                        <View key={n.id} className={`p-3 rounded-lg mb-1 ${n.read ? 'opacity-50' : 'bg-[#64FFDA]/10'}`}>
-                            <Text className="text-white text-xs leading-5">{n.text}</Text>
+                        <View key={n.id} className={`p-3 rounded-lg mb-1 ${n.is_read ? 'opacity-50' : 'bg-[#64FFDA]/10'}`}>
+                            <Text className="text-white text-xs leading-5">{n.title}: {n.message}</Text>
                         </View>
                     ))}
                 </View>
