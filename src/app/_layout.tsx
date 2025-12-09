@@ -25,8 +25,15 @@ LogBox.ignoreLogs([
 if (Platform.OS === 'web') {
   const originalError = console.error;
   console.error = (...args) => {
-    if (typeof args[0] === 'string' && 
-       (/onStartShouldSetResponder|onResponder|onPressOut/.test(args[0]))) {
+    if (typeof args[0] === 'string' &&
+       args[0].includes('Unknown event handler property') &&
+       (args[0].includes('onStartShouldSetResponder') ||
+        args[0].includes('onResponderGrant') ||
+        args[0].includes('onResponderRelease') ||
+        args[0].includes('onResponderTerminate') ||
+        args[0].includes('onResponderMove') ||
+        args[0].includes('onResponderTerminationRequest') ||
+        args[0].includes('onPressOut'))) {
       return;
     }
     originalError(...args);

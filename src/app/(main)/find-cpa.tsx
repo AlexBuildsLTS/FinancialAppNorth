@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
-import { Search, UserPlus, MessageCircle } from 'lucide-react-native';
+import { Search, UserPlus, MessageCircle, Check, X, Mail } from 'lucide-react-native';
 import { useAuth } from '../../shared/context/AuthContext';
 import { CpaService } from '../../services/cpaService';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 interface CpaProfile {
   id: string;
@@ -19,22 +20,30 @@ export default function FindCpaScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [cpaList, setCpaList] = useState<CpaProfile[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState<string | null>(null);
 
   const loadCpas = async () => {
+    if (!user) return;
     try {
-      const { data, error } = await supabase
+      const { data: cpaData, error: cpaError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email, avatar_url')
         .eq('role', 'cpa')
         .order('first_name');
 
-      if (error) throw error;
-      setCpaList(data || []);
+      if (cpaError) throw cpaError;
+      setCpaList(cpaData || []);
+
+      // Load pending invitations
+      const invitations = await CpaService.getClientCpas(user.id);
+      const pending = invitations.filter(inv => inv.status === 'pending');
+      setPendingInvitations(pending);
+
     } catch (error) {
-      console.error('Error loading CPAs:', error);
-      Alert.alert('Error', 'Failed to load CPA list');
+      console.error('Error loading data:', error);
+      Alert.alert('Error', 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -64,6 +73,28 @@ export default function FindCpaScreen() {
     }
   };
 
+  const handleAcceptInvitation = async (cpaId: string) => {
+    if (!user) return;
+    try {
+      await CpaService.acceptInvitation(user.id, cpaId);
+      Alert.alert('Success', 'CPA invitation accepted!');
+      loadCpas(); // Refresh
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to accept invitation');
+    }
+  };
+
+  const handleDeclineInvitation = async (cpaId: string) => {
+    if (!user) return;
+    try {
+      await CpaService.declineInvitation(user.id, cpaId);
+      Alert.alert('Success', 'CPA invitation declined');
+      loadCpas(); // Refresh
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to decline invitation');
+    }
+  };
+
   if (loading) {
     return (
       <View className="flex-1 bg-[#0A192F] items-center justify-center">
@@ -79,6 +110,44 @@ export default function FindCpaScreen() {
         <Text className="text-white font-bold text-2xl">Find a CPA</Text>
         <Text className="text-[#8892B0] text-sm">Connect with certified public accountants</Text>
       </View>
+
+      {/* Pending Invitations */}
+      {pendingInvitations.length > 0 && (
+        <>
+          <Text className="text-white font-bold text-lg mb-3">Pending Invitations</Text>
+          {pendingInvitations.map((invitation, index) => (
+            <Animated.View
+              key={invitation.id}
+              entering={FadeInDown.delay(index * 100).duration(500)}
+              className="bg-[#112240] border border-[#64FFDA]/20 p-4 rounded-xl mb-3 flex-row items-center justify-between"
+            >
+              <View className="flex-row items-center">
+                <View className="h-10 w-10 bg-[#64FFDA]/10 rounded-full items-center justify-center mr-3 border border-[#64FFDA]/20">
+                  <Mail size={18} color="#64FFDA" />
+                </View>
+                <View>
+                  <Text className="text-white font-medium">{invitation.name}</Text>
+                  <Text className="text-[#8892B0] text-xs">CPA Invitation</Text>
+                </View>
+              </View>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={() => handleAcceptInvitation(invitation.id)}
+                  className="bg-[#64FFDA]/20 p-2 rounded-lg"
+                >
+                  <Check size={18} color="#64FFDA" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleDeclineInvitation(invitation.id)}
+                  className="bg-red-500/20 p-2 rounded-lg"
+                >
+                  <X size={18} color="#F87171" />
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          ))}
+        </>
+      )}
 
       {/* Search */}
       <View className="mb-6">

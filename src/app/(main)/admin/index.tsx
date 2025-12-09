@@ -1,10 +1,58 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
-import { Users, AlertTriangle, Activity, ArrowRight } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
+import { Users, AlertTriangle, ArrowRight, TrendingUp, DollarSign, FileText, BarChart3 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { getUsers } from '../../../services/dataService';
+import { supabase } from '../../../lib/supabase';
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalTransactions: 0,
+    totalDocuments: 0,
+    activeTickets: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      // Get users count
+      const users = await getUsers();
+      const totalUsers = users.length;
+
+      // Get transaction count
+      const { count: transactionCount } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true });
+
+      // Get document count
+      const { count: documentCount } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true });
+
+      // Get active tickets
+      const { count: ticketCount } = await supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .neq('status', 'closed');
+
+      setStats({
+        totalUsers,
+        totalTransactions: transactionCount || 0,
+        totalDocuments: documentCount || 0,
+        activeTickets: ticketCount || 0
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const StatCard = ({ title, value, icon: Icon, color, link }: any) => (
     <TouchableOpacity 
@@ -32,18 +80,30 @@ export default function AdminDashboard() {
 
         {/* Stats Row */}
         <View className="flex-row flex-wrap justify-between gap-y-4 mb-6">
-          <StatCard 
-            title="Total Users" 
-            value="Manage" 
-            icon={Users} 
-            color="teal" 
-            link="/(main)/admin/users" 
+          <StatCard
+            title="Total Users"
+            value={loading ? "..." : stats.totalUsers.toString()}
+            icon={Users}
+            color="teal"
+            link="/(main)/admin/users"
           />
-          <StatCard 
-            title="System Status" 
-            value="Healthy" 
-            icon={Activity} 
-            color="blue" 
+          <StatCard
+            title="Transactions"
+            value={loading ? "..." : stats.totalTransactions.toString()}
+            icon={TrendingUp}
+            color="green"
+          />
+          <StatCard
+            title="Documents"
+            value={loading ? "..." : stats.totalDocuments.toString()}
+            icon={FileText}
+            color="blue"
+          />
+          <StatCard
+            title="Active Tickets"
+            value={loading ? "..." : stats.activeTickets.toString()}
+            icon={AlertTriangle}
+            color="red"
           />
         </View>
 
