@@ -1,11 +1,9 @@
 import { supabase } from '../lib/supabase';
 import { ChatbotMessage } from '../types';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-
 // ==========================================
 // 1. API KEY MANAGEMENT
 // ==========================================
-
 export const saveGeminiKey = async (userId: string, apiKey: string) => {
   const { data: existing } = await supabase
     .from('user_secrets')
@@ -39,35 +37,39 @@ export const getGeminiKey = async (userId: string): Promise<string | null> => {
 // ==========================================
 
 const callGeminiDirectly = async (prompt: string, apiKey: string) => {
-  try {
-    // Initialize SDK
-    const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // Use the standard 'gemini-1.5-flash'. 
-    // The SDK automatically handles the v1beta/v1 endpoints.
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro", "gemini-pro"];
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    return text;
-  } catch (error: any) {
-    console.error("Gemini SDK Error:", error);
-    // Fallback: If Flash fails, try Pro (older key compatibility)
-    if (error.message?.includes('404') || error.message?.includes('not found')) {
-      console.warn("Retrying with gemini-pro...");
-      try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const fallbackModel = genAI.getGenerativeModel({ model: "gemini-pro" });
-        const result = await fallbackModel.generateContent(prompt);
-        return result.response.text();
-      } catch (retryError) {
-         throw new Error("AI Service Unavailable. Please check your API Key.");
+  for (const modelName of models) {
+    try {
+      // Initialize SDK
+      const genAI = new GoogleGenerativeAI(apiKey);
+
+      const model = genAI.getGenerativeModel({ model: modelName });
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      return text;
+    } catch (error: any) {
+      console.error(`Gemini ${modelName} Error:`, error);
+      console.error(`Gemini ${modelName} Error details:`, { status: error.status, message: error.message, response: error.response });
+      // If 404 (model not found) or 406, try next model
+      if (error.status === 404 || error.status === 406 || error.message?.includes('404') || error.message?.includes('406') || error.message?.includes('Not Acceptable') || error.message?.includes('not found')) {
+        console.warn(`Model ${modelName} not available, trying next...`);
+        continue;
+      }
+      // For other errors like auth, stop trying
+      if (error.status === 403 || error.status === 401 || error.message?.includes('API Key')) {
+        throw new Error("Invalid API Key. Please check your Gemini API Key.");
+      }
+      // If last model, throw
+      if (modelName === models[models.length - 1]) {
+        throw new Error("AI Service Unavailable. Please try again later.");
       }
     }
-    throw error;
   }
+  throw new Error("AI Service Unavailable. All models failed.");
 };
 
 // ==========================================

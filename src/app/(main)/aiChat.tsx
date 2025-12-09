@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, SafeAreaView } from 'react-native';
-import { Send, Bot, User as UserIcon, Settings } from 'lucide-react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  FlatList, 
+  TouchableOpacity, 
+  ActivityIndicator, 
+  KeyboardAvoidingView, 
+  Platform, 
+  Alert 
+} from 'react-native';
+// FIX 1: Import SafeAreaView from safe-area-context to use 'edges' prop
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Send, Bot, User as UserIcon, Settings, Sparkles } from 'lucide-react-native';
 import { useAuth } from '../../shared/context/AuthContext';
 import { sendUserMessageToAI, getChatbotMessages } from '../../services/aiService';
 import { ChatbotMessage } from '../../types';
@@ -10,25 +22,35 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 export default function AIChatScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  
+  // --- State ---
   const [messages, setMessages] = useState<ChatbotMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // --- Refs ---
   const flatListRef = useRef<FlatList>(null);
 
+  // --- Initial Load ---
   useEffect(() => {
     if (user) loadHistory();
   }, [user]);
 
   const loadHistory = async () => {
     if (!user) return;
-    const history = await getChatbotMessages(user.id);
-    setMessages(history);
-    setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
+    try {
+      const history = await getChatbotMessages(user.id);
+      setMessages(history || []);
+    } catch (e) {
+      console.warn("Failed to load chat history");
+    }
   };
 
+  // --- Handlers ---
   const handleSend = async () => {
     if (!input.trim() || !user) return;
     
+    // 1. Create User Message
     const userMsg: ChatbotMessage = {
       id: Date.now().toString(),
       user_id: user.id,
@@ -37,12 +59,13 @@ export default function AIChatScreen() {
       created_at: new Date().toISOString()
     };
 
+    // 2. Optimistic Update
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
 
     try {
-      // This calls Gemini via your aiService
+      // 3. API Call (Routes to Gemini/OpenAI based on service logic)
       const aiResponseText = await sendUserMessageToAI(user.id, userMsg.text);
       
       const aiMsg: ChatbotMessage = {
@@ -54,36 +77,60 @@ export default function AIChatScreen() {
       };
       
       setMessages(prev => [...prev, aiMsg]);
+
     } catch (error: any) {
-      if (error.message.includes("API Key")) {
-        Alert.alert("Setup Required", "Please save your Gemini API Key in Settings first.", [
-          { text: "Go to Settings", onPress: () => router.push('/(main)/settings/ai-keys') },
-          { text: "Cancel", style: "cancel" }
-        ]);
+      console.error("AI Error:", error);
+      
+      // 4. Smart Error Handling
+      if (error.message?.includes("API Key") || error.message?.includes("Missing")) {
+        Alert.alert(
+          "Configuration Missing", 
+          "You haven't saved an API Key yet. Please configure it in settings.", 
+          [
+            { text: "Configure Now", onPress: () => router.push('/(main)/settings/ai-keys') },
+            { text: "Cancel", style: "cancel" }
+          ]
+        );
       } else {
-        Alert.alert("Error", "AI failed to respond. Please try again.");
+        Alert.alert("Connection Error", "The AI could not respond at this time.");
       }
     } finally {
       setLoading(false);
-      setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
     }
   };
 
+  // --- Render Item ---
   const renderItem = ({ item }: { item: ChatbotMessage }) => {
     const isUser = item.sender === 'user';
+    // FIX 2: Ensure Date constructor never gets null
+    const timeString = new Date(item.created_at || Date.now()).toLocaleTimeString([], {
+      hour: '2-digit', 
+      minute: '2-digit'
+    });
+
     return (
-      <Animated.View entering={FadeInUp.duration(300)} className={`flex-row mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <Animated.View 
+        entering={FadeInUp.duration(300)} 
+        className={`flex-row mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}
+      >
         {!isUser && (
-          <View className="w-8 h-8 rounded-full bg-[#64FFDA]/20 items-center justify-center mr-2 mt-1">
+          <View className="w-8 h-8 rounded-full bg-[#64FFDA]/20 items-center justify-center mr-2 mt-1 border border-[#64FFDA]/30">
             <Bot size={16} color="#64FFDA" />
           </View>
         )}
         
-        <View className={`max-w-[80%] p-4 rounded-2xl ${
-          isUser ? 'bg-[#64FFDA] rounded-tr-none' : 'bg-[#112240] border border-white/10 rounded-tl-none'
-        }`}>
+        <View 
+          className={`max-w-[85%] p-4 rounded-2xl ${
+            isUser 
+              ? 'bg-[#64FFDA] rounded-tr-sm' 
+              : 'bg-[#112240] border border-white/10 rounded-tl-sm'
+          }`}
+        >
           <Text className={`${isUser ? 'text-[#0A192F] font-bold' : 'text-white'} text-base leading-6`}>
             {item.text}
+          </Text>
+          <Text className={`text-[10px] mt-1 text-right ${isUser ? 'text-[#0A192F]/60' : 'text-gray-500'}`}>
+             {timeString}
           </Text>
         </View>
 
@@ -97,17 +144,28 @@ export default function AIChatScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0A192F]">
-      <View className="px-4 py-3 border-b border-white/5 flex-row justify-between items-center">
-        <View>
-            <Text className="text-white text-xl font-bold">AI Financial Assistant</Text>
-            <Text className="text-[#64FFDA] text-xs">Powered by Gemini</Text>
+    <SafeAreaView className="flex-1 bg-[#0A192F]" edges={['top']}>
+      {/* Header */}
+      <View className="px-4 py-3 border-b border-white/5 flex-row justify-between items-center bg-[#0A192F]">
+        <View className="flex-row items-center gap-3">
+            <View className="bg-[#112240] p-2 rounded-xl border border-white/10">
+                <Sparkles size={20} color="#64FFDA" />
+            </View>
+            <View>
+                <Text className="text-white text-xl font-bold">Financial AI</Text>
+                <Text className="text-[#64FFDA] text-xs">Online • Gemini / GPT-4</Text>
+            </View>
         </View>
-        <TouchableOpacity onPress={() => router.push('/(main)/settings/ai-keys')} className="p-2 bg-white/5 rounded-full">
+        
+        <TouchableOpacity 
+            onPress={() => router.push('/(main)/settings/ai-keys')} 
+            className="p-2 bg-[#112240] rounded-full border border-white/10 active:bg-white/10"
+        >
             <Settings size={20} color="#8892B0" />
         </TouchableOpacity>
       </View>
 
+      {/* Messages */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -115,24 +173,40 @@ export default function AIChatScreen() {
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16, paddingBottom: 20 }}
         className="flex-1"
+        // Auto-scroll when content size changes (new messages)
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        // Auto-scroll when keyboard opens
+        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <View className="p-4 bg-[#0A192F] border-t border-white/5 flex-row items-center gap-3">
+      {/* Input */}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+      >
+        <View className="p-4 bg-[#0A192F] border-t border-white/5 flex-row items-end gap-3 pb-6">
           <TextInput
-            className="flex-1 bg-[#112240] text-white p-4 rounded-2xl border border-white/10 max-h-32"
+            className="flex-1 bg-[#112240] text-white p-4 rounded-2xl border border-white/10 max-h-32 min-h-[56px]"
             placeholder="Ask about your spending..."
             placeholderTextColor="#8892B0"
             value={input}
             onChangeText={setInput}
             multiline
+            textAlignVertical="center"
+            editable={!loading}
           />
           <TouchableOpacity 
             onPress={handleSend}
             disabled={loading || !input.trim()}
-            className={`w-12 h-12 rounded-full items-center justify-center ${loading || !input.trim() ? 'bg-white/10' : 'bg-[#64FFDA]'}`}
+            className={`w-14 h-14 rounded-full items-center justify-center mb-1 ${
+                loading || !input.trim() ? 'bg-white/10' : 'bg-[#64FFDA]'
+            }`}
           >
-            {loading ? <ActivityIndicator color="#0A192F" /> : <Send size={20} color={input.trim() ? '#0A192F' : '#8892B0'} />}
+            {loading ? (
+                <ActivityIndicator color="#0A192F" /> 
+            ) : (
+                <Send size={24} color={input.trim() ? '#0A192F' : '#8892B0'} />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

@@ -1,103 +1,141 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { decryptMessage } from '../../lib/crypto';
+import { supabase } from '@/lib/supabase';
 
-// ------------------------------------------------------------------
-// CONFIGURATION
-// ------------------------------------------------------------------
 
-/**
- * Securely access the API key from environment variables.
- * Ensure EXPO_PUBLIC_GEMINI_API_KEY is defined in your .env file.
- */
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
-if (!API_KEY) {
-  console.error("CRITICAL: EXPO_PUBLIC_GEMINI_API_KEY is missing.");
-}
 
-/**
- * Initialize the Google Generative AI Client.
- */
-const genAI = new GoogleGenerativeAI(API_KEY || '');
+// --- Configuration ---
+// 1. Global Fallback Key (from .env)
+const GLOBAL_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+// 2. Decryption Function (from crypto.ts)
+// This is used to decrypt the API key fetched from secure storage.
+// It's crucial for security that the key is encrypted at rest.
+const decrypt = (encryptedKey: string): string => {
+  try {
+    return decryptMessage(encryptedKey);
+  } catch (error) {
+    console.error("Failed to decrypt API key:", error);
+    return ''; // Return empty string on decryption failure
+  }
+};
 
-/**
- * Prioritized list of models to attempt.
- * The service will probe these in order until one responds successfully.
- */
+// Cache the working model name to speed up future requests
+let cachedGeminiApiKey: string | null = null;
+
+export const getGeminiApiKey = async (userId?: string): Promise<string | null> => {
+  if (cachedGeminiApiKey) {
+    return cachedGeminiApiKey;
+  }
+
+  if (!userId) {
+    return GLOBAL_API_KEY || null;
+  }
+
+  const { data } = await supabase
+    .from('user_secrets')
+    .select('api_key_encrypted')
+    .eq('user_id', userId)
+    .eq('service', 'gemini')
+    .maybeSingle();
+
+  if (data?.api_key_encrypted) {
+    const decryptedKey = decrypt(data.api_key_encrypted);
+    if (decryptedKey) {
+      cachedGeminiApiKey = decryptedKey;
+      return decryptedKey;
+    }
+  }
+  return GLOBAL_API_KEY || null;
+}; 
+
+
+// --- Model Strategy ---
+// Prioritized list. 
+// 'gemini-1.5-flash' is fast/cheap.
+// 'gemini-pro' is the stable legacy model that rarely 404s.
 const MODEL_FALLBACK_LIST = [
-  'gemini-1.5-flash',      // Priority 1: Fast & efficient
-  'gemini-1.5-flash-001',  // Priority 2: Specific version
-  'gemini-1.5-pro',        // Priority 3: Higher intelligence
-  'gemini-pro',            // Priority 4: Legacy stable
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-001',
+  'gemini-1.5-pro',
+  'gemini-pro',
 ];
 
-// ------------------------------------------------------------------
-// STATE MANAGEMENT
-// ------------------------------------------------------------------
-
-/**
- * Caches the name of the validated working model to avoid repeated probing.
- */
+// Cache the working model name to speed up future requests
 let cachedWorkingModel: string | null = null;
 
-// ------------------------------------------------------------------
-// INTERNAL UTILITIES
-// ------------------------------------------------------------------
+// --- Internal Utilities ---
 
 /**
- * Probes the model list to find the first one that accepts a generation request.
- * This effectively bypasses the lack of 'listModels' in the client SDK.
- * * @returns {Promise<string>} The name of a functioning model.
- * @throws Will throw an error if no models are reachable.
+ * Helper to get the best available API Key.
+ * 1. Checks if a User ID is provided and has a custom key.
+ * 2. Falls back to the global environment variable.
  */
-const resolveWorkingModel = async (): Promise<string> => {
-  // Return cached model if available to optimize performance
+const resolveApiKey = async (userId?: string): Promise<string | null> => {
+  if (userId) {
+    const userKey = await getGeminiApiKey(userId);
+    if (userKey) return userKey;
+  }
+  return GLOBAL_API_KEY || null;
+};
+
+/**
+ * Probes available models to find one that accepts requests.
+ */
+const resolveWorkingModel = async (genAI: GoogleGenerativeAI): Promise<string> => {
   if (cachedWorkingModel) return cachedWorkingModel;
 
   console.log("🤖 Negotiating AI Model...");
 
   for (const modelName of MODEL_FALLBACK_LIST) {
     try {
-      // Attempt a minimal generation task to test the model
       const model = genAI.getGenerativeModel({ model: modelName });
+      
+      // Lightweight test generation
       await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: 'Hi' }] }]
+        contents: [{ role: 'user', parts: [{ text: 'Hello' }] }]
       });
 
-      // If successful, cache and return this model
       console.log(`✅ Model Active: ${modelName}`);
       cachedWorkingModel = modelName;
       return modelName;
 
     } catch (error: any) {
-      // Log warning but continue to next model
-      console.warn(`⚠️ Model '${modelName}' failed or unavailable.`, error.message?.split(':')[0]);
+      console.warn(`⚠️ Model '${modelName}' unavailable. Trying next...`);
     }
   }
 
-  // Fallback to default if negotiation fails entirely
-  console.error("❌ All models failed negotiation. Defaulting to 'gemini-pro'.");
+  // Final fallback
+  console.error("❌ All models failed negotiation. Defaulting to gemini-pro.");
   return 'gemini-pro';
 };
 
-// ------------------------------------------------------------------
-// PUBLIC API
-// ------------------------------------------------------------------
+// --- Public API ---
 
 /**
- * Generates AI content for a given prompt using the best available model.
- * Handles errors gracefully and returns user-friendly messages.
- * * @param {string} question - The user's input prompt.
- * @returns {Promise<string>} The AI's textual response.
+ * Generates AI content with automatic model fallback.
+ * @param question User's input prompt
+ * @param userId (Optional) ID of the user to fetch their specific API key
  */
-export const generateContent = async (question: string): Promise<string> => {
-  if (!API_KEY) return "Configuration Error: Missing API Key.";
+export const generateContent = async (question: string, userId?: string): Promise<string> => {
+  
+  // 1. Resolve API Key
+  const apiKey = await resolveApiKey(userId);
+  
+  if (!apiKey) {
+    return "Configuration Error: No Gemini API Key found. Please add it in Settings > AI Keys.";
+  }
 
   try {
-    // 1. Resolve Model
-    const modelName = await resolveWorkingModel();
+    // 2. Initialize SDK with the resolved key
+    // We do this PER REQUEST to ensure we use the correct key (User vs Global)
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    // 3. Resolve Working Model
+    const modelName = await resolveWorkingModel(genAI);
     const model = genAI.getGenerativeModel({ model: modelName });
 
-    // 2. Execute Generation
+    // 4. Generate Content
     const result = await model.generateContent({
       contents: [{
         role: 'user',
@@ -105,36 +143,31 @@ export const generateContent = async (question: string): Promise<string> => {
       }],
     });
 
-    // 3. Extract Response
-    const responseText = result.response.text();
-    return responseText || "The AI processed the request but returned no text.";
+    const response = result.response;
+    const text = response.text();
+    return text || "The AI returned an empty response.";
 
   } catch (error: any) {
-    console.error("🔴 Generation Failed:", error);
+    console.error("🔴 AI Generation Failed:", error);
 
-    // Reset cache if a previously working model fails (e.g., rate limit or outage)
+    // Reset cache if a previously working model crashes
     cachedWorkingModel = null;
 
     if (error.message?.includes('404')) {
-        return "Service temporarily unavailable (Model Not Found). Retrying connection...";
+        return "Error: AI Model temporarily unavailable (404). Retrying connection...";
     }
-    
-    return "I'm having trouble connecting to the AI service right now. Please try again.";
+    if (error.message?.includes('API_KEY')) {
+        return "Error: Invalid API Key. Please check your settings.";
+    }
+
+    return "I'm having trouble connecting to the AI. Please try again.";
   }
 };
 
 /**
  * Specialized wrapper for financial advice.
- * Injects a system persona prompt to guide the AI's behavior.
- * * @param {string} question - The user's financial question.
- * @returns {Promise<string>} Tailored financial advice.
  */
-export const getFinancialAdvice = async (question: string): Promise<string> => {
-  const personaContext = `
-    You are NorthFinance AI, an expert financial assistant. 
-    Provide concise, actionable, and professional financial advice. 
-    User Question: "${question}"
-  `;
-  
-  return await generateContent(personaContext);
+export const getFinancialAdvice = async (question: string, userId?: string): Promise<string> => {
+  const context = `You are NorthFinance AI. Provide professional, concise financial advice. Question: ${question}`;
+  return await generateContent(context, userId);
 };
