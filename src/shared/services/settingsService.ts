@@ -1,6 +1,30 @@
 import { supabase } from '../../lib/supabase';
 import { AppSettings } from '../../types';
 
+// Simple in-memory cache to prevent hitting DB on every AI request
+let cachedGeminiApiKey: string | null = null;
+
+export const getGeminiApiKey = async (userId: string): Promise<string | null> => {
+  if (cachedGeminiApiKey) {
+    return cachedGeminiApiKey;
+  }
+
+  const encryptedKey = await settingsService.getApiKey(userId, 'gemini');
+  if (encryptedKey) {
+    // In a real app, use a library like 'crypto-js' or 'expo-crypto' here
+    const decryptedKey = decrypt(encryptedKey);
+    cachedGeminiApiKey = decryptedKey;
+    return decryptedKey;
+  }
+  return null;
+};
+
+// Helper function to simulate decryption
+// TODO: Replace with actual AES decryption in production
+function decrypt(encryptedKey: string): string {
+  return encryptedKey; 
+}
+
 export const settingsService = {
   // Update Currency / Theme / Notifications
   async updatePreferences(userId: string, preferences: Partial<AppSettings>) {
@@ -29,12 +53,18 @@ export const settingsService = {
       .upsert({ 
         user_id: userId, 
         service: service,
+        // TODO: Encrypt 'key' before sending to DB in production
         api_key_encrypted: key 
-      }, { onConflict: 'user_id,service' }); // Removed space for safety
+      }, { onConflict: 'user_id,service' });
 
     if (error) {
       console.error("Save API Key Error:", error);
       throw error;
+    }
+    
+    // Update cache immediately
+    if (service === 'gemini') {
+      cachedGeminiApiKey = key;
     }
   },
 
@@ -49,7 +79,7 @@ export const settingsService = {
 
     if (error) {
       // Don't throw on "not found", just return null
-      if (error.code !== 'PGRST116') console.error("Get API Key Error:", error);
+      if (error.code !== 'PGRST116') console.warn(`API Key for ${service} not found.`);
       return null;
     }
     return data?.api_key_encrypted;

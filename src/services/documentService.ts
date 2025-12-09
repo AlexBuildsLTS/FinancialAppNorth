@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { DocumentItem, TablesInsert } from '../types';
+import { DocumentItem, TablesInsert, Transaction } from '../types';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -64,10 +64,12 @@ export class DocumentService {
       let sizeBytes = 0;
       if (Platform.OS !== 'web') {
         const fileInfo = await FileSystem.getInfoAsync(uri);
-        sizeBytes = fileInfo.size || 0;
+        if (fileInfo.exists && !fileInfo.isDirectory) {
+          sizeBytes = fileInfo.size || 0;
+        }
       }
 
-      const insertData: TablesInsert<'documents'> = {
+      const insertData: TablesInsert<'documents'> & { type: 'receipt' | 'invoice' | 'contract' | 'other' } = {
         user_id: userId,
         file_name: fileName,
         file_path: filePath,
@@ -161,11 +163,9 @@ export class DocumentService {
   }
 
   /**
-   * Export documents and transactions to CSV
-   */
   static async exportToCSV(userId: string) {
     const docs = await this.getDocuments(userId);
-    const { TransactionService } = await import('./transactionService');
+    const { TransactionService } = await import('./transactionService.js');
     const txs = await TransactionService.getTransactions(userId);
 
     if (docs.length === 0 && txs.length === 0) {
@@ -173,6 +173,8 @@ export class DocumentService {
     }
 
     let csvContent = "Type,Date,Description,Amount,Category,File Name\n";
+
+    txs.forEach((t: TransactionItem) => {
 
     txs.forEach(t => {
       const amount = t.amount ? t.amount.toFixed(2) : "0.00";

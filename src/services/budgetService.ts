@@ -73,7 +73,7 @@ export class BudgetService {
 
     const insertData: TablesInsert<'budgets'> = {
       user_id: userId,
-      category_id: categoryId,
+      category_id: categoryId!,
       amount,
       period,
       start_date: startDate || new Date().toISOString().split('T')[0],
