@@ -1,13 +1,19 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { Alert, Platform } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { User, UserRole } from '../../types';
+import React, { 
+  createContext, 
+  useContext, 
+  useState, 
+  useEffect, 
+  useCallback, 
+  useMemo,
+  useRef
+} from 'react';
+import { Alert, AppState } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
+import { supabase } from '../../lib/supabase';
+import { User, UserRole } from '../../types'; 
 
-// --- Types ---
-// Moved ProfileRow here to keep it close to usage and avoid external circular dependencies if types.ts imports AuthContext
 export type ProfileRow = {
   id: string;
   email?: string | null;
@@ -25,344 +31,242 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
+  profile?: ProfileRow | null;
   login: (email: string, password?: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  register: (email: string, password: string, fName: string, lName: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
-  isLoading: boolean;
   refreshProfile: () => Promise<void>;
-  profile?: ProfileRow | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AVATARS_BUCKET = 'avatars';
 
 export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const router = useRouter();
+  const mountedRef = useRef(true);
 
-  // --- Constants ---
-  const AVATARS_BUCKET = 'avatars';
-  const SIGNED_URL_EXPIRES = 60;
-
-  // --- Helper: Resolve Avatar URL ---
-  // Memoized to prevent re-creation on every render
+  // --- HELPER: RESOLVE AVATAR ---
   const resolveAvatarUrl = useCallback(async (avatarPath: string | null | undefined): Promise<string | null> => {
     if (!avatarPath) return null;
-    if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) return avatarPath;
-
+    if (avatarPath.startsWith('http')) return avatarPath; 
     try {
-      // 1. Try Public URL first (faster, no auth check needed for public buckets)
-      const publicUrlResult = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(avatarPath);
-      if (publicUrlResult?.data?.publicUrl) return publicUrlResult.data.publicUrl;
-
-      // 2. Fallback to Signed URL if bucket is private
-      const { data: signedData, error: signedError } = await supabase
-        .storage
-        .from(AVATARS_BUCKET)
-        .createSignedUrl(avatarPath, SIGNED_URL_EXPIRES);
-
-      if (signedError) return null;
-      return signedData?.signedUrl ?? null;
-    } catch (err) {
-      console.warn('Avatar resolution failed:', err);
-      return null;
-    }
+      const { data } = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(avatarPath);
+      return data.publicUrl;
+    } catch { return null; }
   }, []);
 
-  // --- Helper: Fetch Profile & Construct User Object ---
-  // This function centralizes all "User State" updates to ensure they happen atomically
-  const fetchAndSetProfile = useCallback(async (userId: string, email: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error.message);
-      }
-
-      const profileData = (data as ProfileRow) || null;
-      
-      // Update profile state
-      setProfile(profileData);
-
-      // Resolve Avatar
-      let avatarUrl = profileData ? await resolveAvatarUrl(profileData.avatar_url) : null;
-      if (!avatarUrl) {
-        avatarUrl = `https://api.dicebear.com/7.x/avataaars/png?seed=${userId}`;
-      }
-
-      // Construct User Object
-      const appUser: User = {
-        id: userId,
-        email,
-        name: profileData?.first_name ? `${profileData.first_name} ${profileData.last_name}` : email.split('@')[0],
-        role: (profileData?.role as UserRole) ?? UserRole.MEMBER,
-        status: 'active',
-        avatar: avatarUrl,
-        currency: profileData?.currency || 'USD', 
-        country: profileData?.country || 'US'
-      };
-
-      // Set User State (Atomically updates everything needed for the UI)
-      setUser(appUser);
-
-    } catch (err) {
-      console.error('fetchAndSetProfile error:', err);
-      // Even if profile fails, we might still want a basic user object if session exists
-      setUser({
-        id: userId,
-        email,
-        name: email.split('@')[0],
-        role: UserRole.MEMBER,
-        status: 'active',
-        avatar: `https://api.dicebear.com/7.x/avataaars/png?seed=${userId}`,
-        currency: 'USD',
-        country: 'US'
-      });
+  // --- HELPER: FORCE LOGOUT (ZOMBIE KILLER) ---
+  const forceLogout = useCallback(async () => {
+    try { await supabase.auth.signOut(); } catch (e) {}
+    if (mountedRef.current) {
+        setUser(null); setSession(null); setProfile(null); setIsLoading(false);
     }
-  }, [resolveAvatarUrl]);
-
-  // --- Deep Link Handling ---
-  const handleDeepLink = useCallback(async (url: string) => {
-    const { path, queryParams } = Linking.parse(url);
-
-    if (path === 'reset-password' && queryParams?.access_token && queryParams?.refresh_token) {
-      try {
-        const { error } = await supabase.auth.setSession({
-          access_token: queryParams.access_token as string,
-          refresh_token: queryParams.refresh_token as string,
-        });
-
-        if (error) throw error;
-        router.replace('/(auth)/login?mode=reset');
-      } catch (error) {
-        console.error('Error handling password reset link:', error);
-        Alert.alert('Error', 'Invalid or expired password reset link');
-      }
-    }
+    // Force Navigation to Login
+    router.replace('/(auth)/login');
   }, [router]);
 
-  // --- Session Monitoring ---
-  // Handles token refresh logic
-  const monitorSession = useCallback(() => {
-    if (!session?.expires_at) return;
+  // --- CORE: FETCH & SYNC PROFILE ---
+  const fetchAndSetProfile = useCallback(async (userId: string, email: string) => {
+    try {
+      console.log(`🔍 [Auth] Fetching profile for user ${userId}`);
+      // 1. Fetch Profile
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
 
-    const expiryTime = new Date(session.expires_at * 1000);
-    const refreshTime = new Date(expiryTime.getTime() - 5 * 60 * 1000); // 5 mins before expiry
-    const now = new Date();
-
-    if (now >= refreshTime) {
-      supabase.auth.refreshSession().catch(error => {
-        console.error('Session refresh failed:', error);
-        // Do NOT force logout immediately on refresh fail to avoid bad UX if offline
-        // The next API call will fail typically, handling it naturally
-      });
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (session) monitorSession();
-  }, [session, monitorSession]);
-
-  // --- Initialization & Auth State Listener ---
-  useEffect(() => {
-    let mounted = true;
-
-    async function initSession() {
-      try {
-        // 1. Get Initial Session
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-
-        if (mounted) {
-          setSession(data.session);
-          if (data.session?.user) {
-            await fetchAndSetProfile(data.session.user.id, data.session.user.email!);
-          }
-        }
-      } catch (err) {
-        console.error('Session init failed:', err);
-      } finally {
-        if (mounted) setIsLoading(false);
+      if (error) {
+        console.error("❌ [Auth] Profile fetch error:", error);
+        await forceLogout();
+        return;
       }
+
+      console.log(`✅ [Auth] Profile fetched:`, data ? 'exists' : 'null');
+
+      let profileData = data as ProfileRow | null;
+
+      // 2. Auto-Repair if Missing (Self-Healing)
+      if (!profileData) {
+        console.log(`🛠️ [Auth] Profile missing. Repairing ${userId}...`);
+        const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .upsert({
+                id: userId,
+                email: email,
+                role: 'member',
+                first_name: 'User',
+                last_name: '',
+                currency: 'USD',
+                country: 'US',
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'id' })
+            .select().single();
+
+        if (createError) {
+            console.error("❌ [Auth] Repair Failed.", createError);
+            await forceLogout();
+            return;
+        }
+        console.log(`✅ [Auth] Profile repaired:`, newProfile);
+        profileData = newProfile;
+      }
+
+      // 3. Update State
+      if (mountedRef.current && profileData) {
+          setProfile(profileData);
+          const avatarUrl = await resolveAvatarUrl(profileData.avatar_url);
+          
+          setUser({
+            id: userId,
+            email,
+            name: profileData.first_name ? `${profileData.first_name} ${profileData.last_name}` : email.split('@')[0],
+            role: (profileData.role as UserRole) ?? 'member',
+            status: 'active',
+            avatar: avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${userId}`,
+            currency: profileData.currency || 'USD', 
+            country: profileData.country || 'US'
+          });
+      }
+    } catch (err) {
+      console.error('[Auth] Fetch Error:', err);
     }
+  }, [resolveAvatarUrl, forceLogout]);
 
-    initSession();
+  // --- INIT SESSION ---
+  useEffect(() => {
+    mountedRef.current = true;
+    let initComplete = false;
 
-    // 2. Setup Deep Linking
-    const handleUrl = (event: { url: string }) => handleDeepLink(event.url);
-    const linkingSub = Linking.addEventListener('url', handleUrl);
-    Linking.getInitialURL().then(url => { if (url) handleDeepLink(url); });
+    const runInit = async () => {
+        try {
+            const { data, error } = await supabase.auth.getSession();
+            if (error || !data.session) {
+                if (mountedRef.current) setIsLoading(false);
+                return;
+            }
+            
+            if (mountedRef.current) {
+                 setSession(data.session);
+                 // Set auth for realtime
+                 supabase.realtime.setAuth(data.session.access_token);
+                 // Wait for profile, but timeout below protects us
+                 await fetchAndSetProfile(data.session.user.id, data.session.user.email!);
+             }
+        } catch (err) {
+            console.error('[Auth] Init Failed:', err);
+        } finally {
+            if (mountedRef.current && !initComplete) {
+                initComplete = true;
+                setIsLoading(false); 
+            }
+        }
+    };
 
-    // 3. Listen for Auth Changes (Login, Logout, Token Refresh)
-    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!mounted) return;
-      
-      setSession(session);
+    runInit();
 
-      if (session?.user) {
-        // Only fetch profile if user ID changed or we don't have a profile yet
-        // This prevents re-fetching on simple token refreshes if we wanted to optimize further
-        await fetchAndSetProfile(session.user.id, session.user.email!);
+    // SAFETY VALVE: Stop loading after 3s if DB is stuck
+    const safetyTimeout = setTimeout(() => {
+        if (mountedRef.current && !initComplete) {
+            console.warn("⚠️ [Auth] Init Timeout - Forcing App Load");
+            initComplete = true;
+            setIsLoading(false); 
+        }
+    }, 3000);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      if (!mountedRef.current) return;
+
+      setSession(newSession);
+
+      if (newSession?.user) {
+        // Set auth for realtime subscriptions
+        supabase.realtime.setAuth(newSession.access_token);
+        await fetchAndSetProfile(newSession.user.id, newSession.user.email!);
       } else {
-        // Clear state on logout
-        setUser(null);
-        setProfile(null);
-        setIsLoading(false);
+        setUser(null); setProfile(null); setIsLoading(false);
       }
     });
 
-    return () => {
-      mounted = false;
-      linkingSub.remove();
-      authSubscription.unsubscribe();
+    return () => { 
+        mountedRef.current = false; 
+        clearTimeout(safetyTimeout);
+        subscription.unsubscribe(); 
     };
-  }, [handleDeepLink, fetchAndSetProfile]);
+  }, [fetchAndSetProfile]);
 
-  // --- Actions ---
-
-  const refreshProfile = useCallback(async () => {
-    if (!session?.user?.id || !session.user.email) return;
-    // Small delay allows DB trigger/write to propagate before we read back
-    await new Promise(r => setTimeout(r, 100));
-    await fetchAndSetProfile(session.user.id, session.user.email);
-  }, [session, fetchAndSetProfile]);
-
+  // --- PUBLIC ACTIONS ---
+  
+  const refreshProfile = async () => { 
+      if (session?.user) await fetchAndSetProfile(session.user.id, session.user.email!); 
+  };
+  
   const login = async (email: string, password?: string) => {
     setIsLoading(true);
-    if (!password) {
-      Alert.alert('Error', 'Password is required.');
-      setIsLoading(false);
-      return;
-    }
-
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password: password || '' });
+      if (error) throw error;
+      // Wait up to 5 seconds for auth state change to set loading false
+      setTimeout(() => {
+        if (mountedRef.current) setIsLoading(false);
+      }, 5000);
+    } catch (error) {
       setIsLoading(false);
       throw error;
     }
-    // AuthStateChange listener handles the rest
   };
 
-  const register = async (email: string, password: string, firstName: string, lastName: string) => {
+  const register = async (email: string, password: string, fName: string, lName: string) => {
     setIsLoading(true);
-    
-    // 1. Sign Up
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { first_name: firstName, last_name: lastName, role: 'member' } },
+    const { data, error } = await supabase.auth.signUp({ 
+        email, password, options: { data: { first_name: fName, last_name: lName } } 
     });
-
-    if (error) {
-      setIsLoading(false);
-      throw error;
-    }
-
-    // 2. Upsert Profile (Ensure DB sync)
-    if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').upsert({
-        id: data.user.id,
-        first_name: firstName,
-        last_name: lastName,
-        role: 'member',
-        email,
-        updated_at: new Date().toISOString(),
-      });
-
-      if (profileError) {
-         console.error("Profile creation error", profileError);
-         // Don't throw here, allow the user to exist, profile can be fixed later
-      }
-      
-      await fetchAndSetProfile(data.user.id, email);
-    }
+    if (error) { setIsLoading(false); throw error; }
+    if (data.user) await fetchAndSetProfile(data.user.id, email);
     setIsLoading(false);
   };
 
   const logout = async () => {
-    setIsLoading(true);
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.warn('SignOut error', err);
-    } finally {
-      // Always clear local state even if server logout fails (offline case)
-      setUser(null);
-      setProfile(null);
-      setSession(null);
-      setIsLoading(false);
-      // Navigation is handled by the consumer or the root layout redirecting based on !user
-      try {
-        if (router.canDismiss()) router.dismissAll();
+    try { await supabase.auth.signOut(); } 
+    finally {
+        if (mountedRef.current) { 
+            setUser(null); setSession(null); setProfile(null); setIsLoading(false); 
+        }
         router.replace('/(auth)/login');
-      } catch (e) {
-        console.log('Navigation after logout handled by layout');
-      }
     }
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: Linking.createURL('reset-password'),
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { 
+        redirectTo: Linking.createURL('reset-password') 
     });
     if (error) throw error;
   };
 
-  const updatePassword = async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword
-    });
+  const updatePassword = async (pw: string) => {
+    const { error } = await supabase.auth.updateUser({ password: pw });
     if (error) throw error;
   };
 
-  // --- Context Value ---
-  // Memoized to prevent unnecessary re-renders of consuming components
   const value = useMemo(() => ({
-    user,
-    session,
-    isAuthenticated: !!session,
-    login,
-    register,
-    logout,
-    resetPassword,
-    updatePassword,
-    isLoading,
-    refreshProfile,
-    profile
+    user, session, isAuthenticated: !!session, login, register, logout,
+    resetPassword, updatePassword, isLoading, refreshProfile, profile
   }), [user, session, isLoading, profile, refreshProfile]);
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
 
-// --- Hook: useProfile ---
-// Defined here to avoid Circular Dependency issues (AuthContext <-> useProfile)
 export const useProfile = () => {
   const { profile, isLoading, refreshProfile, user } = useAuth();
-  // We can derive avatar directly from the user object now, since AuthProvider handles it
-  // But we keep this hook for compatibility with existing code that expects it.
-  
-  return { 
-    profile, 
-    isLoading, 
-    refreshProfile, 
-    avatar: user?.avatar || null 
-  };
+  return { profile, isLoading, refreshProfile, avatar: user?.avatar || null };
 };
