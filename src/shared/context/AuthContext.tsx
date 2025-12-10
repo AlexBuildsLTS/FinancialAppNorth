@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+   
   const router = useRouter();
   const mountedRef = useRef(true);
 
@@ -65,9 +65,14 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   // --- HELPER: FORCE LOGOUT (ZOMBIE KILLER) ---
   const forceLogout = useCallback(async () => {
+    console.warn("⚠️ [Auth] Forcing Logout & Cleanup");
     try { await supabase.auth.signOut(); } catch (e) {}
+    
     if (mountedRef.current) {
-        setUser(null); setSession(null); setProfile(null); setIsLoading(false);
+        setUser(null); 
+        setSession(null); 
+        setProfile(null); 
+        setIsLoading(false);
     }
     // Force Navigation to Login
     router.replace('/(auth)/login');
@@ -82,7 +87,10 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
       if (error) {
         console.error("❌ [Auth] Profile fetch error:", error);
-        await forceLogout();
+        // Only force logout on critical auth errors, not network glitches
+        if (error.code === '401' || error.code === '403') {
+            await forceLogout();
+        }
         return;
       }
 
@@ -120,7 +128,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
       if (mountedRef.current && profileData) {
           setProfile(profileData);
           const avatarUrl = await resolveAvatarUrl(profileData.avatar_url);
-          
+           
           setUser({
             id: userId,
             email,
@@ -137,7 +145,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     }
   }, [resolveAvatarUrl, forceLogout]);
 
-  // --- INIT SESSION ---
+  // --- INIT SESSION (THE CRITICAL FIX) ---
   useEffect(() => {
     mountedRef.current = true;
     let initComplete = false;
@@ -145,7 +153,18 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     const runInit = async () => {
         try {
             const { data, error } = await supabase.auth.getSession();
-            if (error || !data.session) {
+            
+            // --- LOOP PROTECTION: Handle Invalid Token ---
+            if (error) {
+                console.error("[Auth] Session Init Error:", error.message);
+                if (error.message.includes("Refresh Token")) {
+                    console.warn("⚠️ [Auth] Detected Invalid Token Loop -> Cleaning up.");
+                    await forceLogout();
+                    return;
+                }
+            }
+
+            if (!data.session) {
                 if (mountedRef.current) setIsLoading(false);
                 return;
             }
@@ -154,7 +173,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
                  setSession(data.session);
                  // Set auth for realtime
                  supabase.realtime.setAuth(data.session.access_token);
-                 // Wait for profile, but timeout below protects us
+                 // Only fetch profile if we have a valid session
                  await fetchAndSetProfile(data.session.user.id, data.session.user.email!);
              }
         } catch (err) {
@@ -178,8 +197,15 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         }
     }, 3000);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mountedRef.current) return;
+      console.log(`[Auth] Auth Event: ${event}`);
+
+      // Handle explicit sign-outs or bad sessions immediately
+      if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !newSession)) {
+        await forceLogout();
+        return;
+      }
 
       setSession(newSession);
 
@@ -187,8 +213,7 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         // Set auth for realtime subscriptions
         supabase.realtime.setAuth(newSession.access_token);
         await fetchAndSetProfile(newSession.user.id, newSession.user.email!);
-      } else {
-        setUser(null); setProfile(null); setIsLoading(false);
+        setIsLoading(false); // Ensure loading stops on successful auth change
       }
     });
 
@@ -197,23 +222,20 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         clearTimeout(safetyTimeout);
         subscription.unsubscribe(); 
     };
-  }, [fetchAndSetProfile]);
+  }, [fetchAndSetProfile, forceLogout]);
 
   // --- PUBLIC ACTIONS ---
-  
+   
   const refreshProfile = async () => { 
       if (session?.user) await fetchAndSetProfile(session.user.id, session.user.email!); 
   };
-  
+   
   const login = async (email: string, password?: string) => {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password: password || '' });
       if (error) throw error;
-      // Wait up to 5 seconds for auth state change to set loading false
-      setTimeout(() => {
-        if (mountedRef.current) setIsLoading(false);
-      }, 5000);
+      // Note: onAuthStateChange handles the state update
     } catch (error) {
       setIsLoading(false);
       throw error;
@@ -226,18 +248,17 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         email, password, options: { data: { first_name: fName, last_name: lName } } 
     });
     if (error) { setIsLoading(false); throw error; }
-    if (data.user) await fetchAndSetProfile(data.user.id, email);
+    
+    // We try to fetch/create profile immediately if user exists
+    if (data.user) {
+        await fetchAndSetProfile(data.user.id, email);
+    }
     setIsLoading(false);
   };
 
   const logout = async () => {
-    try { await supabase.auth.signOut(); } 
-    finally {
-        if (mountedRef.current) { 
-            setUser(null); setSession(null); setProfile(null); setIsLoading(false); 
-        }
-        router.replace('/(auth)/login');
-    }
+    setIsLoading(true);
+    await forceLogout();
   };
 
   const resetPassword = async (email: string) => {
