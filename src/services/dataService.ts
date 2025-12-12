@@ -85,7 +85,7 @@ const getDefaultAccountId = async (userId: string): Promise<string> => {
 
 /**
  * ==============================================================================
- * 💬 MESSAGING SYSTEM (End-to-End Encrypted)
+ * 💬 MESSAGING SYSTEM (End-to-End Encrypted + Attachments)
  * ==============================================================================
  */
 
@@ -144,23 +144,52 @@ export const getOrCreateConversation = async (currentUserId: string, targetUserI
 export const sendMessage = async (
   conversationId: string, 
   senderId: string, 
-  encryptedContent: string
+  content: string, // Can be text or empty if sending file
+  attachment?: { uri: string; type: 'image' | 'document' | 'csv'; name: string }
 ) => {
   try {
-    // 1. Insert Message
-    const { error } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: conversationId,
-        sender_id: senderId,
-        content_encrypted: encryptedContent,
-        is_system_message: false,
-        read_by: JSON.stringify([senderId])
-      });
+    let attachmentUrl = null;
+    let attachmentType = null;
+
+    // 1. Upload Attachment if present
+    if (attachment) {
+      const cleanName = attachment.name.replace(/[^a-zA-Z0-9.]/g, '_'); // Sanitize filename
+      const path = `${conversationId}/${Date.now()}_${cleanName}`;
+      
+      let fileBody: any;
+      if (Platform.OS === 'web') {
+          const response = await fetch(attachment.uri);
+          fileBody = await response.blob();
+      } else {
+          fileBody = await FileSystem.readAsStringAsync(attachment.uri, { encoding: 'base64' });
+          fileBody = decode(fileBody);
+      }
+      
+      const { error: uploadError } = await supabase.storage
+        .from('documents') // Reusing documents bucket for chat files
+        .upload(path, fileBody, { contentType: 'application/octet-stream', upsert: true });
+
+      if (uploadError) throw uploadError;
+      
+      const { data } = supabase.storage.from('documents').getPublicUrl(path);
+      attachmentUrl = data.publicUrl;
+      attachmentType = attachment.type;
+    }
+
+    // 2. Insert Message
+    const { error } = await supabase.from('messages').insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      content_encrypted: content || (attachment ? '[Attachment]' : ''), // Fallback text for attachments
+      attachment_url: attachmentUrl,
+      attachment_type: attachmentType,
+      is_system_message: false,
+      read_by: JSON.stringify([senderId])
+    });
 
     if (error) throw error;
 
-    // 2. Trigger Notification for Recipient
+    // 3. Trigger Notification for Recipient
     const { data: participants } = await supabase
       .from('conversation_participants')
       .select('user_id')
@@ -169,7 +198,14 @@ export const sendMessage = async (
 
     if (participants && participants.length > 0) {
       for (const p of participants) {
-        await notifyNewMessage(p.user_id, 'Someone', conversationId, senderId);
+        await createNotification(
+          p.user_id,
+          'New Message',
+          attachment ? `Sent an ${attachment.type}` : 'You have a new message.',
+          'message',
+          conversationId,
+          senderId
+        );
       }
     }
 
@@ -227,7 +263,7 @@ export const getConversations = async (userId: string) => {
     name: p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : 'User',
     avatar: p.avatar_url,
     role: p.role,
-    lastMessage: 'Tap to start secure chat', 
+    lastMessage: 'Tap to chat', 
   }));
 };
 
@@ -252,7 +288,7 @@ export const createNotification = async (
     message,
     type,
     is_read: false,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString() // Explicitly set creation timestamp
   };
 
   // Only add these if they are not undefined
@@ -308,22 +344,156 @@ export const subscribeToNotifications = (userId: string, callback: (n: Notificat
     .subscribe();
 };
 
-// --- Notification Logic Helpers ---
+// --- Notification Triggers ---
 
-export const notifyStaffNewTicket = async (ticketId: string, subject: string, email: string) => {
+export const notifyStaffNewTicket = async (ticketId: string, subject: string, userName: string) => {
   const { data: staff } = await supabase.from('profiles').select('id').in('role', ['admin', 'support']);
   staff?.forEach(s => {
-    createNotification(s.id, 'New Ticket', `Ticket: ${subject} from ${email}`, 'ticket', ticketId);
+    createNotification(s.id, 'New Ticket', `${userName}: ${subject}`, 'ticket', ticketId);
   });
 };
 
 export const notifyUserTicketUpdate = async (userId: string, ticketId: string, status: string) => {
-  await createNotification(userId, 'Ticket Updated', `Your ticket status is now: ${status}`, 'ticket', ticketId);
+  await createNotification(userId, 'Ticket Update', `Status changed to: ${status.replace('_', ' ')}`, 'ticket', ticketId);
 };
 
 export const notifyNewMessage = async (recipientId: string, senderName: string, conversationId: string, senderId?: string) => {
-  await createNotification(recipientId, 'New Message', `New secure message from ${senderName}`, 'message', conversationId, senderId);
+  await createNotification(recipientId, 'New Message', `From ${senderName}`, 'message', conversationId, senderId);
 };
+
+export const notifyCpaRequest = async (cpaId: string, clientName: string, createdBy?: string) => {
+  await createNotification(
+    cpaId,
+    'New CPA Request',
+    `${clientName} has requested to connect with you as their CPA`,
+    'cpa',
+    undefined,
+    createdBy
+  );
+};
+
+export const notifyClientInvitation = async (clientId: string, cpaName: string, createdBy?: string) => {
+  await createNotification(
+    clientId,
+    'CPA Invitation',
+    `${cpaName} has invited you to connect as your CPA`,
+    'cpa',
+    undefined,
+    createdBy
+  );
+};
+
+/**
+ * ==============================================================================
+ * 🎫 SUPPORT TICKETS
+ * ==============================================================================
+ */
+
+export const createTicket = async (userId: string, subject: string, message: string, category: string) => {
+  const { data: ticket, error } = await supabase
+    .from('tickets')
+    .insert({
+      user_id: userId,
+      subject,
+      category,
+      status: 'open',
+      priority: 'medium'
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  await supabase.from('ticket_messages').insert({
+    ticket_id: ticket.id,
+    user_id: userId,
+    message,
+    is_internal: false
+  });
+
+  notifyStaffNewTicket(ticket.id, subject, 'User');
+  return ticket;
+};
+
+export const getTickets = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('tickets')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error("Fetch Tickets Error:", error);
+    return [];
+  }
+  return data;
+};
+
+export const getAllTickets = async () => {
+  // 1. Trigger Cleanup (Fire & Forget) - Safe RPC call
+  supabase.rpc('cleanup_stale_tickets').then(({ error }) => {
+    if (error) console.warn("Cleanup warning:", error);
+  });
+
+  // 2. Fetch Active Queue with EXPLICIT FOREIGN KEY RELATIONSHIP
+  // This syntax '!tickets_user_id_fkey' is critical to avoid PGRST201
+  const { data, error } = await supabase
+    .from('tickets')
+    .select(`
+      *,
+      user:profiles!tickets_user_id_fkey(first_name, last_name, email)
+    `)
+    .order('updated_at', { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+export const getTicketDetails = async (ticketId: string) => {
+  const { data, error } = await supabase
+    .from('tickets')
+    .select(`*, messages:ticket_messages(*), user:profiles!tickets_user_id_fkey(*)`)
+    .eq('id', ticketId)
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateTicketStatus = async (ticketId: string, status: string) => {
+  const { error } = await supabase.from('tickets').update({ status }).eq('id', ticketId);
+  if (error) throw error;
+  
+  const { data: ticket } = await supabase.from('tickets').select('user_id, subject').eq('id', ticketId).single();
+  if (ticket) {
+    notifyUserTicketUpdate(ticket.user_id, ticketId, status);
+  }
+};
+
+export const addInternalNote = async (ticketId: string, userId: string, note: string) => {
+  const { error } = await supabase.from('ticket_messages').insert({
+    ticket_id: ticketId,
+    user_id: userId,
+    message: note,
+    is_internal: true 
+  });
+  if (error) throw error;
+};
+
+export const addTicketReply = async (ticketId: string, userId: string, reply: string) => {
+  const { error } = await supabase.from('ticket_messages').insert({
+    ticket_id: ticketId,
+    user_id: userId,
+    message: reply,
+    is_internal: false
+  });
+  if (error) throw error;
+};
+
+export const deleteTicket = async (ticketId: string) => {
+  const { error } = await supabase.from('tickets').delete().eq('id', ticketId);
+  if (error) throw error;
+}
 
 /**
  * ==============================================================================
@@ -554,6 +724,8 @@ export const uploadDocument = async (
             file_path: path, 
             status: 'processed',
             url: publicUrl,
+            mime_type: fileBody.type || 'application/octet-stream', // Add mime_type if available
+            size_bytes: fileBody.size // Add size_bytes if available
         })
         .select()
         .single();
@@ -561,7 +733,7 @@ export const uploadDocument = async (
     if (error) throw error;
     return data;
   } catch (e: any) {
-    console.error('[DataService] Upload failed:', e);
+    console.error('[DataService] Upload failed:', e.message);
     throw e;
   }
 };
@@ -575,6 +747,17 @@ export const pickAndUploadFile = async (userId: string) => {
     console.error("File Picker Error:", e);
     throw e;
   }
+};
+
+export const processReceiptAI = async (documentPath: string) => {
+  const { data, error } = await supabase.functions.invoke('ocr-scan', {
+    body: { documentPath }
+  });
+
+  if (error) throw new Error(error.message || 'AI processing failed');
+  if (data?.error) throw new Error(data.error);
+  
+  return data.data; 
 };
 
 /**
@@ -602,66 +785,6 @@ export const getCpaClients = async (cpaId: string): Promise<CpaClient[]> => {
     last_audit: item.updated_at,
     permissions: item.permissions || {}
   }));
-};
-
-/**
- * ==============================================================================
- * 🎫 SUPPORT TICKETS
- * ==============================================================================
- */
-
-export const createTicket = async (userId: string, subject: string, message: string, category: string) => {
-  // 1. Create Ticket
-  const { data: ticket, error } = await supabase
-    .from('tickets')
-    .insert({ user_id: userId, subject, category, status: 'open', priority: 'medium' })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  // 2. Create Initial Message
-  await supabase.from('ticket_messages').insert({
-    ticket_id: ticket.id,
-    user_id: userId,
-    message,
-    is_internal: false
-  });
-
-  // 3. Notify Staff
-  // (We don't await this to keep UI fast)
-  notifyStaffNewTicket(ticket.id, subject, 'User');
-
-  return ticket;
-};
-
-export const getTickets = async (userId: string) => {
-  const { data } = await supabase.from('tickets').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-  return data || [];
-};
-
-export const getTicketDetails = async (ticketId: string) => {
-  const { data } = await supabase
-    .from('tickets')
-    .select(`*, messages:ticket_messages(*), user:profiles(*)`)
-    .eq('id', ticketId)
-    .single();
-  return data;
-};
-
-export const updateTicketStatus = async (ticketId: string, status: string) => {
-  const { error } = await supabase.from('tickets').update({ status }).eq('id', ticketId);
-  if (error) throw error;
-};
-
-export const addTicketMessage = async (ticketId: string, userId: string, message: string) => {
-  const { error } = await supabase.from('ticket_messages').insert({
-    ticket_id: ticketId,
-    user_id: userId,
-    message,
-    is_internal: false
-  });
-  if (error) throw error;
 };
 
 /**

@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  View, 
-  Text, 
-  TextInput, 
-  FlatList, 
-  TouchableOpacity, 
-  ActivityIndicator, 
-  KeyboardAvoidingView, 
-  Platform, 
-  Alert 
+  View, Text, TextInput, FlatList, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Send, Bot, User as UserIcon, Settings, Sparkles } from 'lucide-react-native';
@@ -22,15 +14,12 @@ export default function AIChatScreen() {
   const { user } = useAuth();
   const router = useRouter();
   
-  // --- State ---
   const [messages, setMessages] = useState<ChatbotMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // --- Refs ---
   const flatListRef = useRef<FlatList>(null);
 
-  // --- Initial Load ---
   useEffect(() => {
     if (user) loadHistory();
   }, [user]);
@@ -45,29 +34,24 @@ export default function AIChatScreen() {
     }
   };
 
-  // --- Handlers ---
   const handleSend = async () => {
     if (!input.trim() || !user) return;
     
-    const textToSend = input.trim();
-    setInput(''); // Clear immediately
-    setLoading(true);
-
-    // 1. Optimistic Update (Show user message immediately)
-    const tempUserMsg: ChatbotMessage = {
+    const userMsg: ChatbotMessage = {
       id: Date.now().toString(),
       user_id: user.id,
       sender: 'user',
-      text: textToSend,
+      text: input.trim(),
       created_at: new Date().toISOString()
     };
-    setMessages(prev => [...prev, tempUserMsg]);
+
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
 
     try {
-      // 2. Call API
-      const aiResponseText = await sendUserMessageToAI(user.id, textToSend);
+      const aiResponseText = await sendUserMessageToAI(user.id, userMsg.text);
       
-      // 3. Update with AI Response
       const aiMsg: ChatbotMessage = {
         id: (Date.now() + 1).toString(),
         user_id: user.id,
@@ -75,6 +59,7 @@ export default function AIChatScreen() {
         text: aiResponseText,
         created_at: new Date().toISOString()
       };
+      
       setMessages(prev => [...prev, aiMsg]);
 
     } catch (error: any) {
@@ -85,19 +70,18 @@ export default function AIChatScreen() {
           "Configuration Missing", 
           "You haven't saved an API Key yet. Please configure it in settings.", 
           [
-            { text: "Configure", onPress: () => router.push('/(main)/settings/ai-keys') },
+            { text: "Configure Now", onPress: () => router.push('/(main)/settings/ai-keys') },
             { text: "Cancel", style: "cancel" }
           ]
         );
       } else {
-        Alert.alert("Error", error.message || "The AI could not respond.");
+        Alert.alert("Connection Error", "The AI could not respond at this time.");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // --- Render Item ---
   const renderItem = ({ item }: { item: ChatbotMessage }) => {
     const isUser = item.sender === 'user';
     const timeString = new Date(item.created_at || Date.now()).toLocaleTimeString([], {
@@ -142,7 +126,6 @@ export default function AIChatScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]" edges={['top']}>
-      {/* Header */}
       <View className="px-4 py-3 border-b border-white/5 flex-row justify-between items-center bg-[#0A192F]">
         <View className="flex-row items-center gap-3">
             <View className="bg-[#112240] p-2 rounded-xl border border-white/10">
@@ -162,7 +145,6 @@ export default function AIChatScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Messages */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -174,7 +156,6 @@ export default function AIChatScreen() {
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
       />
 
-      {/* Input */}
       <KeyboardAvoidingView 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}

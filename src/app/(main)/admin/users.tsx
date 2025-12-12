@@ -12,11 +12,10 @@ import {
   SafeAreaView,
   Modal,
 } from 'react-native';
-import { Search, Ban, CheckCircle, MessageSquare, Mail, Shield, Briefcase, X, UserCog, Check } from 'lucide-react-native';
+import { Search, Ban, CheckCircle, MessageSquare, Mail, Shield, Briefcase, X, UserCog, Check, Star } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase, adminDeactivateUser, adminChangeUserRole } from '../../../lib/supabase';
 import { User, UserRole, UserStatus } from '../../../types'; 
-
 
 export default function AdminUsersScreen() {
   const router = useRouter();
@@ -58,7 +57,7 @@ export default function AdminUsersScreen() {
     }
   };
 
-  // Re-fetch every time screen focuses (Fixes the "Hard Refresh" need)
+  // Re-fetch every time screen focuses
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -67,6 +66,7 @@ export default function AdminUsersScreen() {
   );
 
   const handleMessage = (userId: string) => {
+    // Explicitly cast to any to avoid strict router typing issues during dev
     router.push(`/(main)/messages/${userId}` as any);
   };
 
@@ -80,6 +80,7 @@ export default function AdminUsersScreen() {
     
     const originalRole = selectedUser.role;
     
+    // Optimistic Update
     setUsers(prev => prev.map(u => 
       u.id === selectedUser.id ? { ...u, role: newRole } : u
     ));
@@ -90,6 +91,7 @@ export default function AdminUsersScreen() {
       await adminChangeUserRole(selectedUser.id, newRole);
       Alert.alert("Success", `User role updated to ${newRole.toUpperCase()}`);
     } catch (error: any) {
+      // Revert on failure
       setUsers(prev => prev.map(u => 
         u.id === selectedUser.id ? { ...u, role: originalRole } : u
       ));
@@ -116,13 +118,14 @@ export default function AdminUsersScreen() {
           onPress: async () => {
             setActionLoading(user.id);
             try {
-              if (!isBanned) {
-                 await adminDeactivateUser(user.id);
-                 setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: 'banned' } : u));
-                 Alert.alert("Success", "User banned.");
-              } else {
-                 Alert.alert("Notice", "To activate, please update the database manually.");
-              }
+              // adminDeactivateUser toggles the status logic on backend
+              await adminDeactivateUser(user.id);
+              
+              // Optimistic update
+              const newStatus = isBanned ? 'active' : 'banned';
+              setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: newStatus as UserStatus } : u));
+              
+              Alert.alert("Success", `User ${newStatus}.`);
             } catch (error: any) {
               Alert.alert("Error", error.message);
             } finally {
@@ -139,12 +142,32 @@ export default function AdminUsersScreen() {
     u.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const renderRoleOption = (role: UserRole, label: string, description: string, icon: React.ReactNode, color: string) => (
+    <TouchableOpacity 
+      onPress={() => handleRoleUpdate(role)}
+      className={`flex-row items-center justify-between p-4 rounded-xl border mb-2 ${selectedUser?.role === role ? `bg-[${color}]/10 border-[${color}]` : 'bg-[#0A192F] border-white/5'}`}
+    >
+      <View className="flex-row items-center gap-3">
+        <View className={`w-10 h-10 rounded-full bg-[${color}]/10 items-center justify-center`}>
+          {icon}
+        </View>
+        <View>
+          <Text className={`font-bold ${selectedUser?.role === role ? 'text-white' : 'text-[#8892B0]'}`}>{label}</Text>
+          <Text className="text-[#8892B0] text-xs">{description}</Text>
+        </View>
+      </View>
+      {selectedUser?.role === role && <Check size={20} color={color} />}
+    </TouchableOpacity>
+  );
+
   const renderUserCard = ({ item }: { item: User }) => {
     const isCPA = item.role === UserRole.CPA; 
     const isAdmin = item.role === UserRole.ADMIN;
+    const isPremium = item.role === UserRole.PREMIUM;
 
     return (
       <View className="mb-3 rounded-2xl overflow-hidden bg-[#112240] border border-white/10 shadow-sm relative">
+        {/* Role Badges */}
         {isCPA && (
           <View className="absolute top-0 right-0 bg-[#64FFDA] px-3 py-1 rounded-bl-xl z-10">
             <Text className="text-[#0A192F] text-[10px] font-bold">CPA PROFESSIONAL</Text>
@@ -153,6 +176,11 @@ export default function AdminUsersScreen() {
         {isAdmin && !isCPA && (
           <View className="absolute top-0 right-0 bg-[#F59E0B] px-3 py-1 rounded-bl-xl z-10">
             <Text className="text-[#0A192F] text-[10px] font-bold">ADMIN</Text>
+          </View>
+        )}
+        {isPremium && !isAdmin && !isCPA && (
+          <View className="absolute top-0 right-0 bg-[#A78BFA] px-3 py-1 rounded-bl-xl z-10">
+            <Text className="text-[#0A192F] text-[10px] font-bold">PREMIUM</Text>
           </View>
         )}
         
@@ -278,57 +306,11 @@ export default function AdminUsersScreen() {
               </TouchableOpacity>
             </View>
 
-            <View className="gap-3">
-              {/* Member */}
-              <TouchableOpacity 
-                onPress={() => handleRoleUpdate(UserRole.MEMBER)}
-                className={`flex-row items-center justify-between p-4 rounded-xl border ${selectedUser?.role === UserRole.MEMBER ? 'bg-[#64FFDA]/10 border-[#64FFDA]' : 'bg-[#0A192F] border-white/5'}`}
-              >
-                <View className="flex-row items-center gap-3">
-                  <View className="w-10 h-10 rounded-full bg-white/5 items-center justify-center">
-                    <Briefcase size={20} color={selectedUser?.role === UserRole.MEMBER ? '#64FFDA' : '#8892B0'} />
-                  </View>
-                  <View>
-                    <Text className={`font-bold ${selectedUser?.role === UserRole.MEMBER ? 'text-white' : 'text-[#8892B0]'}`}>Member</Text>
-                    <Text className="text-[#8892B0] text-xs">Standard access</Text>
-                  </View>
-                </View>
-                {selectedUser?.role === UserRole.MEMBER && <Check size={20} color="#64FFDA" />}
-              </TouchableOpacity>
-
-              {/* CPA */}
-              <TouchableOpacity 
-                onPress={() => handleRoleUpdate(UserRole.CPA)}
-                className={`flex-row items-center justify-between p-4 rounded-xl border ${selectedUser?.role === UserRole.CPA ? 'bg-[#64FFDA]/10 border-[#64FFDA]' : 'bg-[#0A192F] border-white/5'}`}
-              >
-                <View className="flex-row items-center gap-3">
-                  <View className="w-10 h-10 rounded-full bg-[#64FFDA]/10 items-center justify-center">
-                    <Briefcase size={20} color="#64FFDA" />
-                  </View>
-                  <View>
-                    <Text className={`font-bold ${selectedUser?.role === UserRole.CPA ? 'text-white' : 'text-[#8892B0]'}`}>CPA Professional</Text>
-                    <Text className="text-[#8892B0] text-xs">Client management & tools</Text>
-                  </View>
-                </View>
-                {selectedUser?.role === UserRole.CPA && <Check size={20} color="#64FFDA" />}
-              </TouchableOpacity>
-
-              {/* Admin */}
-              <TouchableOpacity 
-                onPress={() => handleRoleUpdate(UserRole.ADMIN)}
-                className={`flex-row items-center justify-between p-4 rounded-xl border ${selectedUser?.role === UserRole.ADMIN ? 'bg-[#F59E0B]/10 border-[#F59E0B]' : 'bg-[#0A192F] border-white/5'}`}
-              >
-                <View className="flex-row items-center gap-3">
-                  <View className="w-10 h-10 rounded-full bg-[#F59E0B]/10 items-center justify-center">
-                    <Shield size={20} color="#F59E0B" />
-                  </View>
-                  <View>
-                    <Text className={`font-bold ${selectedUser?.role === UserRole.ADMIN ? 'text-white' : 'text-[#8892B0]'}`}>Admin</Text>
-                    <Text className="text-[#8892B0] text-xs">Full system control</Text>
-                  </View>
-                </View>
-                {selectedUser?.role === UserRole.ADMIN && <Check size={20} color="#F59E0B" />}
-              </TouchableOpacity>
+            <View className="gap-2">
+              {renderRoleOption(UserRole.MEMBER, 'Member', 'Standard Access', <Briefcase size={20} color="#8892B0" />, '#8892B0')}
+              {renderRoleOption(UserRole.PREMIUM, 'Premium', 'AI & Advanced Features', <Star size={20} color="#A78BFA" />, '#A78BFA')}
+              {renderRoleOption(UserRole.CPA, 'CPA Professional', 'Client Management', <Briefcase size={20} color="#60A5FA" />, '#60A5FA')}
+              {renderRoleOption(UserRole.ADMIN, 'Administrator', 'Full System Access', <Shield size={20} color="#F59E0B" />, '#F59E0B')}
             </View>
           </View>
         </View>
