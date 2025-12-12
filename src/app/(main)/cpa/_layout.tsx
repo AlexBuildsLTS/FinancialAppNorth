@@ -1,6 +1,6 @@
+import React from 'react';
 import { Tabs } from 'expo-router';
 import { Users, FileText, ClipboardList } from 'lucide-react-native';
-import React from 'react';
 
 export default function CpaLayout() {
   return (
@@ -19,10 +19,12 @@ export default function CpaLayout() {
         tabBarInactiveTintColor: '#64748B',
         tabBarLabelStyle: {
             fontSize: 10,
-            fontWeight: '600'
+            fontWeight: '600',
+            marginTop: -5
         }
       }}
     >
+      {/* Main Dashboard Tab */}
       <Tabs.Screen
         name="index"
         options={{
@@ -30,26 +32,32 @@ export default function CpaLayout() {
           tabBarIcon: ({ color }: { color: string }) => <Users size={24} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="requests"
-        options={{
-          href: null, // Hiding this tab as requests are now merged into index
-          title: 'Requests',
-          tabBarIcon: ({ color }: { color: string }) => <ClipboardList size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="client-documents"
-        options={{
-          href: null, // Hidden tab, accessed via navigation
-          title: 'Documents',
-        }}
-      />
+      
+      {/* Hidden Route: Invite Screen */}
       <Tabs.Screen
         name="invite"
         options={{
-          href: null, // Hidden tab, accessed via navigation
-          title: 'Invite',
+          href: null, // Hides from tab bar
+          title: 'Invite Client',
+        }}
+      />
+
+      {/* Hidden Route: Documents Viewer */}
+      <Tabs.Screen
+        name="client-documents"
+        options={{
+          href: null, // Hides from tab bar
+          title: 'Documents',
+        }}
+      />
+
+      {/* Placeholder/Future Tab (Optional) */}
+      <Tabs.Screen
+        name="requests"
+        options={{
+          href: null, // Hiding for now as requests are merged into Dashboard
+          title: 'Requests',
+          tabBarIcon: ({ color }: { color: string }) => <ClipboardList size={24} color={color} />,
         }}
       />
     </Tabs>

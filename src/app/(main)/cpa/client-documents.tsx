@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } fr
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FileText, ArrowLeft, Download, ShieldAlert } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { isCpaForClient, getSharedDocuments, getCpaClients } from '../../../services/dataService'; // Unified Service
+import { isCpaForClient, getSharedDocuments, getCpaClients } from '../../../services/dataService'; 
 
 interface ClientDocument {
   id: string;
@@ -31,27 +31,26 @@ export default function ClientDocumentsScreen() {
     if (!user || !clientId) return;
 
     try {
-      // Verify CPA has access to this client
+      // 1. Verify Access
       const isAuthorized = await isCpaForClient(user.id, clientId as string);
       if (!isAuthorized) {
-        Alert.alert('Access Denied', 'You do not have permission to view this client\'s documents');
+        Alert.alert('Access Denied', 'You are not authorized to view this client\'s documents.');
         router.back();
         return;
       }
 
-      // Get client name
+      // 2. Get Client Details
       const clients = await getCpaClients(user.id);
       const client = clients.find(c => c.id === clientId);
-      if (client) {
-        setClientName(client.name);
-      }
+      if (client) setClientName(client.name);
 
-      // Get shared documents using Unified Service
+      // 3. Fetch Documents
       const docs = await getSharedDocuments(user.id, clientId as string);
       setDocuments(docs || []);
+      
     } catch (error: any) {
       console.error('Error loading client documents:', error);
-      Alert.alert('Error', 'Failed to load client documents');
+      Alert.alert('Error', 'Failed to load documents.');
     } finally {
       setLoading(false);
     }
@@ -68,14 +67,14 @@ export default function ClientDocumentsScreen() {
   const getFileIcon = (mimeType?: string) => {
     if (mimeType?.includes('pdf')) return '📄';
     if (mimeType?.includes('image')) return '🖼️';
-    return '📄';
+    return '📁';
   };
 
   if (loading) {
     return (
       <View className="flex-1 bg-[#0A192F] items-center justify-center">
-        <ActivityIndicator color="#64FFDA" />
-        <Text className="text-white mt-4">Loading secure vault...</Text>
+        <ActivityIndicator color="#64FFDA" size="large" />
+        <Text className="text-[#8892B0] mt-4">Accessing secure vault...</Text>
       </View>
     );
   }
@@ -87,44 +86,44 @@ export default function ClientDocumentsScreen() {
           <ArrowLeft size={24} color="#64FFDA" />
         </TouchableOpacity>
         <View className="flex-1">
-          <Text className="text-white font-bold text-2xl">{clientName}'s Documents</Text>
-          <Text className="text-[#8892B0] text-sm">Shared document vault</Text>
+          <Text className="text-white font-bold text-2xl" numberOfLines={1}>{clientName}'s Vault</Text>
+          <Text className="text-[#8892B0] text-sm">Shared secure documents</Text>
         </View>
         <ShieldAlert size={24} color="#64FFDA" />
       </View>
 
       {documents.length === 0 ? (
-        <View className="bg-[#112240] border border-white/5 p-8 rounded-xl items-center border-dashed">
-          <FileText size={40} color="#112240" />
-          <Text className="text-[#8892B0] mt-4 text-center">No documents shared yet.</Text>
-          <Text className="text-[#8892B0] text-sm text-center">Client documents will appear here when uploaded.</Text>
+        <View className="bg-[#112240] border border-white/5 p-10 rounded-2xl items-center justify-center border-dashed mt-4">
+          <FileText size={48} color="#1E293B" />
+          <Text className="text-[#8892B0] mt-4 text-center font-medium">Vault is empty.</Text>
+          <Text className="text-[#64748B] text-sm text-center mt-1">Client hasn't shared any documents yet.</Text>
         </View>
       ) : (
-        <View className="gap-4">
+        <View className="gap-3">
           {documents.map((doc) => (
             <View
               key={doc.id}
               className="bg-[#112240] border border-white/5 p-4 rounded-xl flex-row items-center justify-between"
             >
-              <View className="flex-row items-center flex-1">
-                <Text className="text-2xl mr-3">{getFileIcon(doc.mime_type)}</Text>
+              <View className="flex-row items-center flex-1 mr-4">
+                <View className="w-10 h-10 bg-[#0A192F] rounded-lg items-center justify-center mr-3 border border-white/5">
+                    <Text className="text-lg">{getFileIcon(doc.mime_type)}</Text>
+                </View>
                 <View className="flex-1">
-                  <Text className="text-white font-medium" numberOfLines={1}>
+                  <Text className="text-white font-medium text-base" numberOfLines={1}>
                     {doc.file_name}
                   </Text>
-                  <Text className="text-[#8892B0] text-sm">
+                  <Text className="text-[#8892B0] text-xs mt-0.5">
                     {formatFileSize(doc.size_bytes)} • {new Date(doc.created_at).toLocaleDateString()}
                   </Text>
                 </View>
               </View>
 
               <TouchableOpacity
-                onPress={() => {
-                  Alert.alert('Download', `Downloading ${doc.file_name}...`);
-                }}
-                className="bg-[#64FFDA]/10 p-3 rounded-lg"
+                onPress={() => Alert.alert('Download', `Downloading ${doc.file_name}...`)}
+                className="bg-[#64FFDA]/10 p-3 rounded-xl border border-[#64FFDA]/20"
               >
-                <Download size={18} color="#64FFDA" />
+                <Download size={20} color="#64FFDA" />
               </TouchableOpacity>
             </View>
           ))}

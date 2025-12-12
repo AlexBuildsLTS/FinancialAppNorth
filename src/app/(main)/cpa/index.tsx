@@ -14,7 +14,6 @@ import {
   MessageCircle, 
   Check, 
   X, 
-  FileText, 
   Briefcase, 
   ArrowRight,
   ClipboardList
@@ -25,7 +24,7 @@ import {
   getCpaClients, 
   acceptCpaClient, 
   rejectCpaClient 
-} from '../../../services/dataService'; // Using the Unified DataService
+} from '../../../services/dataService'; // Unified Service
 import { useRouter, useFocusEffect } from 'expo-router';
 
 export default function CpaDashboard() {

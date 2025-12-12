@@ -1,13 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   View, 
   Text, 
   ScrollView, 
   TouchableOpacity, 
   SafeAreaView, 
-  ActivityIndicator, 
   RefreshControl,
-  StatusBar
+  StatusBar,
+  Dimensions
 } from 'react-native';
 import { 
   Users, 
@@ -18,11 +18,14 @@ import {
   Activity, 
   Server, 
   ShieldCheck,
-  Clock
+  Clock,
+  Database
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getUsers, supabase } from '../../../services/dataService';
+import { supabase, getUsers } from '../../../services/dataService';
 import { LinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -40,24 +43,16 @@ export default function AdminDashboard() {
   const loadStats = async () => {
     const start = Date.now();
     try {
-      // 1. Fetch Users & Calculate Growth
+      // 1. Fetch Users & Growth
       const users = await getUsers();
       const totalUsers = users.length;
       
+      // Calculate growth (users created in last 30 days)
+      // Note: Assuming 'created_at' is available on the user object, otherwise we count all
+      // For accurate "New Users", we query the DB directly to be safe
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      // We assume user objects have a created_at field (from profile)
-      // Note: If profile created_at is missing, we fallback to current date to avoid crash, but logically it implies old user
-      const newUsersMonth = users.filter((u: any) => {
-         // In dataService getUsers returns mapped objects, check if we mapped created_at? 
-         // If not, we might need to rely on total count or update dataService. 
-         // For now, let's assume we can fetch raw count for growth if needed, or update getUsers.
-         // Actually, let's do a direct count for speed here to be robust.
-         return true; // Placeholder for logic below
-      }).length; 
-      
-      // Let's do direct robust counts for dashboard speed
       const { count: newUsersCount } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
@@ -110,27 +105,30 @@ export default function AdminDashboard() {
     <TouchableOpacity 
       onPress={() => link && router.push(link)}
       activeOpacity={0.7}
-      className="flex-1 min-w-[45%] m-2"
+      style={{ width: (width / 2) - 24 }} // dynamic width for 2-column layout
+      className="mb-4"
     >
       <LinearGradient
         colors={gradientColors || ['#112240', '#112240']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        className="p-5 rounded-3xl border border-white/5 shadow-lg"
+        className="p-5 rounded-3xl border border-white/5 shadow-lg h-40 justify-between"
       >
-        <View className="flex-row justify-between items-start mb-4">
+        <View className="flex-row justify-between items-start">
           <View className={`p-3 rounded-2xl ${color === 'blue' ? 'bg-blue-500/20' : color === 'red' ? 'bg-red-500/20' : color === 'green' ? 'bg-green-500/20' : 'bg-[#64FFDA]/20'}`}>
             <Icon size={24} color={color === 'blue' ? '#60A5FA' : color === 'red' ? '#F87171' : color === 'green' ? '#4ADE80' : '#64FFDA'} />
           </View>
           {link && (
-             <View className="bg-white/5 p-1 rounded-full">
-                <ArrowRight size={16} color="#8892B0" />
+             <View className="bg-white/5 p-1.5 rounded-full">
+                <ArrowRight size={14} color="#8892B0" />
              </View>
           )}
         </View>
-        <Text className="text-3xl font-extrabold text-white mb-1">{value}</Text>
-        <Text className="text-[#8892B0] text-xs font-bold uppercase tracking-wider mb-1">{title}</Text>
-        {subtext && <Text className="text-[#64748B] text-[10px]">{subtext}</Text>}
+        <View>
+          <Text className="text-3xl font-extrabold text-white mb-1">{value}</Text>
+          <Text className="text-[#8892B0] text-xs font-bold uppercase tracking-wider">{title}</Text>
+          {subtext && <Text className="text-[#64748B] text-[10px] mt-1">{subtext}</Text>}
+        </View>
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -138,15 +136,7 @@ export default function AdminDashboard() {
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
       <StatusBar barStyle="light-content" />
-      <ScrollView 
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 40 }}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={loadStats} tintColor="#64FFDA" />
-        }
-      >
-        {/* Header Section */}
-        <View className="px-6 pt-8 pb-6">
+      <View className="px-6 pt-6 pb-4 bg-[#0A192F] border-b border-white/5">
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-white text-3xl font-extrabold tracking-tight">Admin Portal</Text>
             <View className={`px-3 py-1 rounded-full flex-row items-center border ${
@@ -159,22 +149,29 @@ export default function AdminDashboard() {
             </View>
           </View>
           <Text className="text-[#8892B0] text-base">System Overview & Controls</Text>
-        </View>
+      </View>
 
+      <ScrollView 
+        className="flex-1 px-4 pt-6"
+        contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={loadStats} tintColor="#64FFDA" />
+        }
+      >
         {/* System Health Strip */}
-        <View className="mx-6 mb-6 flex-row gap-3">
+        <View className="flex-row gap-3 mb-6">
             <View className="flex-1 bg-[#112240] p-3 rounded-xl border border-white/5 flex-row items-center justify-center">
-                <Server size={16} color="#64FFDA" />
+                <Database size={16} color="#64FFDA" />
                 <Text className="text-[#8892B0] text-xs ml-2">Latency: <Text className="text-white font-bold">{stats.dbLatency}</Text></Text>
             </View>
             <View className="flex-1 bg-[#112240] p-3 rounded-xl border border-white/5 flex-row items-center justify-center">
                 <ShieldCheck size={16} color="#A78BFA" />
-                <Text className="text-[#8892B0] text-xs ml-2">Security: <Text className="text-white font-bold">Active</Text></Text>
+                <Text className="text-[#8892B0] text-xs ml-2">Auth: <Text className="text-white font-bold">Secure</Text></Text>
             </View>
         </View>
 
         {/* Primary Stats Grid */}
-        <View className="flex-row flex-wrap px-4 mb-4">
+        <View className="flex-row flex-wrap justify-between">
           <StatCard
             title="Total Users"
             value={loading ? "..." : stats.totalUsers.toString()}
@@ -199,6 +196,7 @@ export default function AdminDashboard() {
             subtext="Total processed"
             icon={TrendingUp}
             color="green"
+            link="/(main)/finances/transactions"
           />
           <StatCard
             title="Documents"
@@ -211,8 +209,8 @@ export default function AdminDashboard() {
         </View>
 
         {/* Quick Actions / Management Section */}
-        <View className="px-6 mt-4">
-          <Text className="text-white text-lg font-bold mb-4 flex-row items-center">
+        <View className="mt-4">
+          <Text className="text-white text-lg font-bold mb-4 flex-row items-center px-2">
              Management Console
           </Text>
           
@@ -242,8 +240,8 @@ export default function AdminDashboard() {
                 <Text className="text-white font-bold text-lg">Support Queue</Text>
                 <Text className="text-[#8892B0] text-sm mt-0.5">Handle open tickets & disputes</Text>
               </View>
-              <View className="bg-red-500/20 px-2 py-1 rounded-md">
-                 <Text className="text-red-400 text-xs font-bold">{stats.activeTickets}</Text>
+              <View className="bg-red-500/20 px-3 py-1 rounded-full">
+                 <Text className="text-red-400 text-xs font-bold">{stats.activeTickets} Active</Text>
               </View>
             </TouchableOpacity>
           </View>
