@@ -16,7 +16,7 @@ export enum UserRole {
   SUPPORT = 'support'
 }
 
-export type UserStatus = 'active' | 'banned' | 'deactivated';
+export type UserStatus = 'active' | 'banned' | 'suspended' | 'deactivated';
 
 // --- Auth & User ---
 export interface User {
@@ -25,6 +25,7 @@ export interface User {
   name: string;
   role: UserRole;
   status: UserStatus;
+  suspended_until?: string; // NEW FIELD
   avatar?: string;
   currency?: string;
   country?: string;
@@ -47,6 +48,7 @@ export interface Transaction extends Tables<'transactions'> {
     icon?: string;
     color?: string;
   } | null;
+  is_tax_deductible?: boolean;
 }
 
 // --- Feature: Documents ---
@@ -111,4 +113,22 @@ export interface NotificationItem {
   is_read: boolean;
   created_at: string;
   related_id?: string;
+}
+
+// --- Feature: Subscription Detection ---
+export interface DetectedSubscription {
+  id: string;
+  merchant: string;
+  amount: number;
+  frequency: 'monthly' | 'weekly' | 'yearly';
+  next_due: string;
+  yearly_waste: number;
+  confidence: number; // 0-1
+}
+
+// --- Feature: Cash Flow Forecast ---
+export interface CashFlowPoint {
+  date: string;
+  balance: number;
+  is_forecast: boolean;
 }

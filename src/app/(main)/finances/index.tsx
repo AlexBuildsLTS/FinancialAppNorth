@@ -2,14 +2,16 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { 
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar 
 } from 'react-native';
-import { 
-  TrendingUp, TrendingDown, DollarSign, Sparkles, ArrowRight, Wallet, Receipt 
+import {
+  TrendingUp, TrendingDown, DollarSign, Sparkles, ArrowRight, Wallet, Receipt, CreditCard
 } from 'lucide-react-native'; 
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { getFinancialSummary, getTransactions } from '../../../services/dataService';
 import { generateFinancialInsight } from '../../../services/aiService';
+import { generateCashFlowForecast, getCashFlowRiskLevel } from '../../../services/analysisService';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CashFlowPoint } from '../../../types';
 
 export default function FinanceOverviewScreen() {
     const { user } = useAuth();
@@ -18,6 +20,8 @@ export default function FinanceOverviewScreen() {
     // State
     const [metrics, setMetrics] = useState({ income: 0, expense: 0, balance: 0 });
     const [insight, setInsight] = useState("Analyzing your spending habits...");
+    const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([]);
+    const [cashFlowRisk, setCashFlowRisk] = useState<'low' | 'medium' | 'high'>('low');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -29,7 +33,12 @@ export default function FinanceOverviewScreen() {
             const summary = await getFinancialSummary(user.id);
             setMetrics(summary);
 
-            // 2. Get AI Insight (Only if we have transactions)
+            // 2. Get Cash Flow Forecast
+            const forecast = await generateCashFlowForecast(user.id);
+            setCashFlow(forecast);
+            setCashFlowRisk(getCashFlowRiskLevel(forecast));
+
+            // 3. Get AI Insight (Only if we have transactions)
             const txs = await getTransactions(user.id);
             if (txs.length > 0) {
                 const aiText = await generateFinancialInsight(user.id, txs);
@@ -120,6 +129,50 @@ export default function FinanceOverviewScreen() {
                     />
                 </View>
 
+                {/* Cash Flow Forecast */}
+                {cashFlow.length > 0 && (
+                    <View className="mb-8">
+                        <Text className="text-white text-lg font-bold mb-4">30-Day Cash Flow</Text>
+                        <View className="bg-[#112240] p-4 rounded-2xl border border-white/5">
+                            <View className="flex-row items-center justify-between mb-3">
+                                <Text className="text-[#8892B0] text-sm">Risk Level</Text>
+                                <View className={`px-3 py-1 rounded-full ${
+                                    cashFlowRisk === 'high' ? 'bg-red-500/20' :
+                                    cashFlowRisk === 'medium' ? 'bg-yellow-500/20' : 'bg-green-500/20'
+                                }`}>
+                                    <Text className={`text-xs font-bold ${
+                                        cashFlowRisk === 'high' ? 'text-red-400' :
+                                        cashFlowRisk === 'medium' ? 'text-yellow-400' : 'text-green-400'
+                                    }`}>
+                                        {cashFlowRisk.toUpperCase()}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View className="flex-row justify-between items-center">
+                                <View>
+                                    <Text className="text-[#8892B0] text-sm">Current Balance</Text>
+                                    <Text className="text-white font-bold text-lg">
+                                        ${metrics.balance.toFixed(2)}
+                                    </Text>
+                                </View>
+                                <View className="items-end">
+                                    <Text className="text-[#8892B0] text-sm">Projected (30 days)</Text>
+                                    <Text className={`font-bold text-lg ${
+                                        cashFlow[cashFlow.length - 1]?.balance >= 0 ? 'text-green-400' : 'text-red-400'
+                                    }`}>
+                                        ${cashFlow[cashFlow.length - 1]?.balance.toFixed(2) || '0.00'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <Text className="text-[#8892B0] text-xs mt-2 text-center">
+                                *Chart visualization requires react-native-chart-kit
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
                 {/* Actions */}
                 <Text className="text-white text-lg font-bold mb-4">Quick Actions</Text>
                 <View className="gap-3">
@@ -150,6 +203,22 @@ export default function FinanceOverviewScreen() {
                             <View>
                                 <Text className="text-white font-bold text-base">Scan Receipt</Text>
                                 <Text className="text-[#8892B0] text-xs">AI-powered extraction</Text>
+                            </View>
+                        </View>
+                        <ArrowRight size={20} color="#8892B0" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => router.push('/(main)/finances/subscriptions')}
+                        className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
+                    >
+                        <View className="flex-row items-center gap-4">
+                            <View className="w-10 h-10 rounded-full bg-orange-500/10 items-center justify-center">
+                                <CreditCard size={20} color="#F59E0B" />
+                            </View>
+                            <View>
+                                <Text className="text-white font-bold text-base">Track Subscriptions</Text>
+                                <Text className="text-[#8892B0] text-xs">Detect recurring bills</Text>
                             </View>
                         </View>
                         <ArrowRight size={20} color="#8892B0" />

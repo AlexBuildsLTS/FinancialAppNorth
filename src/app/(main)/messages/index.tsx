@@ -36,7 +36,9 @@ export default function MessagesListScreen() {
     if (!user) return;
     try {
       const data = await getConversations(user.id);
-      setConversations(data || []); // Ensure array
+      // Sort: Unread conversations first
+      const sorted = (data || []).sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0));
+      setConversations(sorted); // Ensure array
     } catch (e) {
       console.error("Load Chats Error:", e);
     } finally {
@@ -132,30 +134,17 @@ export default function MessagesListScreen() {
                     {/* Text Content */}
                     <View className="flex-1 justify-center">
                         <View className="flex-row justify-between items-center mb-1">
-                            <Text className="text-white font-bold text-base" numberOfLines={1}>
-                                {item.name || 'Unknown'}
-                            </Text>
-                            {/* Role Badge */}
-                            {item.role && (
-                                <View className="px-2 py-0.5 rounded bg-[#0A192F] border border-white/5">
-                                    <Text className="text-[#8892B0] text-[10px] uppercase font-bold">
-                                        {item.role}
-                                    </Text>
+                            <Text className="text-white font-bold text-base">{item.name}</Text>
+                            {/* RED DOT BADGE */}
+                            {item.unreadCount > 0 && (
+                                <View className="bg-red-500 w-5 h-5 rounded-full items-center justify-center">
+                                    <Text className="text-white text-[10px] font-bold">{item.unreadCount}</Text>
                                 </View>
                             )}
                         </View>
-                        
-                        <View className="flex-row justify-between items-center">
-                            <Text className="text-[#8892B0] text-sm flex-1 mr-2" numberOfLines={1}>
-                                {item.last_message || 'Tap to chat'}
-                            </Text>
-                            {/* Time if available */}
-                            {item.updated_at && (
-                                <Text className="text-[#475569] text-[10px]">
-                                    {new Date(item.updated_at).toLocaleDateString()}
-                                </Text>
-                            )}
-                        </View>
+                        <Text className={`text-sm mr-2 ${item.unreadCount > 0 ? 'text-white font-bold' : 'text-[#8892B0]'}`} numberOfLines={1}>
+                            {item.lastMessage}
+                        </Text>
                     </View>
                 </TouchableOpacity>
             )}

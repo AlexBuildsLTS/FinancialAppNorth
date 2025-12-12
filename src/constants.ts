@@ -16,7 +16,7 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
     'Support'
   ],
 
-  // Premium users get all member features + Messages
+  // Premium users get all member features + Messages + CPA Portal
   [UserRole.PREMIUM]: [
     'Dashboard',
     'Transactions',
@@ -25,6 +25,7 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
     'AI Chat',
     'Messages',
     'Find CPA',
+    'CPA Portal',
     'Settings',
     'Support'
   ],
@@ -43,13 +44,14 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
 
   // FIX: Support sees ALL Premium features + Admin for user/ticket management
   [UserRole.SUPPORT]: [
-    'Dashboard', 
-    'Transactions', 
-    'Documents', 
-    'Scan', 
-    'AI Chat', 
-    'Messages', 
-    'Settings', 
+    'Dashboard',
+    'Transactions',
+    'Documents',
+    'Scan',
+    'AI Chat',
+    'Messages',
+    'CPA Portal',
+    'Settings',
     'Support', // For viewing/responding to tickets
     'Admin' // For limited admin/user lookup/logs
   ],

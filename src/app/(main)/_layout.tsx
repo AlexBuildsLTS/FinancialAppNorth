@@ -226,28 +226,9 @@ export default function MainLayout() {
                 )
             }} />
 
-            {/* --- ADMIN / CPA TABS (Conditional) --- */}
-            {/* Only show Admin tab if user is Admin */}
-            <Tabs.Screen name="admin" options={{
-                href: user.role === UserRole.ADMIN ? '/(main)/admin' : null,
-                tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center gap-1 w-16">
-                        <ShieldAlert size={24} color={color} />
-                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
-                    </View>
-                )
-            }} />
-            
-            {/* Only show CPA tab if user is CPA */}
-            <Tabs.Screen name="cpa" options={{
-                href: user.role === UserRole.CPA ? '/(main)/cpa' : null,
-                tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center gap-1 w-16">
-                        <Users size={24} color={color} />
-                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
-                    </View>
-                )
-            }} />
+            {/* --- ADMIN / CPA TABS (Removed from bottom bar to reduce clutter - access via profile dropdown) --- */}
+            <Tabs.Screen name="admin" options={{ href: null }} />
+            <Tabs.Screen name="cpa" options={{ href: null }} />
 
             {/* --- HIDDEN SCREENS (Registered but No Icon) --- */}
             {/* Messages Folder (Index + Dynamic ID) */}

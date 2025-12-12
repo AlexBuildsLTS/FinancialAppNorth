@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { UserPlus, Mail, ArrowLeft } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { inviteClient } from '../../../services/dataService'; // Unified Service
+// FIX: Use unified dataService
+import { inviteClient } from '../../../services/dataService'; 
 import { useRouter } from 'expo-router';
 
 export default function InviteClientScreen() {
@@ -29,7 +30,7 @@ export default function InviteClientScreen() {
       );
       setEmail('');
     } catch (error: any) {
-      Alert.alert('Invitation Failed', error.message || 'Could not send invitation. Check the email and try again.');
+      Alert.alert('Invitation Failed', error.message || 'Could not send invitation.');
     } finally {
       setInviting(false);
     }
@@ -87,12 +88,6 @@ export default function InviteClientScreen() {
             </>
           )}
         </TouchableOpacity>
-
-        <View className="mt-6 p-4 bg-[#64FFDA]/5 border border-[#64FFDA]/20 rounded-xl">
-          <Text className="text-[#64FFDA] text-sm leading-5">
-            ℹ️ The client will receive an in-app notification. Once they accept, you will gain access to their shared documents and financial overview.
-          </Text>
-        </View>
       </View>
     </ScrollView>
   );

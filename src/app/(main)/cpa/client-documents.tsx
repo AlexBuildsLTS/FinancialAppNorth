@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } fr
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FileText, ArrowLeft, Download, ShieldAlert } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
+// FIX: Use unified dataService
 import { isCpaForClient, getSharedDocuments, getCpaClients } from '../../../services/dataService'; 
 
 interface ClientDocument {
@@ -31,7 +32,6 @@ export default function ClientDocumentsScreen() {
     if (!user || !clientId) return;
 
     try {
-      // 1. Verify Access
       const isAuthorized = await isCpaForClient(user.id, clientId as string);
       if (!isAuthorized) {
         Alert.alert('Access Denied', 'You are not authorized to view this client\'s documents.');
@@ -39,12 +39,10 @@ export default function ClientDocumentsScreen() {
         return;
       }
 
-      // 2. Get Client Details
       const clients = await getCpaClients(user.id);
       const client = clients.find(c => c.id === clientId);
       if (client) setClientName(client.name);
 
-      // 3. Fetch Documents
       const docs = await getSharedDocuments(user.id, clientId as string);
       setDocuments(docs || []);
       
@@ -101,28 +99,18 @@ export default function ClientDocumentsScreen() {
       ) : (
         <View className="gap-3">
           {documents.map((doc) => (
-            <View
-              key={doc.id}
-              className="bg-[#112240] border border-white/5 p-4 rounded-xl flex-row items-center justify-between"
-            >
+            <View key={doc.id} className="bg-[#112240] border border-white/5 p-4 rounded-xl flex-row items-center justify-between">
               <View className="flex-row items-center flex-1 mr-4">
                 <View className="w-10 h-10 bg-[#0A192F] rounded-lg items-center justify-center mr-3 border border-white/5">
                     <Text className="text-lg">{getFileIcon(doc.mime_type)}</Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-white font-medium text-base" numberOfLines={1}>
-                    {doc.file_name}
-                  </Text>
-                  <Text className="text-[#8892B0] text-xs mt-0.5">
-                    {formatFileSize(doc.size_bytes)} • {new Date(doc.created_at).toLocaleDateString()}
-                  </Text>
+                  <Text className="text-white font-medium text-base" numberOfLines={1}>{doc.file_name}</Text>
+                  <Text className="text-[#8892B0] text-xs mt-0.5">{formatFileSize(doc.size_bytes)} • {new Date(doc.created_at).toLocaleDateString()}</Text>
                 </View>
               </View>
 
-              <TouchableOpacity
-                onPress={() => Alert.alert('Download', `Downloading ${doc.file_name}...`)}
-                className="bg-[#64FFDA]/10 p-3 rounded-xl border border-[#64FFDA]/20"
-              >
+              <TouchableOpacity onPress={() => Alert.alert('Download', `Downloading ${doc.file_name}...`)} className="bg-[#64FFDA]/10 p-3 rounded-xl border border-[#64FFDA]/20">
                 <Download size={20} color="#64FFDA" />
               </TouchableOpacity>
             </View>

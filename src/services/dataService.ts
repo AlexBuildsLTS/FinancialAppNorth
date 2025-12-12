@@ -21,12 +21,19 @@ import {
   BudgetWithSpent,
   FinancialSummary,
   CpaClient,
-  NotificationItem
+  NotificationItem,
+  TablesInsert,
+  TablesUpdate,
+  UserRole
 } from '../types';
+
+// Import Settings Service for Key Retrieval
+import { settingsService } from '../shared/services/settingsService';
+import { encryptMessage, decryptMessage } from '../lib/crypto'; 
 
 /**
  * ==============================================================================
- * 🛠️ INTERNAL HELPERS (Self-Healing & Schema Safety)
+ * 🛡️ INTERNAL HELPERS (Self-Healing & Schema Safety)
  * ==============================================================================
  */
 
@@ -41,7 +48,7 @@ const ensureProfileExists = async (userId: string) => {
     
     if (!data) {
       console.log(`[DataService] 🛠️ Repairing missing profile for ${userId}...`);
-      // Create if missing (RLS now allows this for authenticated users)
+      // Create if missing (RLS now allows this for authenticated users via our SQL fix)
       const { error: insertError } = await supabase.from('profiles').insert({
         id: userId,
         email: 'user@placeholder.com', // Will be updated by auth triggers usually
@@ -86,7 +93,8 @@ const getDefaultAccountId = async (userId: string): Promise<string> => {
 };
 
 /**
- * Log sensitive actions for security auditing.
+ * 🔒 AUDIT LOGGING
+ * Logs sensitive actions for security and compliance.
  * Useful for Admin/CPA tracking.
  */
 export const logAuditAction = async (userId: string, action: string, details: string) => {
@@ -103,18 +111,157 @@ export const logAuditAction = async (userId: string, action: string, details: st
 
 /**
  * ==============================================================================
+ * 🔔 NOTIFICATIONS SYSTEM (Real-time & Persistent)
+ * ==============================================================================
+ */
+
+export const createNotification = async (
+  userId: string,
+  title: string,
+  message: string,
+  type: 'ticket' | 'cpa' | 'message' | 'system',
+  relatedId?: string,
+  createdBy?: string
+) => {
+  // Construct payload safely
+  const payload: any = {
+    user_id: userId,
+    title,
+    message,
+    type,
+    is_read: false,
+    created_at: new Date().toISOString()
+  };
+
+  if (relatedId) payload.related_id = relatedId;
+  if (createdBy) payload.created_by = createdBy;
+
+  // "Fire and forget" to avoid blocking UI
+  supabase.from('notifications').insert(payload).then(({ error }) => {
+    if (error) console.warn('[Notifications] Failed to send:', error.message);
+  });
+};
+
+/**
+ * Fetches notifications (Last 50, Unread Only by Default)
+ */
+export const getNotifications = async (userId: string): Promise<NotificationItem[]> => {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_read', false) // Only fetch unread to keep UI clean
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) return [];
+  return data as NotificationItem[];
+};
+
+/**
+ * Marks a notification as read (removes from list).
+ */
+export const markNotificationRead = async (notificationId: string) => {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', notificationId);
+    
+  if (error) throw error;
+};
+
+/**
+ * Clears all notifications for a user.
+ */
+export const markAllNotificationsRead = async (userId: string) => {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', userId)
+    .eq('is_read', false);
+    
+  if (error) throw error;
+};
+
+/**
+ * Real-time notification subscription.
+ */
+export const subscribeToNotifications = (userId: string, callback: (n: NotificationItem) => void) => {
+  return supabase
+    .channel(`notifs:${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`
+      },
+      (payload) => callback(payload.new as NotificationItem)
+    )
+    .subscribe();
+};
+
+// --- Notification Logic Triggers ---
+
+export const notifyStaffNewTicket = async (ticketId: string, subject: string, userName: string) => {
+  const { data: staff } = await supabase.from('profiles').select('id').in('role', ['admin', 'support']);
+  staff?.forEach(s => {
+    createNotification(s.id, 'New Ticket', `${userName}: ${subject}`, 'ticket', ticketId);
+  });
+};
+
+export const notifyUserTicketUpdate = async (userId: string, ticketId: string, status: string) => {
+  await createNotification(userId, 'Ticket Update', `Status changed to: ${status.replace('_', ' ')}`, 'ticket', ticketId);
+};
+
+export const notifyNewMessage = async (recipientId: string, senderName: string, conversationId: string, senderId?: string) => {
+  await createNotification(recipientId, 'New Message', `From ${senderName}`, 'message', conversationId, senderId);
+};
+
+export const notifyCpaRequest = async (cpaId: string, clientName: string, createdBy?: string) => {
+  await createNotification(
+    cpaId,
+    'New CPA Request',
+    `${clientName} has requested to connect with you.`,
+    'cpa',
+    undefined,
+    createdBy
+  );
+};
+
+export const notifyClientInvitation = async (clientId: string, cpaName: string, createdBy?: string) => {
+  await createNotification(
+    clientId,
+    'CPA Invitation',
+    `${cpaName} has invited you to connect as your CPA.`,
+    'cpa',
+    undefined,
+    createdBy
+  );
+};
+
+export const notifyConnectionAccepted = async (targetId: string, accepterName: string) => {
+  await createNotification(
+    targetId,
+    'Connection Accepted',
+    `${accepterName} is now connected with you.`,
+    'cpa'
+  );
+};
+
+/**
+ * ==============================================================================
  * 💬 MESSAGING SYSTEM (End-to-End Encrypted + Attachments)
  * ==============================================================================
  */
 
 export const getOrCreateConversation = async (currentUserId: string, targetUserId: string): Promise<string> => {
   try {
-    // Prevent crashes by ensuring both users exist in public schema
     await ensureProfileExists(currentUserId);
     await ensureProfileExists(targetUserId);
 
     // 1. Search for existing direct conversation
-    // We check conversations where BOTH users are participants
     const { data: conversations } = await supabase
       .from('conversations')
       .select(`id, conversation_participants!inner(user_id)`)
@@ -171,8 +318,9 @@ export const sendMessage = async (
     // 1. Upload Attachment if present
     if (attachment) {
       console.log('[Messaging] Uploading attachment:', attachment.name);
-      // Create a clean file path with timestamp to avoid collisions
-      const path = `${conversationId}/${Date.now()}_${attachment.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      // Create a clean file path
+      const cleanName = attachment.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      const path = `${conversationId}/${Date.now()}_${cleanName}`;
       
       let fileBody: any;
       
@@ -234,9 +382,6 @@ export const sendMessage = async (
   }
 };
 
-/**
- * Real-time chat subscription helper.
- */
 export const subscribeToChat = (conversationId: string, callback: (msg: Message) => void) => {
   return supabase
     .channel(`chat:${conversationId}`)
@@ -270,145 +415,37 @@ export const getConversationMessages = async (conversationId: string): Promise<M
 };
 
 export const getConversations = async (userId: string) => {
-  // Fetch potential contacts (excluding self)
-  const { data, error } = await supabase
+  // Fetch conversations with unread count logic
+  const { data: profiles, error } = await supabase
     .from('profiles')
     .select('id, first_name, last_name, avatar_url, role')
     .neq('id', userId);
 
   if (error) return [];
   
-  return data.map((p: any) => ({
-    id: p.id,
-    name: p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : 'User',
-    avatar: p.avatar_url,
-    role: p.role,
-    lastMessage: 'Tap to start secure chat', 
+  // In a real app, you'd join with a 'messages' view to count unread. 
+  // Here we simulate checking the last message status for the "Red Dot" feature.
+  const conversations = await Promise.all(profiles.map(async (p: any) => {
+    const { count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('sender_id', p.id)
+        .eq('is_system_message', false)
+        // Assuming your schema has an 'is_read' or we check if NOT in 'read_by'
+        // For simplicity/robustness in this schema:
+        .not('read_by', 'cs', `{"${userId}"}`); 
+    
+    return {
+        id: p.id,
+        name: p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : 'User',
+        avatar: p.avatar_url,
+        role: p.role,
+        unreadCount: count || 0, // <--- FOR RED DOTS
+        lastMessage: 'Tap to chat', 
+    };
   }));
-};
 
-/**
- * ==============================================================================
- * 🔔 NOTIFICATIONS SYSTEM (Real-time & Persistent)
- * ==============================================================================
- */
-
-export const createNotification = async (
-  userId: string,
-  title: string,
-  message: string,
-  type: 'ticket' | 'cpa' | 'message' | 'system',
-  relatedId?: string,
-  createdBy?: string
-) => {
-  // Construct payload safely
-  const payload: any = {
-    user_id: userId,
-    title,
-    message,
-    type,
-    is_read: false,
-    created_at: new Date().toISOString()
-  };
-
-  if (relatedId) payload.related_id = relatedId;
-  if (createdBy) payload.created_by = createdBy;
-
-  // "Fire and forget" to avoid blocking UI
-  supabase.from('notifications').insert(payload).then(({ error }) => {
-    if (error) console.warn('[Notifications] Failed to send:', error.message);
-  });
-};
-
-export const getNotifications = async (userId: string): Promise<NotificationItem[]> => {
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(50);
-
-  if (error) return [];
-  return data as NotificationItem[];
-};
-
-export const markNotificationRead = async (notificationId: string) => {
-  await supabase
-    .from('notifications')
-    .update({ is_read: true })
-    .eq('id', notificationId);
-};
-
-export const markAllNotificationsRead = async (userId: string) => {
-  await supabase
-    .from('notifications')
-    .update({ is_read: true })
-    .eq('user_id', userId)
-    .eq('is_read', false);
-};
-
-export const subscribeToNotifications = (userId: string, callback: (n: NotificationItem) => void) => {
-  return supabase
-    .channel(`notifs:${userId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`
-      },
-      (payload) => callback(payload.new as NotificationItem)
-    )
-    .subscribe();
-};
-
-// --- Notification Logic Triggers ---
-
-export const notifyStaffNewTicket = async (ticketId: string, subject: string, userName: string) => {
-  const { data: staff } = await supabase.from('profiles').select('id').in('role', ['admin', 'support']);
-  staff?.forEach(s => {
-    createNotification(s.id, 'New Ticket', `${userName}: ${subject}`, 'ticket', ticketId);
-  });
-};
-
-export const notifyUserTicketUpdate = async (userId: string, ticketId: string, status: string) => {
-  await createNotification(userId, 'Ticket Update', `Status changed to: ${status.replace('_', ' ')}`, 'ticket', ticketId);
-};
-
-export const notifyNewMessage = async (recipientId: string, senderName: string, conversationId: string, senderId?: string) => {
-  await createNotification(recipientId, 'New Message', `From ${senderName}`, 'message', conversationId, senderId);
-};
-
-export const notifyCpaRequest = async (cpaId: string, clientName: string, createdBy?: string) => {
-  await createNotification(
-    cpaId,
-    'New CPA Request',
-    `${clientName} has requested to connect with you as their CPA`,
-    'cpa',
-    undefined,
-    createdBy
-  );
-};
-
-export const notifyClientInvitation = async (clientId: string, cpaName: string, createdBy?: string) => {
-  await createNotification(
-    clientId,
-    'CPA Invitation',
-    `${cpaName} has invited you to connect as your CPA`,
-    'cpa',
-    undefined,
-    createdBy
-  );
-};
-
-export const notifyConnectionAccepted = async (targetId: string, accepterName: string) => {
-  await createNotification(
-    targetId,
-    'Connection Accepted',
-    `${accepterName} is now connected with you.`,
-    'cpa'
-  );
+  return conversations;
 };
 
 /**
@@ -432,7 +469,6 @@ export const createTicket = async (userId: string, subject: string, message: str
 
   if (error) throw error;
 
-  // Add initial message
   await supabase.from('ticket_messages').insert({
     ticket_id: ticket.id,
     user_id: userId,
@@ -459,13 +495,12 @@ export const getTickets = async (userId: string) => {
 };
 
 export const getAllTickets = async () => {
-  // 1. Trigger Cleanup (Fire & Forget) - Safe RPC call for maintenance
+  // 1. Trigger Cleanup (Fire & Forget)
   supabase.rpc('cleanup_stale_tickets').then(({ error }) => {
     if (error) console.warn("Cleanup warning:", error);
   });
 
-  // 2. Fetch Active Queue with EXPLICIT FOREIGN KEY RELATIONSHIP
-  // This syntax '!tickets_user_id_fkey' is critical to avoid PGRST201 errors in Supabase joins
+  // 2. Fetch Active Queue with EXPLICIT FOREIGN KEY
   const { data, error } = await supabase
     .from('tickets')
     .select(`
@@ -479,7 +514,6 @@ export const getAllTickets = async () => {
 };
 
 export const getTicketDetails = async (ticketId: string) => {
-  // Includes messages and user details joined safely
   const { data, error } = await supabase
     .from('tickets')
     .select(`*, messages:ticket_messages(*), user:profiles!tickets_user_id_fkey(*)`)
@@ -501,7 +535,6 @@ export const updateTicketStatus = async (ticketId: string, status: string) => {
 };
 
 export const addInternalNote = async (ticketId: string, userId: string, note: string) => {
-  // Adds a hidden message only visible to staff
   const { error } = await supabase.from('ticket_messages').insert({
     ticket_id: ticketId,
     user_id: userId,
@@ -512,7 +545,6 @@ export const addInternalNote = async (ticketId: string, userId: string, note: st
 };
 
 export const addTicketReply = async (ticketId: string, userId: string, reply: string) => {
-  // Adds a public reply visible to the user
   const { error } = await supabase.from('ticket_messages').insert({
     ticket_id: ticketId,
     user_id: userId,
@@ -521,7 +553,6 @@ export const addTicketReply = async (ticketId: string, userId: string, reply: st
   });
   if (error) throw error;
 };
-
 export const deleteTicket = async (ticketId: string) => {
   const { error } = await supabase.from('tickets').delete().eq('id', ticketId);
   if (error) throw error;
@@ -529,7 +560,7 @@ export const deleteTicket = async (ticketId: string) => {
 
 /**
  * ==============================================================================
- * 💰 TRANSACTIONS & BUDGETS (Robust Financial Engine)
+ * 💰 TRANSACTIONS & BUDGETS (Robust Fix for 'Bad Request')
  * ==============================================================================
  */
 
@@ -541,14 +572,15 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
     .order('date', { ascending: false });
 
   if (error) return [];
-  
+
   return data.map((t: any) => ({
       ...t,
-      // Flatten joined category data for easier UI consumption
+      // Flatten joined category data
       category: t.categories ? t.categories.name : 'Uncategorized',
       category_id: t.category_id,
       category_icon: t.categories?.icon,
-      category_color: t.categories?.color
+      category_color: t.categories?.color,
+      is_tax_deductible: t.is_tax_deductible
   }));
 };
 
@@ -568,7 +600,7 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
         }
     }
 
-    // 2. Auto-Create Category if ID missing but Name provided
+    // 2. Auto-Create Category if ID missing
     if (!categoryId && categoryName !== 'Uncategorized') {
         const { data: existingCat } = await supabase
           .from('categories')
@@ -596,7 +628,7 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
     if (type === 'expense') finalAmount = -Math.abs(finalAmount);
     else finalAmount = Math.abs(finalAmount);
 
-    // 4. Construct Payload
+    // 4. Construct Payload (Only schema-valid fields)
     // CRITICAL: Exclude 'category' text string to prevent database Schema errors
     const payload: any = {
         user_id: userId,
@@ -604,7 +636,8 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
         amount: finalAmount,
         type,
         date: transaction.date || new Date().toISOString(),
-        description: transaction.description
+        description: transaction.description,
+        is_tax_deductible: transaction.is_tax_deductible || null
     };
 
     if (categoryId) payload.category_id = categoryId;
@@ -617,9 +650,9 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
 
     if (error) throw error;
     
-    // Log action for complex transactions
-    if (Math.abs(finalAmount) > 1000) {
-        logAuditAction(userId, 'HIGH_VALUE_TX', `Transaction of ${finalAmount} created.`);
+    // NEW FEATURE: High Value Transaction Alert (Audit)
+    if (Math.abs(finalAmount) > 5000) {
+        logAuditAction(userId, 'HIGH_VALUE_TX', `Amount: ${finalAmount}`);
     }
 
     return data;
@@ -633,6 +666,12 @@ export const deleteTransaction = async (id: string) => {
   const { error } = await supabase.from('transactions').delete().eq('id', id);
   if (error) throw error;
 };
+
+/**
+ * ==============================================================================
+ * 📉 BUDGETS (CRUD)
+ * ==============================================================================
+ */
 
 export const getBudgets = async (userId: string): Promise<BudgetWithSpent[]> => {
   try {
@@ -698,6 +737,12 @@ export const deleteBudget = async (id: string) => {
   if (error) throw error;
 };
 
+/**
+ * ==============================================================================
+ * 📊 FINANCIAL ANALYSIS (Metrics + New Features)
+ * ==============================================================================
+ */
+
 export const getFinancialSummary = async (userId: string): Promise<FinancialSummary> => {
   const { data: transactions } = await supabase
     .from('transactions')
@@ -725,6 +770,33 @@ export const getFinancialSummary = async (userId: string): Promise<FinancialSumm
     expense,
     trend: trend.length ? trend : [{ value: 0, date: new Date().toISOString() }]
   };
+};
+
+/**
+ * NEW FEATURE: Financial Health Score (0-100)
+ * Calculates a score based on expense ratio and savings.
+ */
+export const getFinancialHealthScore = async (userId: string): Promise<number> => {
+    const summary = await getFinancialSummary(userId);
+    if (summary.income === 0) return 0;
+    
+    const savingsRate = (summary.income - summary.expense) / summary.income;
+    let score = savingsRate * 100;
+    
+    // Bonus for positive balance
+    if (summary.balance > 0) score += 10;
+    
+    return Math.min(Math.max(Math.round(score), 0), 100);
+};
+
+/**
+ * NEW FEATURE: Spending Forecast
+ * Simple linear projection for next month's spending.
+ */
+export const getSpendingForecast = async (userId: string): Promise<number> => {
+    const summary = await getFinancialSummary(userId);
+    // Simple naive forecast: avg monthly expense + 5% inflation buffer
+    return Math.round(summary.expense * 1.05);
 };
 
 /**
@@ -878,7 +950,6 @@ export const requestCPA = async (userId: string, cpaEmail: string) => {
     const { error } = await supabase.from('cpa_clients').insert({ client_id: userId, cpa_id: cpa.id, status: 'pending' });
     if (error) throw error;
 
-    // Notify CPA
     await notifyCpaRequest(cpa.id, 'New Client', userId);
 };
 
@@ -906,13 +977,24 @@ export const declineInvitation = async (userId: string, cpaId: string) => {
 };
 
 export const acceptCpaClient = async (cpaId: string, clientId: string) => {
-   const { error } = await supabase.from('cpa_clients').update({ status: 'active' }).match({ client_id: clientId, cpa_id: cpaId });
+   // FIX: Specific matching ensures we update exactly the right relationship
+   const { error } = await supabase
+     .from('cpa_clients')
+     .update({ status: 'active', updated_at: new Date().toISOString() })
+     .match({ cpa_id: cpaId, client_id: clientId });
+     
    if (error) throw error;
-   await notifyConnectionAccepted(clientId, 'CPA');
+   
+   // Notify client
+   await createNotification(clientId, 'Request Accepted', 'Your CPA accepted your request.', 'cpa', cpaId);
 };
 
 export const rejectCpaClient = async (cpaId: string, clientId: string) => {
-   const { error } = await supabase.from('cpa_clients').delete().match({ client_id: clientId, cpa_id: cpaId });
+   const { error } = await supabase
+     .from('cpa_clients')
+     .delete()
+     .match({ cpa_id: cpaId, client_id: clientId });
+     
    if (error) throw error;
 };
 
@@ -932,46 +1014,280 @@ export const isCpaForClient = async (cpaId: string, clientId: string) => {
 
 /**
  * ==============================================================================
+ * 📊 ANALYSIS & INSIGHTS
+ * ==============================================================================
+ */
+
+import { DetectedSubscription } from '../types';
+
+/**
+ * Detects recurring subscriptions from transaction history.
+ * Analyzes patterns in amounts and dates to identify potential subscriptions.
+ */
+export const detectSubscriptions = async (userId: string): Promise<DetectedSubscription[]> => {
+  // Fetch last 6 months of expense transactions
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+  const { data: transactions } = await supabase
+    .from('transactions')
+    .select('description, amount, date')
+    .eq('user_id', userId)
+    .eq('type', 'expense')
+    .lt('amount', 0)
+    .gte('date', sixMonthsAgo.toISOString())
+    .order('date', { ascending: true });
+
+  if (!transactions || transactions.length < 5) return [];
+
+  // Group by merchant (simplified: use description as merchant)
+  const merchantGroups: { [key: string]: { amounts: number[], dates: string[] } } = {};
+
+  transactions.forEach(t => {
+    const merchant = t.description?.split(' ')[0] || 'Unknown'; // Simple merchant extraction
+    const amount = Math.abs(parseFloat(t.amount));
+
+    if (!merchantGroups[merchant]) {
+      merchantGroups[merchant] = { amounts: [], dates: [] };
+    }
+
+    merchantGroups[merchant].amounts.push(amount);
+    merchantGroups[merchant].dates.push(t.date);
+  });
+
+  const subscriptions: DetectedSubscription[] = [];
+
+  Object.entries(merchantGroups).forEach(([merchant, data]) => {
+    if (data.amounts.length < 3) return; // Need at least 3 transactions
+
+    // Check for recurring amounts (within 10% variance)
+    const avgAmount = data.amounts.reduce((a, b) => a + b, 0) / data.amounts.length;
+    const variance = data.amounts.filter(a => Math.abs(a - avgAmount) / avgAmount <= 0.1).length;
+
+    if (variance < data.amounts.length * 0.7) return; // Not consistent enough
+
+    // Check for recurring dates (monthly pattern)
+    const dates = data.dates.map(d => new Date(d).getDate()).sort((a, b) => a - b);
+    const dateVariance = Math.max(...dates) - Math.min(...dates);
+
+    let frequency: 'monthly' | 'weekly' | 'yearly' = 'monthly';
+    let confidence = 0.5;
+
+    if (dateVariance <= 7) {
+      frequency = 'monthly'; // Same date each month
+      confidence = 0.8;
+    } else if (dateVariance <= 14) {
+      frequency = 'weekly';
+      confidence = 0.6;
+    }
+
+    // Calculate next due date (simplified)
+    const lastDate = new Date(data.dates[data.dates.length - 1]);
+    const nextDue = new Date(lastDate);
+    if (frequency === 'monthly') nextDue.setMonth(nextDue.getMonth() + 1);
+    else if (frequency === 'weekly') nextDue.setDate(nextDue.getDate() + 7);
+
+    const yearlyWaste = frequency === 'monthly' ? avgAmount * 12 : frequency === 'weekly' ? avgAmount * 52 : avgAmount;
+
+    subscriptions.push({
+      id: `${merchant}-${avgAmount}`,
+      merchant,
+      amount: avgAmount,
+      frequency,
+      next_due: nextDue.toISOString(),
+      yearly_waste: yearlyWaste,
+      confidence
+    });
+  });
+
+  return subscriptions.sort((a, b) => b.yearly_waste - a.yearly_waste);
+};
+
+/**
+ * Generates tax-ready report for CPA access.
+ * Exports transactions marked as tax deductible.
+ */
+export const generateTaxReport = async (userId: string, cpaId?: string): Promise<any> => {
+  // Security check if called by CPA
+  if (cpaId) {
+    const isAuthorized = await isCpaForClient(cpaId, userId);
+    if (!isAuthorized) throw new Error('Unauthorized access to tax data');
+  }
+
+  const { data: taxTransactions } = await supabase
+    .from('transactions')
+    .select('*, categories(name)')
+    .eq('user_id', userId)
+    .eq('is_tax_deductible', true)
+    .order('date', { ascending: false });
+
+  const totalDeductible = taxTransactions?.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0;
+
+  return {
+    user_id: userId,
+    generated_at: new Date().toISOString(),
+    total_deductible_amount: totalDeductible,
+    transaction_count: taxTransactions?.length || 0,
+    transactions: taxTransactions?.map(t => ({
+      date: t.date,
+      description: t.description,
+      amount: Math.abs(parseFloat(t.amount)),
+      category: t.categories?.name || 'Uncategorized'
+    })) || [],
+    summary: {
+      business_expenses: totalDeductible,
+      potential_tax_savings: totalDeductible * 0.3 // Rough estimate
+    }
+  };
+};
+
+/**
+ * Updates transaction tax deductible status.
+ */
+export const updateTransactionTaxStatus = async (transactionId: string, isTaxDeductible: boolean) => {
+  const { error } = await supabase
+    .from('transactions')
+    .update({ is_tax_deductible: isTaxDeductible })
+    .eq('id', transactionId);
+
+  if (error) throw error;
+};
+
+/**
+ * Auto-tags transactions as tax deductible based on merchant name.
+ * Uses AI-like logic with predefined business categories.
+ */
+export const autoTagTaxDeductible = async (userId: string) => {
+  // Fetch untagged expense transactions
+  const { data: transactions, error } = await supabase
+    .from('transactions')
+    .select('id, description')
+    .eq('user_id', userId)
+    .eq('type', 'expense')
+    .is('is_tax_deductible', null)
+    .lt('amount', 0);
+
+  if (error || !transactions) return;
+
+  // Business keywords that indicate tax-deductible expenses
+  const businessKeywords = [
+    'office', 'supply', 'depot', 'staples', 'amazon business', 'quickbooks', 'xero',
+    'advertising', 'marketing', 'software', 'subscription', 'service', 'consulting',
+    'equipment', 'tools', 'machinery', 'vehicle', 'gas', 'fuel', 'parking',
+    'travel', 'hotel', 'flight', 'taxi', 'uber', 'lyft', 'mileage',
+    'internet', 'phone', 'utilities', 'rent', 'lease', 'insurance',
+    'professional', 'legal', 'accounting', 'tax', 'audit'
+  ];
+
+  // Personal keywords (not deductible)
+  const personalKeywords = [
+    'mcdonald', 'starbucks', 'netflix', 'spotify', 'amazon prime', 'hulu',
+    'grocery', 'supermarket', 'restaurant', 'bar', 'entertainment',
+    'clothing', 'shopping', 'mall', 'gift', 'personal'
+  ];
+
+  const updates = transactions.map(t => {
+    const desc = (t.description || '').toLowerCase();
+    const isBusiness = businessKeywords.some(k => desc.includes(k));
+    const isPersonal = personalKeywords.some(k => desc.includes(k));
+
+    let isTaxDeductible = null;
+    if (isBusiness && !isPersonal) {
+      isTaxDeductible = true;
+    } else if (isPersonal) {
+      isTaxDeductible = false;
+    }
+
+    return {
+      id: t.id,
+      is_tax_deductible: isTaxDeductible
+    };
+  }).filter(u => u.is_tax_deductible !== null);
+
+  // Batch update
+  if (updates.length > 0) {
+    const { error: updateError } = await supabase
+      .from('transactions')
+      .upsert(updates, { onConflict: 'id' });
+
+    if (updateError) console.warn('Auto-tagging failed:', updateError);
+  }
+};
+
+/**
+ * ==============================================================================
  * 🤖 AI & SETTINGS HELPERS
  * ==============================================================================
  */
 
 // Legacy helper for AI Keys (Settings Service is preferred)
+const keyCache: Record<string, string> = {};
+
 export const saveGeminiKey = async (userId: string, apiKey: string) => {
-  const { error } = await supabase
-    .from('user_secrets')
-    .upsert({ user_id: userId, service: 'gemini', api_key_encrypted: apiKey }, { onConflict: 'user_id,service' });
-  if (error) throw error;
+    // FIX: Removed updated_at to prevent 400 error
+    const encrypted = encryptMessage(apiKey.trim());
+    const { error } = await supabase
+        .from('user_secrets')
+        .upsert({ 
+            user_id: userId, 
+            service: 'gemini', 
+            api_key_encrypted: encrypted 
+        }, { onConflict: 'user_id,service' });
+        
+    if (error) throw error;
+    keyCache['gemini'] = apiKey.trim();
 };
 
 export const getGeminiKey = async (userId: string) => {
-  const { data } = await supabase
-    .from('user_secrets')
-    .select('api_key_encrypted')
-    .eq('user_id', userId)
-    .eq('service', 'gemini')
-    .maybeSingle();
-  return data?.api_key_encrypted;
+    if (keyCache['gemini']) return keyCache['gemini'];
+    
+    const { data } = await supabase
+        .from('user_secrets')
+        .select('api_key_encrypted')
+        .eq('user_id', userId)
+        .eq('service', 'gemini')
+        .maybeSingle();
+
+    if (data?.api_key_encrypted) {
+        const decrypted = decryptMessage(data.api_key_encrypted);
+        keyCache['gemini'] = decrypted;
+        return decrypted;
+    }
+    return null;
 };
 
 /**
  * ==============================================================================
- * 🔐 ADMIN & USER MANAGEMENT
+ * 🔐 ADMIN & USER MANAGEMENT (Consolidated from UserService)
  * ==============================================================================
  */
 
 export const getUsers = async (): Promise<User[]> => {
   const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
   return (data || []).map((p: any) => ({
-    id: p.id, 
-    email: p.email, 
+    id: p.id,
+    email: p.email,
     name: p.first_name ? `${p.first_name} ${p.last_name}` : 'User',
-    role: p.role, 
-    status: 'active', 
-    avatar: p.avatar_url, 
-    currency: p.currency, 
+    role: p.role,
+    status: p.status || 'active', // 'active' | 'banned' | 'suspended'
+    suspended_until: p.suspended_until, // NEW FIELD
+    avatar: p.avatar_url,
+    currency: p.currency,
     country: p.country
   }));
+};
+
+// NEW: Suspend User Logic
+export const suspendUser = async (userId: string, untilDate: Date) => {
+    const { error } = await supabase
+        .from('profiles')
+        .update({
+            status: 'suspended',
+            suspended_until: untilDate.toISOString()
+        })
+        .eq('id', userId);
+
+    if (error) throw error;
 };
 
 export const getUserDetails = async (userId: string) => {
@@ -979,7 +1295,25 @@ export const getUserDetails = async (userId: string) => {
     return data;
 };
 
-// Aliases for compatibility
+/**
+ * NEW FEATURE: Data Export for GDPR Compliance
+ */
+export const exportUserData = async (userId: string) => {
+    const [profile, transactions, documents] = await Promise.all([
+        getUserDetails(userId),
+        getTransactions(userId),
+        getDocuments(userId)
+    ]);
+    
+    return {
+        profile,
+        transactions,
+        documents,
+        exportedAt: new Date().toISOString()
+    };
+};
+
+// Aliases for compatibility with UI components
 export const getAllUsers = getUsers;
 export const deleteUser = adminDeleteUser;
 export const changeUserRole = adminChangeUserRole;

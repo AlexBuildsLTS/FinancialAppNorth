@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, Modal, Platform, useWindowDimensions } from 'react-native';
-import { Bell, MessageSquare, LogOut, User as UserIcon, Settings, ShieldAlert } from 'lucide-react-native';
+import { Bell, MessageSquare, LogOut, User as UserIcon, Settings, ShieldAlert, Users } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
-import { getNotifications, subscribeToNotifications, markAllNotificationsRead, NotificationItem } from '../../services/dataService';
+import { getNotifications, subscribeToNotifications, markAllNotificationsRead } from '../../services/dataService';
+import { NotificationItem } from '../../types';
 
 export function MainHeader() {
   const { user, logout } = useAuth();
@@ -128,6 +129,13 @@ export function MainHeader() {
                 <Settings size={16} color="#8892B0" className="mr-3" />
                 <Text className="text-white text-sm">Settings</Text>
               </TouchableOpacity>
+
+              {(user?.role === 'premium' || user?.role === 'support' || user?.role === 'cpa' || user?.role === 'admin') && (
+                  <TouchableOpacity onPress={() => router.push('/(main)/cpa')} className="flex-row items-center px-4 py-3 hover:bg-white/5">
+                    <Users size={16} color="#A78BFA" className="mr-3" />
+                    <Text className="text-white text-sm">CPA Portal</Text>
+                  </TouchableOpacity>
+              )}
 
               {user?.role === 'admin' && (
                   <TouchableOpacity onPress={() => router.push('/(main)/admin')} className="flex-row items-center px-4 py-3 hover:bg-white/5">

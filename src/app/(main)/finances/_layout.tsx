@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { List, PieChart, LayoutDashboard, Wallet } from 'lucide-react-native';
+import { List, PieChart, LayoutDashboard, Wallet, CreditCard } from 'lucide-react-native';
 import { Platform } from 'react-native';
 import React from 'react';
 
