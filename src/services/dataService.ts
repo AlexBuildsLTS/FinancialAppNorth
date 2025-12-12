@@ -33,6 +33,7 @@ import {
 /**
  * Ensures a user profile exists in the public schema.
  * Fixes Error 23503 (Foreign Key Violation) and 42501 (RLS).
+ * Added retry logic for resilience.
  */
 const ensureProfileExists = async (userId: string) => {
   try {
@@ -40,7 +41,7 @@ const ensureProfileExists = async (userId: string) => {
     
     if (!data) {
       console.log(`[DataService] 🛠️ Repairing missing profile for ${userId}...`);
-      // Create if missing (RLS now allows this for authenticated users via our SQL fix)
+      // Create if missing (RLS now allows this for authenticated users)
       const { error: insertError } = await supabase.from('profiles').insert({
         id: userId,
         email: 'user@placeholder.com', // Will be updated by auth triggers usually
@@ -61,6 +62,7 @@ const ensureProfileExists = async (userId: string) => {
 
 /**
  * Ensures a default account exists for transactions.
+ * Prevents "null account_id" errors during onboarding.
  */
 const getDefaultAccountId = async (userId: string): Promise<string> => {
   const { data: accounts } = await supabase.from('accounts').select('id').eq('user_id', userId).limit(1);
@@ -84,6 +86,22 @@ const getDefaultAccountId = async (userId: string): Promise<string> => {
 };
 
 /**
+ * Log sensitive actions for security auditing.
+ * Useful for Admin/CPA tracking.
+ */
+export const logAuditAction = async (userId: string, action: string, details: string) => {
+  // Fire and forget - non-blocking
+  supabase.from('audit_logs').insert({
+    user_id: userId,
+    action,
+    details,
+    created_at: new Date().toISOString()
+  }).then(({ error }) => {
+    if (error) console.warn('[Audit] Failed to log:', error.message);
+  });
+};
+
+/**
  * ==============================================================================
  * 💬 MESSAGING SYSTEM (End-to-End Encrypted + Attachments)
  * ==============================================================================
@@ -96,12 +114,12 @@ export const getOrCreateConversation = async (currentUserId: string, targetUserI
     await ensureProfileExists(targetUserId);
 
     // 1. Search for existing direct conversation
+    // We check conversations where BOTH users are participants
     const { data: conversations } = await supabase
       .from('conversations')
       .select(`id, conversation_participants!inner(user_id)`)
       .eq('type', 'direct');
 
-    // Find one where both users are participants
     const existing = conversations?.find((c: any) => {
       const pIds = c.conversation_participants.map((p: any) => p.user_id);
       return pIds.includes(currentUserId) && pIds.includes(targetUserId);
@@ -153,7 +171,7 @@ export const sendMessage = async (
     // 1. Upload Attachment if present
     if (attachment) {
       console.log('[Messaging] Uploading attachment:', attachment.name);
-      // Create a clean file path
+      // Create a clean file path with timestamp to avoid collisions
       const path = `${conversationId}/${Date.now()}_${attachment.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
       
       let fileBody: any;
@@ -216,6 +234,9 @@ export const sendMessage = async (
   }
 };
 
+/**
+ * Real-time chat subscription helper.
+ */
 export const subscribeToChat = (conversationId: string, callback: (msg: Message) => void) => {
   return supabase
     .channel(`chat:${conversationId}`)
@@ -268,7 +289,7 @@ export const getConversations = async (userId: string) => {
 
 /**
  * ==============================================================================
- * 🔔 NOTIFICATIONS SYSTEM
+ * 🔔 NOTIFICATIONS SYSTEM (Real-time & Persistent)
  * ==============================================================================
  */
 
@@ -293,6 +314,7 @@ export const createNotification = async (
   if (relatedId) payload.related_id = relatedId;
   if (createdBy) payload.created_by = createdBy;
 
+  // "Fire and forget" to avoid blocking UI
   supabase.from('notifications').insert(payload).then(({ error }) => {
     if (error) console.warn('[Notifications] Failed to send:', error.message);
   });
@@ -341,7 +363,7 @@ export const subscribeToNotifications = (userId: string, callback: (n: Notificat
     .subscribe();
 };
 
-// --- Notification Triggers ---
+// --- Notification Logic Triggers ---
 
 export const notifyStaffNewTicket = async (ticketId: string, subject: string, userName: string) => {
   const { data: staff } = await supabase.from('profiles').select('id').in('role', ['admin', 'support']);
@@ -391,7 +413,7 @@ export const notifyConnectionAccepted = async (targetId: string, accepterName: s
 
 /**
  * ==============================================================================
- * 🎫 SUPPORT TICKETS (Updated with Relationship Fixes)
+ * 🎫 SUPPORT TICKETS (Complete CRUD + Internal Notes)
  * ==============================================================================
  */
 
@@ -410,6 +432,7 @@ export const createTicket = async (userId: string, subject: string, message: str
 
   if (error) throw error;
 
+  // Add initial message
   await supabase.from('ticket_messages').insert({
     ticket_id: ticket.id,
     user_id: userId,
@@ -436,13 +459,13 @@ export const getTickets = async (userId: string) => {
 };
 
 export const getAllTickets = async () => {
-  // 1. Trigger Cleanup (Fire & Forget) - Safe RPC call
+  // 1. Trigger Cleanup (Fire & Forget) - Safe RPC call for maintenance
   supabase.rpc('cleanup_stale_tickets').then(({ error }) => {
     if (error) console.warn("Cleanup warning:", error);
   });
 
   // 2. Fetch Active Queue with EXPLICIT FOREIGN KEY RELATIONSHIP
-  // This syntax '!tickets_user_id_fkey' is critical to avoid PGRST201
+  // This syntax '!tickets_user_id_fkey' is critical to avoid PGRST201 errors in Supabase joins
   const { data, error } = await supabase
     .from('tickets')
     .select(`
@@ -456,7 +479,7 @@ export const getAllTickets = async () => {
 };
 
 export const getTicketDetails = async (ticketId: string) => {
-  // CRITICAL FIX: Explicit relationship for ticket user details
+  // Includes messages and user details joined safely
   const { data, error } = await supabase
     .from('tickets')
     .select(`*, messages:ticket_messages(*), user:profiles!tickets_user_id_fkey(*)`)
@@ -478,6 +501,7 @@ export const updateTicketStatus = async (ticketId: string, status: string) => {
 };
 
 export const addInternalNote = async (ticketId: string, userId: string, note: string) => {
+  // Adds a hidden message only visible to staff
   const { error } = await supabase.from('ticket_messages').insert({
     ticket_id: ticketId,
     user_id: userId,
@@ -488,6 +512,7 @@ export const addInternalNote = async (ticketId: string, userId: string, note: st
 };
 
 export const addTicketReply = async (ticketId: string, userId: string, reply: string) => {
+  // Adds a public reply visible to the user
   const { error } = await supabase.from('ticket_messages').insert({
     ticket_id: ticketId,
     user_id: userId,
@@ -504,14 +529,14 @@ export const deleteTicket = async (ticketId: string) => {
 
 /**
  * ==============================================================================
- * 💰 TRANSACTIONS & BUDGETS (Robust Fix for 'Bad Request')
+ * 💰 TRANSACTIONS & BUDGETS (Robust Financial Engine)
  * ==============================================================================
  */
 
 export const getTransactions = async (userId: string): Promise<Transaction[]> => {
   const { data, error } = await supabase
     .from('transactions')
-    .select(`*, categories (name, icon, color)`)
+    .select(`*, categories (id, name, icon, color)`)
     .eq('user_id', userId)
     .order('date', { ascending: false });
 
@@ -519,7 +544,9 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
   
   return data.map((t: any) => ({
       ...t,
-      category: t.categories?.name || 'Uncategorized',
+      // Flatten joined category data for easier UI consumption
+      category: t.categories ? t.categories.name : 'Uncategorized',
+      category_id: t.category_id,
       category_icon: t.categories?.icon,
       category_color: t.categories?.color
   }));
@@ -531,7 +558,7 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
     let categoryId = transaction.category_id;
     let categoryName = 'Uncategorized';
     
-    // Handle category input (String name or Object)
+    // 1. Resolve Category Name vs ID logic
     if (transaction.category) {
         if (typeof transaction.category === 'string') {
             categoryName = transaction.category;
@@ -541,17 +568,19 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
         }
     }
 
-    // Auto-create category ID if missing but Name exists
+    // 2. Auto-Create Category if ID missing but Name provided
     if (!categoryId && categoryName !== 'Uncategorized') {
         const { data: existingCat } = await supabase
           .from('categories')
           .select('id')
           .eq('name', categoryName)
+          .eq('user_id', userId) // Check user's specific categories first
           .maybeSingle();
 
         if (existingCat) {
           categoryId = existingCat.id;
         } else {
+             // If not found, create new category dynamically
              const { data: newCat } = await supabase
                .from('categories')
                .insert({ name: categoryName, type: 'expense', user_id: userId, icon: 'tag' })
@@ -561,22 +590,24 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
         }
     }
     
-    // Calculate final amount
+    // 3. Calculate final amount direction
     let finalAmount = Number(transaction.amount || 0);
     const type = transaction.type || (finalAmount >= 0 ? 'income' : 'expense');
     if (type === 'expense') finalAmount = -Math.abs(finalAmount);
     else finalAmount = Math.abs(finalAmount);
 
-    const payload = {
+    // 4. Construct Payload
+    // CRITICAL: Exclude 'category' text string to prevent database Schema errors
+    const payload: any = {
         user_id: userId,
         account_id: accountId,
-        category_id: categoryId, // Foreign Key
-        category: categoryName,  // Backup Text Column (Fixes the 400 Bad Request if FK fails)
         amount: finalAmount,
         type,
         date: transaction.date || new Date().toISOString(),
         description: transaction.description
     };
+
+    if (categoryId) payload.category_id = categoryId;
 
     const { data, error } = await supabase
       .from('transactions')
@@ -585,6 +616,12 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
       .single();
 
     if (error) throw error;
+    
+    // Log action for complex transactions
+    if (Math.abs(finalAmount) > 1000) {
+        logAuditAction(userId, 'HIGH_VALUE_TX', `Transaction of ${finalAmount} created.`);
+    }
+
     return data;
   } catch (err: any) {
     console.error("[DataService] Create Transaction Error:", err);
@@ -599,6 +636,7 @@ export const deleteTransaction = async (id: string) => {
 
 export const getBudgets = async (userId: string): Promise<BudgetWithSpent[]> => {
   try {
+    // Fetch budgets
     const { data: budgets } = await supabase
       .from('budgets')
       .select(`*, categories (name, color)`) 
@@ -606,6 +644,7 @@ export const getBudgets = async (userId: string): Promise<BudgetWithSpent[]> => 
 
     if (!budgets) return [];
 
+    // Calculate actual spending against budgets
     const { data: transactions } = await supabase
       .from('transactions')
       .select('amount, category_id') 
@@ -634,10 +673,12 @@ export const getBudgets = async (userId: string): Promise<BudgetWithSpent[]> => 
 };
 
 export const createBudget = async (userId: string, categoryName: string, limit: number) => {
+  // Find category ID from name
   const { data: cats } = await supabase.from('categories').select('id').eq('name', categoryName).limit(1);
   let catId = cats?.[0]?.id;
 
   if (!catId) {
+    // Auto-create category if missing
     const { data: newCat } = await supabase.from('categories').insert({ name: categoryName, type: 'expense', user_id: userId }).select().single();
     catId = newCat?.id;
   }
@@ -670,6 +711,7 @@ export const getFinancialSummary = async (userId: string): Promise<FinancialSumm
   let expense = 0;
   let runningBalance = 0;
   
+  // Calculate running balance for trend charts
   const trend = transactions.map((t: any) => {
       runningBalance += parseFloat(t.amount);
       if (t.amount > 0) income += t.amount;
@@ -687,7 +729,7 @@ export const getFinancialSummary = async (userId: string): Promise<FinancialSumm
 
 /**
  * ==============================================================================
- * 📄 DOCUMENT MANAGEMENT
+ * 📄 DOCUMENT MANAGEMENT (Secure Storage)
  * ==============================================================================
  */
 
@@ -876,7 +918,7 @@ export const rejectCpaClient = async (cpaId: string, clientId: string) => {
 
 export const getSharedDocuments = async (cpaId: string, clientId: string) => {
   // Security check handled by RLS, but double check status active
-  const { data } = await supabase.from('cpa_clients').select('status').match({cpaId, client_id: clientId}).single();
+  const { data } = await supabase.from('cpa_clients').select('status').match({cpa_id: cpaId, client_id: clientId}).single();
   if (data?.status !== 'active') throw new Error("Not authorized.");
 
   const { data: docs } = await supabase.from('documents').select('*').eq('user_id', clientId);

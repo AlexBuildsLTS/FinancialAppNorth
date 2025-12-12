@@ -1,91 +1,77 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { supabase } from '../../lib/supabase';
-import { decryptMessage } from '../../lib/crypto'; 
+import { settingsService } from './settingsService';
 
-// --- Configuration ---
-// Fallback to a global key if user hasn't set one (Optional, for dev)
-const GLOBAL_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+// Fallback models in case one is deprecated/unavailable
+const MODEL_FALLBACKS = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
 
-// List of models to try in order. If one fails (404/503), the next is attempted.
-const MODEL_FALLBACK_LIST = [
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-1.0-pro',
-  'gemini-pro'
-];
-
-// --- Helper: Get & Decrypt Key ---
-export const getGeminiApiKey = async (userId?: string): Promise<string | null> => {
-  // 1. Try User Settings first (Privacy first)
-  if (userId) {
-    const { data } = await supabase
-      .from('user_secrets')
-      .select('api_key_encrypted')
-      .eq('user_id', userId)
-      .eq('service', 'gemini')
-      .maybeSingle();
-
-    if (data?.api_key_encrypted) {
-      try {
-        return decryptMessage(data.api_key_encrypted);
-      } catch (e) {
-        console.warn("Key decryption failed, trying raw value");
-        return data.api_key_encrypted;
-      }
-    }
-  }
-
-  // 2. Fallback to Env Var
-  return GLOBAL_API_KEY || null;
-};
-
-// --- Main Function: Generate Content ---
-export const generateContent = async (prompt: string, userId?: string): Promise<string> => {
-  const apiKey = await getGeminiApiKey(userId);
+export const generateContent = async (
+  prompt: string, 
+  userId?: string, 
+  imageBase64?: string
+): Promise<string> => {
   
+  // 1. Get Key securely
+  if (!userId) throw new Error("User ID required for AI.");
+  
+  const apiKey = await settingsService.getApiKey(userId, 'gemini');
   if (!apiKey) {
-    throw new Error("Missing Gemini API Key. Please add it in Settings > Security.");
+    throw new Error("Gemini API Key not found. Please add it in Settings > AI Configuration.");
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  // Loop through models until one works
-  for (const modelName of MODEL_FALLBACK_LIST) {
+  // 2. Iterate through models until one works
+  let lastError = null;
+
+  for (const modelName of MODEL_FALLBACKS) {
     try {
-      console.log(`🤖 AI Attempting: ${modelName}`);
-      const model = genAI.getGenerativeModel({ 
-        model: modelName,
-        systemInstruction: "You are NorthAI, an elite financial advisor. Be concise, professional, and helpful. Format your answers clearly."
-      });
+      const model = genAI.getGenerativeModel({ model: modelName });
       
-      const result = await model.generateContent(prompt);
+      let result;
+      if (imageBase64) {
+        // Image + Text Request (Multimodal)
+        result = await model.generateContent([
+          prompt,
+          { inlineData: { data: imageBase64, mimeType: 'image/jpeg' } }
+        ]);
+      } else {
+        // Text Only Request
+        result = await model.generateContent(prompt);
+      }
+
       const response = await result.response;
-      const text = response.text();
-      
-      console.log(`✅ AI Success with: ${modelName}`);
-      return text;
+      return response.text();
 
     } catch (error: any) {
-      console.warn(`❌ ${modelName} failed:`, error.message);
-      // If it's the last model and it failed, throw the error
-      if (modelName === MODEL_FALLBACK_LIST[MODEL_FALLBACK_LIST.length - 1]) {
-        throw new Error("AI Service Unavailable. Please check your API Key or try again later.");
-      }
-      // Otherwise, continue to next model in loop
+      console.warn(`[AI] Model ${modelName} failed:`, error.message);
+      lastError = error;
+      // Continue to next model...
     }
   }
 
-  throw new Error("Unexpected AI Error");
+  throw new Error(`AI Service Failed: ${lastError?.message || 'All models unavailable'}`);
 };
 
-// --- Helper: Financial Specific ---
-export const getFinancialAdvice = async (financialData: any, userId?: string) => {
+/**
+ * Specialized helper for financial insights
+ */
+export const generateFinancialInsight = async (userId: string, transactions: any[]) => {
+  // Simplify data to save tokens
+  const txSummary = transactions.slice(0, 20).map(t => 
+    `${t.date}: ${t.description} (${t.amount}) - ${typeof t.category === 'string' ? t.category : t.category?.name}`
+  ).join('\n');
+
   const prompt = `
-    Analyze this financial summary and give 3 bullet points of advice:
-    Income: ${financialData.income}
-    Expenses: ${financialData.expense}
-    Net Balance: ${financialData.balance}
-    Recent Transactions: ${JSON.stringify(financialData.recent_transactions || [])}
+    Act as a financial advisor. Analyze these recent transactions:
+    ${txSummary}
+    
+    Provide a single, short, actionable insight (max 2 sentences) about spending habits or saving opportunities.
+    Do not use markdown formatting.
   `;
-  return await generateContent(prompt, userId);
+
+  try {
+    return await generateContent(prompt, userId);
+  } catch (e) {
+    return "Add your Gemini API Key in settings to unlock AI insights.";
+  }
 };

@@ -1,21 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  FlatList, 
-  KeyboardAvoidingView, 
-  Platform, 
-  ActivityIndicator, 
-  SafeAreaView, 
-  StatusBar 
+  View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, SafeAreaView, StatusBar 
 } from 'react-native';
 import { Send, Bot, User, ArrowLeft, Sparkles } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../shared/context/AuthContext';
 import { generateContent } from '../../shared/services/geminiService';
-import { LinearGradient } from 'expo-linear-gradient';
 
 interface ChatMessage {
   id: string;
@@ -30,7 +20,7 @@ export default function AIChatScreen() {
     { 
       id: '1', 
       role: 'model', 
-      text: `Hello ${user?.name || 'there'}! I am NorthAI, your financial assistant. How can I help you optimize your wealth today?` 
+      text: `Hello ${user?.name || 'there'}! I am NorthAI, your financial assistant. I can analyze your spending, suggest budgets, or answer accounting questions.` 
     }
   ]);
   const [input, setInput] = useState('');
@@ -40,14 +30,15 @@ export default function AIChatScreen() {
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
 
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input.trim() };
+    const userText = input.trim();
+    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: userText };
+    
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
 
     try {
-      // Call the robust service
-      const responseText = await generateContent(userMsg.text, user?.id);
+      const responseText = await generateContent(userText, user?.id);
       
       const aiMsg: ChatMessage = { 
         id: (Date.now() + 1).toString(), 
@@ -59,7 +50,7 @@ export default function AIChatScreen() {
       const errorMsg: ChatMessage = { 
         id: (Date.now() + 1).toString(), 
         role: 'model', 
-        text: `Error: ${error.message}` 
+        text: `⚠️ Error: ${error.message}` 
       };
       setMessages(prev => [...prev, errorMsg]);
     } finally {
@@ -68,10 +59,7 @@ export default function AIChatScreen() {
   };
 
   useEffect(() => {
-    // Auto-scroll to bottom when messages change
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages]);
 
   const renderItem = ({ item }: { item: ChatMessage }) => {
@@ -91,7 +79,7 @@ export default function AIChatScreen() {
               : 'bg-[#112240] rounded-tl-sm border border-white/5'
           }`}
         >
-          <Text className={`text-base ${isUser ? 'text-[#0A192F] font-medium' : 'text-white'}`}>
+          <Text className={`text-base ${isUser ? 'text-[#0A192F] font-bold' : 'text-white'}`}>
             {item.text}
           </Text>
         </View>
@@ -109,20 +97,18 @@ export default function AIChatScreen() {
     <SafeAreaView className="flex-1 bg-[#0A192F]">
       <StatusBar barStyle="light-content" />
       
-      {/* Header */}
       <View className="flex-row items-center p-4 border-b border-white/5 bg-[#0A192F]">
-        <TouchableOpacity onPress={() => router.back()} className="p-2 rounded-full hover:bg-white/5 mr-3">
+        <TouchableOpacity onPress={() => router.back()} className="mr-3 p-2 -ml-2 rounded-full active:bg-white/10">
           <ArrowLeft size={24} color="#8892B0" />
         </TouchableOpacity>
         <View>
           <Text className="text-white text-lg font-bold flex-row items-center">
             North AI <Sparkles size={14} color="#64FFDA" />
           </Text>
-          <Text className="text-[#8892B0] text-xs">Financial Assistant</Text>
+          <Text className="text-[#8892B0] text-xs">Financial Intelligence</Text>
         </View>
       </View>
 
-      {/* Chat Area */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -132,7 +118,6 @@ export default function AIChatScreen() {
         className="flex-1"
       />
 
-      {/* Input Area */}
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}

@@ -19,7 +19,7 @@ export class UserService {
   /**
    * Update user profile
    */
-  static async updateProfile(userId: string, updates: TablesUpdate<'profiles'>) {
+  static async updateProfile(userId: string, firstName: string, lastName: string, updates: TablesUpdate<'profiles'>) {
     const { data, error } = await supabase
       .from('profiles')
       .update({ ...updates, updated_at: new Date().toISOString() })
