@@ -49,6 +49,7 @@ export interface Transaction extends Tables<'transactions'> {
     color?: string;
   } | null;
   is_tax_deductible?: boolean;
+  tax_category?: TaxCategory;
 }
 
 // --- Feature: Documents ---
@@ -124,6 +125,9 @@ export interface DetectedSubscription {
   next_due: string;
   yearly_waste: number;
   confidence: number; // 0-1
+  status: 'stable' | 'price_hike' | 'cancelled';
+  previous_amount?: number;
+  anomaly_detected_at?: string;
 }
 
 // --- Feature: Cash Flow Forecast ---
@@ -131,4 +135,46 @@ export interface CashFlowPoint {
   date: string;
   balance: number;
   is_forecast: boolean;
+}
+
+// --- Feature: Tax Categories ---
+export enum TaxCategory {
+  MARKETING = 'Marketing',
+  TRAVEL = 'Travel',
+  EQUIPMENT = 'Equipment',
+  OFFICE_SUPPLIES = 'Office Supplies',
+  PROFESSIONAL_SERVICES = 'Professional Services',
+  MEALS = 'Meals',
+  OTHER = 'Other'
+}
+
+// --- Feature: Tax Report Summary ---
+export interface TaxReportSummary {
+  user_id: string;
+  generated_at: string;
+  total_deductible_amount: number;
+  transaction_count: number;
+  tax_categories_breakdown: Record<TaxCategory, number>;
+  potential_savings: number;
+  evidence_files: string[]; // Array of Supabase storage paths
+}
+
+// --- Feature: Safe-to-Spend Metrics ---
+export interface SafeSpendMetrics {
+  daily_limit: number;
+  days_until_payday: number;
+  total_recurring_bills: number;
+  average_daily_spending: number;
+  risk_level: 'low' | 'medium' | 'high';
+  next_payday: string;
+}
+
+// --- Feature: Voice Command Parsing ---
+export interface ParsedVoiceCommand {
+  amount: number;
+  merchant: string;
+  category: string;
+  is_tax_deductible: boolean;
+  confidence: number;
+  raw_text: string;
 }

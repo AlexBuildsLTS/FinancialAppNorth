@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar 
 } from 'react-native';
 import {
-  TrendingUp, TrendingDown, DollarSign, Sparkles, ArrowRight, Wallet, Receipt, CreditCard
+  TrendingUp, TrendingDown, DollarSign, Sparkles, ArrowRight, Wallet, Receipt, CreditCard, BarChart3
 } from 'lucide-react-native'; 
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../../shared/context/AuthContext';
@@ -132,15 +132,22 @@ export default function FinanceOverviewScreen() {
                 {/* Cash Flow Forecast */}
                 {cashFlow.length > 0 && (
                     <View className="mb-8">
-                        <Text className="text-white text-lg font-bold mb-4">30-Day Cash Flow</Text>
+                        <View className="flex-row items-center mb-4">
+                            <BarChart3 size={20} color="#64FFDA" />
+                            <Text className="text-white text-lg font-bold ml-2">30-Day Cash Flow</Text>
+                        </View>
                         <View className="bg-[#112240] p-4 rounded-2xl border border-white/5">
                             <View className="flex-row items-center justify-between mb-3">
                                 <Text className="text-[#8892B0] text-sm">Risk Level</Text>
-                                <View className={`px-3 py-1 rounded-full ${
+                                <View className={`flex-row items-center px-3 py-1 rounded-full ${
                                     cashFlowRisk === 'high' ? 'bg-red-500/20' :
                                     cashFlowRisk === 'medium' ? 'bg-yellow-500/20' : 'bg-green-500/20'
                                 }`}>
-                                    <Text className={`text-xs font-bold ${
+                                    <TrendingDown size={12} color={
+                                        cashFlowRisk === 'high' ? '#F87171' :
+                                        cashFlowRisk === 'medium' ? '#F59E0B' : '#10B981'
+                                    } />
+                                    <Text className={`text-xs font-bold ml-1 ${
                                         cashFlowRisk === 'high' ? 'text-red-400' :
                                         cashFlowRisk === 'medium' ? 'text-yellow-400' : 'text-green-400'
                                     }`}>

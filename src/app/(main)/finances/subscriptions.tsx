@@ -39,7 +39,19 @@ export default function SubscriptionsScreen() {
   const totalYearlyWaste = subscriptions.reduce((sum, sub) => sum + sub.yearly_waste, 0);
 
   const renderSubscription = ({ item }: { item: DetectedSubscription }) => (
-    <View className="bg-[#112240] rounded-xl p-4 mb-3 border border-white/5">
+    <View className={`bg-[#112240] rounded-xl p-4 mb-3 border ${
+      item.status === 'price_hike' ? 'border-red-500/50 bg-red-500/5' : 'border-white/5'
+    }`}>
+      {item.status === 'price_hike' && (
+        <View className="flex-row items-center mb-3 p-2 bg-red-500/10 rounded-lg">
+          <AlertTriangle size={16} color="#F87171" />
+          <Text className="text-red-400 font-bold text-sm ml-2">PRICE HIKE DETECTED!</Text>
+          <Text className="text-red-300 text-xs ml-auto">
+            Was ${item.previous_amount?.toFixed(2)}
+          </Text>
+        </View>
+      )}
+
       <View className="flex-row justify-between items-start mb-3">
         <View className="flex-1">
           <Text className="text-white font-bold text-lg">{item.merchant}</Text>
@@ -51,17 +63,20 @@ export default function SubscriptionsScreen() {
           </View>
         </View>
         <View className="items-end">
-          <View className={`px-2 py-1 rounded-full ${
+          <View className={`px-2 py-1 rounded-full mb-1 ${
+            item.status === 'price_hike' ? 'bg-red-500/20' :
             item.confidence > 0.7 ? 'bg-green-500/20' :
             item.confidence > 0.5 ? 'bg-yellow-500/20' : 'bg-red-500/20'
           }`}>
             <Text className={`text-xs font-bold ${
+              item.status === 'price_hike' ? 'text-red-400' :
               item.confidence > 0.7 ? 'text-green-400' :
               item.confidence > 0.5 ? 'text-yellow-400' : 'text-red-400'
             }`}>
-              {Math.round(item.confidence * 100)}%
+              {item.status === 'price_hike' ? 'PRICE HIKE' : `${Math.round(item.confidence * 100)}%`}
             </Text>
           </View>
+          <Text className="text-[#8892B0] text-xs capitalize">{item.status.replace('_', ' ')}</Text>
         </View>
       </View>
 

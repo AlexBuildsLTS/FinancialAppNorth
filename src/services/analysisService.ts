@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { CashFlowPoint } from '../types';
+import { CashFlowPoint, SafeSpendMetrics } from '../types';
 
 /**
  * ==============================================================================
@@ -90,4 +90,91 @@ export const getCashFlowRiskLevel = (forecast: CashFlowPoint[]): 'low' | 'medium
   if (negativeDays > 10) return 'high';
   if (negativeDays > 5) return 'medium';
   return 'low';
+};
+
+/**
+ * Calculates the safe daily spending limit based on upcoming bills and cash flow.
+ */
+export const calculateSafeToSpend = async (userId: string): Promise<SafeSpendMetrics> => {
+  const today = new Date();
+  const nextPayday = new Date(today);
+  nextPayday.setDate(today.getDate() + 14); // Assume bi-weekly pay cycle
+
+  // Get current balance
+  const { data: balanceData } = await supabase
+    .from('transactions')
+    .select('amount')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(1);
+
+  let currentBalance = 0;
+  if (balanceData && balanceData.length > 0) {
+    // Calculate running balance from recent transactions
+    const { data: recentTxns } = await supabase
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .limit(50);
+
+    currentBalance = recentTxns?.reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0;
+  }
+
+  // Get recurring bills due before next payday
+  const { data: upcomingBills } = await supabase
+    .from('transactions')
+    .select('amount, description')
+    .eq('user_id', userId)
+    .eq('type', 'expense')
+    .lt('amount', 0)
+    .gte('date', today.toISOString())
+    .lte('date', nextPayday.toISOString());
+
+  const totalRecurringBills = upcomingBills?.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0;
+
+  // Get average daily spending (last 30 days)
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(today.getDate() - 30);
+
+  const { data: recentSpending } = await supabase
+    .from('transactions')
+    .select('amount, date')
+    .eq('user_id', userId)
+    .eq('type', 'expense')
+    .lt('amount', 0)
+    .gte('date', thirtyDaysAgo.toISOString());
+
+  const dailySpendingGroups: { [date: string]: number } = {};
+  recentSpending?.forEach(t => {
+    const dateKey = t.date.split('T')[0];
+    dailySpendingGroups[dateKey] = (dailySpendingGroups[dateKey] || 0) + Math.abs(parseFloat(t.amount));
+  });
+
+  const dailySpends = Object.values(dailySpendingGroups);
+  const averageDailySpending = dailySpends.length > 0
+    ? dailySpends.reduce((a, b) => a + b, 0) / dailySpends.length
+    : 0;
+
+  // Calculate days until payday
+  const daysUntilPayday = Math.ceil((nextPayday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Safe to spend calculation
+  const availableAfterBills = currentBalance - totalRecurringBills;
+  const projectedSpending = averageDailySpending * daysUntilPayday;
+  const safeDailyLimit = Math.max(0, (availableAfterBills - projectedSpending) / daysUntilPayday);
+
+  // Risk assessment
+  let riskLevel: 'low' | 'medium' | 'high' = 'low';
+  if (safeDailyLimit < averageDailySpending * 0.5) riskLevel = 'high';
+  else if (safeDailyLimit < averageDailySpending * 0.8) riskLevel = 'medium';
+
+  return {
+    daily_limit: Math.round(safeDailyLimit * 100) / 100,
+    days_until_payday: daysUntilPayday,
+    total_recurring_bills: totalRecurringBills,
+    average_daily_spending: Math.round(averageDailySpending * 100) / 100,
+    risk_level: riskLevel,
+    next_payday: nextPayday.toISOString()
+  };
 };

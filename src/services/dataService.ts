@@ -29,7 +29,8 @@ import {
 
 // Import Settings Service for Key Retrieval
 import { settingsService } from '../shared/services/settingsService';
-import { encryptMessage, decryptMessage } from '../lib/crypto'; 
+import { encryptMessage, decryptMessage } from '../lib/crypto';
+import { APP_CONFIG } from '../constants'; 
 
 /**
  * ==============================================================================
@@ -426,14 +427,13 @@ export const getConversations = async (userId: string) => {
   // In a real app, you'd join with a 'messages' view to count unread. 
   // Here we simulate checking the last message status for the "Red Dot" feature.
   const conversations = await Promise.all(profiles.map(async (p: any) => {
+    // Simplified unread count - in production, you'd have a proper unread_messages view
     const { count } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('sender_id', p.id)
         .eq('is_system_message', false)
-        // Assuming your schema has an 'is_read' or we check if NOT in 'read_by'
-        // For simplicity/robustness in this schema:
-        .not('read_by', 'cs', `{"${userId}"}`); 
+        .gt('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()); // Last 7 days 
     
     return {
         id: p.id,
@@ -873,9 +873,22 @@ export const uploadDocument = async (
 
 export const pickAndUploadFile = async (userId: string) => {
   try {
-    const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+    const result = await DocumentPicker.getDocumentAsync({
+      type: APP_CONFIG.SUPPORTED_MIME_TYPES,
+      copyToCacheDirectory: true
+    });
     if (result.canceled) return null;
-    return await uploadDocument(userId, result.assets[0].uri, result.assets[0].name, 'other');
+
+    const asset = result.assets[0];
+    if (asset.size && asset.size > APP_CONFIG.MAX_FILE_SIZE_MB * 1024 * 1024) {
+      throw new Error(`File size exceeds ${APP_CONFIG.MAX_FILE_SIZE_MB}MB limit`);
+    }
+
+    let docType: 'receipt' | 'invoice' | 'contract' | 'other' = 'other';
+    if (asset.mimeType?.includes('pdf')) docType = 'contract';
+    else if (asset.mimeType?.includes('csv') || asset.mimeType?.includes('excel')) docType = 'other';
+
+    return await uploadDocument(userId, asset.uri, asset.name, docType);
   } catch (e) {
     console.error("File Picker Error:", e);
     throw e;
@@ -1018,7 +1031,7 @@ export const isCpaForClient = async (cpaId: string, clientId: string) => {
  * ==============================================================================
  */
 
-import { DetectedSubscription } from '../types';
+import { DetectedSubscription, TaxReportSummary, TaxCategory } from '../types';
 
 /**
  * Detects recurring subscriptions from transaction history.
@@ -1089,6 +1102,28 @@ export const detectSubscriptions = async (userId: string): Promise<DetectedSubsc
 
     const yearlyWaste = frequency === 'monthly' ? avgAmount * 12 : frequency === 'weekly' ? avgAmount * 52 : avgAmount;
 
+    // Anomaly Detection: Check for price increases
+    let status: 'stable' | 'price_hike' | 'cancelled' = 'stable';
+    let previousAmount: number | undefined;
+    let anomalyDetectedAt: string | undefined;
+
+    if (data.amounts.length >= 2) {
+      const sortedAmounts = [...data.amounts].sort((a, b) => {
+        const aIndex = data.amounts.indexOf(a);
+        const bIndex = data.amounts.indexOf(b);
+        return new Date(data.dates[aIndex]).getTime() - new Date(data.dates[bIndex]).getTime();
+      });
+
+      const latestAmount = sortedAmounts[sortedAmounts.length - 1];
+      const previousAmountCheck = sortedAmounts[sortedAmounts.length - 2];
+
+      if (latestAmount > previousAmountCheck * 1.05) { // 5% increase threshold
+        status = 'price_hike';
+        previousAmount = previousAmountCheck;
+        anomalyDetectedAt = new Date().toISOString();
+      }
+    }
+
     subscriptions.push({
       id: `${merchant}-${avgAmount}`,
       merchant,
@@ -1096,7 +1131,10 @@ export const detectSubscriptions = async (userId: string): Promise<DetectedSubsc
       frequency,
       next_due: nextDue.toISOString(),
       yearly_waste: yearlyWaste,
-      confidence
+      confidence,
+      status,
+      previous_amount: previousAmount,
+      anomaly_detected_at: anomalyDetectedAt
     });
   });
 
@@ -1104,10 +1142,10 @@ export const detectSubscriptions = async (userId: string): Promise<DetectedSubsc
 };
 
 /**
- * Generates tax-ready report for CPA access.
- * Exports transactions marked as tax deductible.
+ * Generates tax-ready report for CPA access with evidence files.
+ * Creates a comprehensive audit package with linked receipt images.
  */
-export const generateTaxReport = async (userId: string, cpaId?: string): Promise<any> => {
+export const generateTaxReport = async (userId: string, cpaId?: string): Promise<TaxReportSummary> => {
   // Security check if called by CPA
   if (cpaId) {
     const isAuthorized = await isCpaForClient(cpaId, userId);
@@ -1116,28 +1154,47 @@ export const generateTaxReport = async (userId: string, cpaId?: string): Promise
 
   const { data: taxTransactions } = await supabase
     .from('transactions')
-    .select('*, categories(name)')
+    .select('*, categories(name), documents(*)')
     .eq('user_id', userId)
     .eq('is_tax_deductible', true)
     .order('date', { ascending: false });
 
   const totalDeductible = taxTransactions?.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0;
 
+  // Group by tax categories
+  const categoryBreakdown: Record<TaxCategory, number> = {
+    [TaxCategory.MARKETING]: 0,
+    [TaxCategory.TRAVEL]: 0,
+    [TaxCategory.EQUIPMENT]: 0,
+    [TaxCategory.OFFICE_SUPPLIES]: 0,
+    [TaxCategory.PROFESSIONAL_SERVICES]: 0,
+    [TaxCategory.MEALS]: 0,
+    [TaxCategory.OTHER]: 0
+  };
+
+  // Collect evidence file paths
+  const evidenceFiles: string[] = [];
+
+  taxTransactions?.forEach(t => {
+    const category = (t.tax_category as TaxCategory) || TaxCategory.OTHER;
+    categoryBreakdown[category] += Math.abs(parseFloat(t.amount));
+
+    // Add receipt evidence if available
+    if (t.documents && t.documents.length > 0) {
+      t.documents.forEach((doc: any) => {
+        if (doc.file_path) evidenceFiles.push(doc.file_path);
+      });
+    }
+  });
+
   return {
     user_id: userId,
     generated_at: new Date().toISOString(),
     total_deductible_amount: totalDeductible,
     transaction_count: taxTransactions?.length || 0,
-    transactions: taxTransactions?.map(t => ({
-      date: t.date,
-      description: t.description,
-      amount: Math.abs(parseFloat(t.amount)),
-      category: t.categories?.name || 'Uncategorized'
-    })) || [],
-    summary: {
-      business_expenses: totalDeductible,
-      potential_tax_savings: totalDeductible * 0.3 // Rough estimate
-    }
+    tax_categories_breakdown: categoryBreakdown,
+    potential_savings: totalDeductible * 0.3, // Rough estimate
+    evidence_files: evidenceFiles
   };
 };
 

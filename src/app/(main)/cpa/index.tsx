@@ -92,7 +92,7 @@ export default function CpaDashboard() {
               onPress={() => router.push('/(main)/cpa/tax-reports')}
               className="bg-[#8B5CF6] px-5 py-3 rounded-full flex-row items-center shadow-lg shadow-[#8B5CF6]/20"
             >
-                <FileText size={18} color="#FFFFFF" />
+                <ClipboardList size={18} color="#FFFFFF" />
                 <Text className="text-white font-bold text-sm ml-2">Tax Reports</Text>
             </TouchableOpacity>
             <TouchableOpacity

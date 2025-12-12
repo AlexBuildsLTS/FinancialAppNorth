@@ -74,6 +74,13 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
 // You may also export other constants here if needed
 export const APP_CONFIG = {
   MAX_FILE_SIZE_MB: 10,
-  SUPPORTED_MIME_TYPES: ['image/jpeg', 'image/png', 'application/pdf'],
+  SUPPORTED_MIME_TYPES: [
+    'image/jpeg',
+    'image/png',
+    'application/pdf',
+    'text/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ],
   PAGINATION_LIMIT: 20,
 };

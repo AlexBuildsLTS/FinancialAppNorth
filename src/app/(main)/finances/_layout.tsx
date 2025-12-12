@@ -54,7 +54,16 @@ export default function FinancesLayout() {
         }}
       />
       
-      {/* 4. Reports */}
+      {/* 4. Subscriptions */}
+      <Tabs.Screen
+        name="subscriptions"
+        options={{
+          title: 'Subscriptions',
+          tabBarIcon: ({ color }: { color: string }) => <CreditCard size={22} color={color} />,
+        }}
+      />
+
+      {/* 5. Reports */}
       <Tabs.Screen
         name="reports"
         options={{
