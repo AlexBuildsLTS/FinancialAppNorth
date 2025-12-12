@@ -7,20 +7,19 @@ import React, {
   useMemo,
   useRef
 } from 'react';
-import { Alert } from 'react-native';
 import { Session } from '@supabase/supabase-js';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { supabase } from '../../lib/supabase';
 import { User, UserRole } from '../../types'; 
 
-// Database Row Definition (Aligned with Supabase Schema)
+// Database Row Definition
 export type ProfileRow = {
   id: string;
   email: string;
   first_name?: string | null;
   last_name?: string | null;
-  role: UserRole; // Enforced Enum
+  role: UserRole;
   avatar_url?: string | null;
   currency?: string | null;
   country?: string | null;
@@ -52,7 +51,13 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [isLoading, setIsLoading] = useState(true);
    
   const router = useRouter();
+  const segments = useSegments();
   const mountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // --- HELPER: RESOLVE AVATAR ---
   const resolveAvatarUrl = useCallback((avatarPath: string | null | undefined): string | null => {
@@ -64,27 +69,13 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     } catch { return null; }
   }, []);
 
-  // --- HELPER: FORCE LOGOUT (ZOMBIE KILLER) ---
-  const forceLogout = useCallback(async () => {
-    console.warn("⚠️ [Auth] Forcing logout due to critical error or missing session.");
-    try { await supabase.auth.signOut(); } catch (e) { /* Ignore signout errors */ }
-    
-    if (mountedRef.current) {
-        setUser(null); 
-        setSession(null); 
-        setProfile(null); 
-        setIsLoading(false);
-    }
-    // Navigate to login
-    router.replace('/(auth)/login');
-  }, [router]);
-
   // --- CORE: FETCH & SYNC PROFILE ---
   const fetchAndSetProfile = useCallback(async (userId: string, email: string) => {
+    if (!mountedRef.current) return;
+    
     try {
       console.log(`🔍 [Auth] Fetching profile for user ${userId}`);
       
-      // 1. Fetch Profile
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -93,28 +84,20 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
       if (error) {
         console.error("❌ [Auth] Profile fetch error:", error);
-        // Only logout on permission errors, not network glitches
-        if (error.code === '401' || error.code === '403') {
-           // Optional: forceLogout() here if strict security is needed
-        }
         return;
       }
 
-      console.log(`✅ [Auth] Profile fetched:`, data ? 'Found' : 'Missing');
-
       let profileData = data as ProfileRow | null;
 
-      // 2. Auto-Repair if Missing (Self-Healing)
+      // Auto-Repair if Missing
       if (!profileData) {
-        console.log(`🛠️ [Auth] Profile missing. Repairing ${userId}...`);
-        
-        // Use upsert to be safe against race conditions
+        console.log(`🛠️ [Auth] Profile missing. Repairing...`);
         const { data: newProfile, error: createError } = await supabase
             .from('profiles')
             .upsert({
                 id: userId,
                 email: email,
-                role: UserRole.MEMBER, // Default role
+                role: UserRole.MEMBER,
                 first_name: 'Member',
                 last_name: '',
                 currency: 'USD',
@@ -128,11 +111,9 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
             console.error("❌ [Auth] Repair Failed:", createError);
             return;
         }
-        console.log(`✅ [Auth] Profile repaired successfully.`);
         profileData = newProfile as ProfileRow;
       }
 
-      // 3. Update State
       if (mountedRef.current && profileData) {
           setProfile(profileData);
           const avatarUrl = resolveAvatarUrl(profileData.avatar_url);
@@ -156,33 +137,24 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
   // --- INIT SESSION ---
   useEffect(() => {
-    mountedRef.current = true;
     let initComplete = false;
 
     const runInit = async () => {
         try {
-            // Get initial session
             const { data, error } = await supabase.auth.getSession();
             
             if (error) {
                 console.error("[Auth] Session Init Error:", error.message);
-                if (error.message.includes("Refresh Token")) {
-                    console.warn("⚠️ [Auth] Detected Invalid Token Loop -> Cleaning up.");
-                    await forceLogout();
-                    return;
-                }
-            }
-            
-            if (!data.session) {
                 if (mountedRef.current) setIsLoading(false);
                 return;
             }
-            
+
             if (mountedRef.current) {
-                 setSession(data.session);
-                 // Note: Supabase v2 handles realtime auth automatically via session
-                 await fetchAndSetProfile(data.session.user.id, data.session.user.email!);
-             }
+                setSession(data.session);
+                if (data.session?.user) {
+                    await fetchAndSetProfile(data.session.user.id, data.session.user.email!);
+                }
+            }
         } catch (err) {
             console.error('[Auth] Init Failed:', err);
         } finally {
@@ -195,40 +167,29 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
 
     runInit();
 
-    // SAFETY VALVE: Stop loading after 3s if DB/Network is stuck
-    const safetyTimeout = setTimeout(() => {
-        if (mountedRef.current && !initComplete) {
-            console.warn("⚠️ [Auth] Init Timeout - Forcing App Load");
-            initComplete = true;
-            setIsLoading(false); 
-        }
-    }, 3000);
-
-    // Subscribe to Auth Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log(`[Auth] Event: ${event}`);
       if (!mountedRef.current) return;
 
-      if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !newSession)) {
-        await forceLogout();
-        return;
-      }
-
-      setSession(newSession);
-
-      if (newSession?.user) {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setIsLoading(false);
+        router.replace('/(auth)/login');
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setSession(newSession);
+        if (newSession?.user) {
             await fetchAndSetProfile(newSession.user.id, newSession.user.email!);
         }
-      } 
+        setIsLoading(false);
+      }
     });
 
     return () => { 
-        mountedRef.current = false; 
-        clearTimeout(safetyTimeout);
         subscription.unsubscribe(); 
     };
-  }, [fetchAndSetProfile, forceLogout]);
+  }, [fetchAndSetProfile, router]); // Minimized dependencies
 
   // --- PUBLIC ACTIONS ---
    
@@ -241,7 +202,6 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password: password || '' });
       if (error) throw error;
-      // Loading state will be handled by the onAuthStateChange listener
     } catch (error) {
       setIsLoading(false);
       throw error;
@@ -254,14 +214,11 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         const { data, error } = await supabase.auth.signUp({ 
             email, 
             password, 
-            options: { 
-                data: { first_name: fName, last_name: lName } 
-            } 
+            options: { data: { first_name: fName, last_name: lName } } 
         });
         
         if (error) throw error;
         
-        // If auto-confirm is enabled, fetch profile immediately
         if (data.user) {
             await fetchAndSetProfile(data.user.id, email);
         }
@@ -277,14 +234,6 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
         await supabase.auth.signOut(); 
     } catch (e) {
         console.warn("SignOut Error", e);
-    } finally {
-        if (mountedRef.current) { 
-            setUser(null); 
-            setSession(null); 
-            setProfile(null); 
-            setIsLoading(false); 
-        }
-        router.replace('/(auth)/login');
     }
   };
 
@@ -300,7 +249,6 @@ export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
     if (error) throw error;
   };
 
-  // Memoize context value
   const value = useMemo(() => ({
     user, 
     session, 
