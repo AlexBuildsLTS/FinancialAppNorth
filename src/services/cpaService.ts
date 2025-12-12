@@ -157,7 +157,7 @@ export class CpaService {
   static async getCpaClients(cpaId: string): Promise<CpaClient[]> {
     const { data, error } = await supabase
       .from('cpa_clients')
-      .select('*, client:profiles!cpa_clients_client_id_fkey(*)')
+      .select('*, client:profiles(*)')
       .eq('cpa_id', cpaId);
 
     if (error) throw error;
@@ -177,7 +177,7 @@ export class CpaService {
   static async getClientCpas(clientId: string): Promise<CpaClient[]> {
     const { data, error } = await supabase
       .from('cpa_clients')
-      .select('*, cpa:profiles!cpa_clients_cpa_id_fkey(*)')
+      .select('*, cpa:profiles(*)')
       .eq('client_id', clientId);
 
     if (error) throw error;
