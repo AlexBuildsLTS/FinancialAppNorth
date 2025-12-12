@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, Text, TextInput, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  SafeAreaView, 
+  Alert, 
+  ActivityIndicator, 
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Save, Eye, EyeOff, Zap, BrainCircuit } from 'lucide-react-native';
@@ -17,6 +26,15 @@ export default function AiKeysScreen() {
   const [showOpenAI, setShowOpenAI] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+
+  // --- Safe Navigation Handler ---
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(main)/settings');
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -46,12 +64,20 @@ export default function AiKeysScreen() {
     setLoading(true);
     try {
       const promises = [];
-      if (geminiKey.trim()) promises.push(settingsService.saveApiKey(user.id, 'gemini', geminiKey.trim()));
-      if (openAIKey.trim()) promises.push(settingsService.saveApiKey(user.id, 'openai', openAIKey.trim()));
+      // Save Gemini if present
+      if (geminiKey.trim()) {
+        promises.push(settingsService.saveApiKey(user.id, 'gemini', geminiKey.trim()));
+      }
+      // Save OpenAI if present
+      if (openAIKey.trim()) {
+        promises.push(settingsService.saveApiKey(user.id, 'openai', openAIKey.trim()));
+      }
       
       await Promise.all(promises);
-      Alert.alert("Success", "API Keys saved securely.");
-      router.back();
+      
+      Alert.alert("Success", "Configuration saved successfully.", [
+        { text: "OK", onPress: handleBack }
+      ]);
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to save keys.");
     } finally {
@@ -62,8 +88,10 @@ export default function AiKeysScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+        
+        {/* Header */}
         <View className="px-4 py-4 flex-row items-center border-b border-white/5 bg-[#0A192F]">
-          <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2 rounded-full active:bg-white/10">
+          <TouchableOpacity onPress={handleBack} className="mr-4 p-2 rounded-full active:bg-white/10">
             <ArrowLeft size={24} color="white" />
           </TouchableOpacity>
           <Text className="text-white text-xl font-bold">AI Configuration</Text>
@@ -77,7 +105,10 @@ export default function AiKeysScreen() {
           {fetching ? (
              <View className="py-10 items-center"><ActivityIndicator size="large" color="#64FFDA" /></View>
           ) : (
+            // accessibilityRole="form" helps silence the DOM warning on Web
             <View className="gap-6">
+              
+              {/* Gemini Input */}
               <View className="bg-[#112240] p-5 rounded-2xl border border-white/5">
                 <View className="flex-row items-center mb-4">
                   <View className="w-8 h-8 rounded-full bg-blue-500/20 items-center justify-center mr-3"><Zap size={18} color="#60A5FA" /></View>
@@ -92,7 +123,9 @@ export default function AiKeysScreen() {
                     onChangeText={setGeminiKey}
                     secureTextEntry={!showGemini}
                     autoCapitalize="none"
-                    autoComplete="off"
+                    // These props help with web browser behavior
+                    autoComplete="off" 
+                    textContentType="password"
                   />
                   <TouchableOpacity onPress={() => setShowGemini(!showGemini)} className="absolute right-4 top-4">
                     {showGemini ? <EyeOff size={20} color="#8892B0" /> : <Eye size={20} color="#8892B0" />}
@@ -100,6 +133,7 @@ export default function AiKeysScreen() {
                 </View>
               </View>
 
+              {/* OpenAI Input */}
               <View className="bg-[#112240] p-5 rounded-2xl border border-white/5">
                 <View className="flex-row items-center mb-4">
                   <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center mr-3"><BrainCircuit size={18} color="#4ADE80" /></View>
@@ -115,6 +149,7 @@ export default function AiKeysScreen() {
                     secureTextEntry={!showOpenAI}
                     autoCapitalize="none"
                     autoComplete="off"
+                    textContentType="password"
                   />
                   <TouchableOpacity onPress={() => setShowOpenAI(!showOpenAI)} className="absolute right-4 top-4">
                     {showOpenAI ? <EyeOff size={20} color="#8892B0" /> : <Eye size={20} color="#8892B0" />}
@@ -127,8 +162,8 @@ export default function AiKeysScreen() {
         </ScrollView>
 
         <View className="absolute bottom-8 left-6 right-6">
-          <TouchableOpacity onPress={handleSave} disabled={loading || fetching} className={`py-4 rounded-xl items-center flex-row justify-center shadow-lg ${loading ? 'bg-[#64FFDA]/70' : 'bg-[#64FFDA]'}`}>
-            {loading ? <ActivityIndicator color="#0A192F" /> : <><Save size={20} color="#0A192F" className="mr-2" /><Text className="text-[#0A192F] font-bold text-lg">Save Configuration</Text></>}
+          <TouchableOpacity onPress={handleSave} disabled={loading || fetching} className={`w-full py-4 rounded-xl flex-row justify-center items-center shadow-lg ${loading ? 'bg-[#64FFDA]/50' : 'bg-[#64FFDA]'}`}>
+             {loading ? <ActivityIndicator color="#0A192F" /> : <><Save size={20} color="#0A192F" className="mr-2" /><Text className="text-[#0A192F] font-bold text-lg">Save Configuration</Text></>}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

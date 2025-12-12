@@ -1,12 +1,11 @@
-
 {
   "expo": {
-    "name": "north-star-app",
+    "name": "North Finance",
     "slug": "north-star-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/images/favicon.png",
-    "scheme": "myapp",
+    "scheme": "northfinance",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./src/assets/images/favicon.png",
@@ -14,34 +13,27 @@
       "backgroundColor": "#111827"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.northstar.finance"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/favicon.png",
         "backgroundColor": "#111827"
       },
-      "package": "com.northstar.financeapp"
+      "package": "com.northstar.finance"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./src/assets/images/favicon.png",
-      "scheme": null
+      "favicon": "./src/assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-build-properties",
       "expo-secure-store"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
-      "router": {
-        "origin": false
-      },
       "eas": {
         "projectId": "470fb4b6-b97a-4adb-9fea-917ebc37acec"
       }
