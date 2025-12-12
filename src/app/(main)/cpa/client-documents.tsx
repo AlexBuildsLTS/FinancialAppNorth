@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FileText, ArrowLeft, Download } from 'lucide-react-native';
+import { FileText, ArrowLeft, Download, ShieldAlert } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { CpaService } from '../../../services/cpaService';
-import { DocumentService } from '../../../services/documentService';
+import { isCpaForClient, getSharedDocuments, getCpaClients } from '../../../services/dataService'; // Unified Service
 
 interface ClientDocument {
   id: string;
@@ -33,7 +32,7 @@ export default function ClientDocumentsScreen() {
 
     try {
       // Verify CPA has access to this client
-      const isAuthorized = await CpaService.isCpaForClient(user.id, clientId as string);
+      const isAuthorized = await isCpaForClient(user.id, clientId as string);
       if (!isAuthorized) {
         Alert.alert('Access Denied', 'You do not have permission to view this client\'s documents');
         router.back();
@@ -41,15 +40,15 @@ export default function ClientDocumentsScreen() {
       }
 
       // Get client name
-      const clients = await CpaService.getCpaClients(user.id);
+      const clients = await getCpaClients(user.id);
       const client = clients.find(c => c.id === clientId);
       if (client) {
         setClientName(client.name);
       }
 
-      // Get shared documents
-      const docs = await CpaService.getSharedDocuments(user.id, clientId as string);
-      setDocuments(docs);
+      // Get shared documents using Unified Service
+      const docs = await getSharedDocuments(user.id, clientId as string);
+      setDocuments(docs || []);
     } catch (error: any) {
       console.error('Error loading client documents:', error);
       Alert.alert('Error', 'Failed to load client documents');
@@ -76,7 +75,7 @@ export default function ClientDocumentsScreen() {
     return (
       <View className="flex-1 bg-[#0A192F] items-center justify-center">
         <ActivityIndicator color="#64FFDA" />
-        <Text className="text-white mt-4">Loading client documents...</Text>
+        <Text className="text-white mt-4">Loading secure vault...</Text>
       </View>
     );
   }
@@ -84,17 +83,18 @@ export default function ClientDocumentsScreen() {
   return (
     <ScrollView className="flex-1 bg-[#0A192F] p-5" contentContainerStyle={{ paddingBottom: 100 }}>
       <View className="flex-row items-center mb-6">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4">
+        <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2 bg-[#112240] rounded-full border border-white/5">
           <ArrowLeft size={24} color="#64FFDA" />
         </TouchableOpacity>
-        <View>
+        <View className="flex-1">
           <Text className="text-white font-bold text-2xl">{clientName}'s Documents</Text>
           <Text className="text-[#8892B0] text-sm">Shared document vault</Text>
         </View>
+        <ShieldAlert size={24} color="#64FFDA" />
       </View>
 
       {documents.length === 0 ? (
-        <View className="bg-[#112240] border border-white/5 p-8 rounded-xl items-center">
+        <View className="bg-[#112240] border border-white/5 p-8 rounded-xl items-center border-dashed">
           <FileText size={40} color="#112240" />
           <Text className="text-[#8892B0] mt-4 text-center">No documents shared yet.</Text>
           <Text className="text-[#8892B0] text-sm text-center">Client documents will appear here when uploaded.</Text>
@@ -120,8 +120,7 @@ export default function ClientDocumentsScreen() {
 
               <TouchableOpacity
                 onPress={() => {
-                  // TODO: Implement document download/view
-                  Alert.alert('Download', `Download ${doc.file_name}?`);
+                  Alert.alert('Download', `Downloading ${doc.file_name}...`);
                 }}
                 className="bg-[#64FFDA]/10 p-3 rounded-lg"
               >

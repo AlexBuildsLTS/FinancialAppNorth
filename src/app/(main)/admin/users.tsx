@@ -57,7 +57,6 @@ export default function AdminUsersScreen() {
     }
   };
 
-  // Re-fetch every time screen focuses
   useFocusEffect(
     useCallback(() => {
       setLoading(true);

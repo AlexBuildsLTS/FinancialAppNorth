@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { UserPlus, Mail, ArrowLeft } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { CpaService } from '../../../services/cpaService';
+import { inviteClient } from '../../../services/dataService'; // Now uses the Unified Service
 import { useRouter } from 'expo-router';
 
 export default function InviteClientScreen() {
@@ -13,7 +13,7 @@ export default function InviteClientScreen() {
 
   const handleInvite = async () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter a client email address');
+      Alert.alert('Validation Error', 'Please enter a client email address');
       return;
     }
 
@@ -21,7 +21,8 @@ export default function InviteClientScreen() {
 
     setInviting(true);
     try {
-      await CpaService.inviteClient(user.id, email.trim());
+      // Uses the robust inviteClient from dataService
+      await inviteClient(user.id, email.trim());
       Alert.alert('Success', 'Client invitation sent successfully!');
       setEmail('');
     } catch (error: any) {
@@ -36,7 +37,7 @@ export default function InviteClientScreen() {
       <View className="mb-6 flex-row items-center">
         <TouchableOpacity
           onPress={() => router.back()}
-          className="mr-4 p-2 bg-[#112240] rounded-full"
+          className="mr-4 p-2 bg-[#112240] rounded-full border border-white/5"
         >
           <ArrowLeft size={20} color="#64FFDA" />
         </TouchableOpacity>
@@ -60,6 +61,7 @@ export default function InviteClientScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!inviting}
             />
           </View>
         </View>
@@ -72,7 +74,7 @@ export default function InviteClientScreen() {
           }`}
         >
           {inviting ? (
-            <Text className="text-white font-bold">Sending...</Text>
+            <ActivityIndicator color={email.trim() ? '#0A192F' : 'white'} />
           ) : (
             <>
               <UserPlus size={20} color={email.trim() ? '#0A192F' : '#8892B0'} />

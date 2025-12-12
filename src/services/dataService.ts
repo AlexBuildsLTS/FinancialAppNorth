@@ -108,12 +108,9 @@ export const getOrCreateConversation = async (currentUserId: string, targetUserI
     });
 
     if (existing) {
-      console.log(`[Messaging] ✅ Found existing conversation: ${existing.id}`);
       return existing.id;
     }
 
-    console.log('[Messaging] 🆕 Creating new conversation...');
-    
     // 2. Create new conversation container
     const { data: newConv, error: convError } = await supabase
       .from('conversations')
@@ -153,23 +150,32 @@ export const sendMessage = async (
 
     // 1. Upload Attachment if present
     if (attachment) {
-      const cleanName = attachment.name.replace(/[^a-zA-Z0-9.]/g, '_'); // Sanitize filename
-      const path = `${conversationId}/${Date.now()}_${cleanName}`;
+      console.log('[Messaging] Uploading attachment:', attachment.name);
+      // Create a clean file path
+      const path = `${conversationId}/${Date.now()}_${attachment.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
       
       let fileBody: any;
+      
       if (Platform.OS === 'web') {
           const response = await fetch(attachment.uri);
           fileBody = await response.blob();
       } else {
-          fileBody = await FileSystem.readAsStringAsync(attachment.uri, { encoding: 'base64' });
-          fileBody = decode(fileBody);
+          // Robust mobile upload: Read as Base64 then decode to ArrayBuffer
+          const base64 = await FileSystem.readAsStringAsync(attachment.uri, { encoding: FileSystem.EncodingType.Base64 });
+          fileBody = decode(base64);
       }
       
       const { error: uploadError } = await supabase.storage
-        .from('documents') // Reusing documents bucket for chat files
-        .upload(path, fileBody, { contentType: 'application/octet-stream', upsert: true });
+        .from('documents') 
+        .upload(path, fileBody, { 
+            contentType: attachment.type === 'image' ? 'image/jpeg' : 'application/octet-stream', 
+            upsert: true 
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+          console.error('[Messaging] Upload Error:', uploadError);
+          throw uploadError;
+      }
       
       const { data } = supabase.storage.from('documents').getPublicUrl(path);
       attachmentUrl = data.publicUrl;
@@ -180,7 +186,7 @@ export const sendMessage = async (
     const { error } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: senderId,
-      content_encrypted: content || (attachment ? '[Attachment]' : ''), // Fallback text for attachments
+      content_encrypted: content || (attachment ? '[Attachment]' : ''), 
       attachment_url: attachmentUrl,
       attachment_type: attachmentType,
       is_system_message: false,
@@ -198,14 +204,7 @@ export const sendMessage = async (
 
     if (participants && participants.length > 0) {
       for (const p of participants) {
-        await createNotification(
-          p.user_id,
-          'New Message',
-          attachment ? `Sent an ${attachment.type}` : 'You have a new message.',
-          'message',
-          conversationId,
-          senderId
-        );
+        await notifyNewMessage(p.user_id, 'Someone', conversationId, senderId);
       }
     }
 
@@ -216,7 +215,6 @@ export const sendMessage = async (
 };
 
 export const subscribeToChat = (conversationId: string, callback: (msg: Message) => void) => {
-  console.log(`[Realtime] 📡 Subscribing to chat ${conversationId}`);
   return supabase
     .channel(`chat:${conversationId}`)
     .on(
@@ -228,7 +226,6 @@ export const subscribeToChat = (conversationId: string, callback: (msg: Message)
         filter: `conversation_id=eq.${conversationId}`
       },
       (payload) => {
-        console.log('[Realtime] 📨 New message received');
         callback(payload.new as Message);
       }
     )
@@ -263,7 +260,7 @@ export const getConversations = async (userId: string) => {
     name: p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : 'User',
     avatar: p.avatar_url,
     role: p.role,
-    lastMessage: 'Tap to chat', 
+    lastMessage: 'Tap to start secure chat', 
   }));
 };
 
@@ -288,7 +285,7 @@ export const createNotification = async (
     message,
     type,
     is_read: false,
-    created_at: new Date().toISOString() // Explicitly set creation timestamp
+    created_at: new Date().toISOString()
   };
 
   // Only add these if they are not undefined
@@ -365,7 +362,7 @@ export const notifyCpaRequest = async (cpaId: string, clientName: string, create
   await createNotification(
     cpaId,
     'New CPA Request',
-    `${clientName} has requested to connect with you as their CPA`,
+    `${clientName} has requested to connect with you.`,
     'cpa',
     undefined,
     createdBy
@@ -376,16 +373,25 @@ export const notifyClientInvitation = async (clientId: string, cpaName: string, 
   await createNotification(
     clientId,
     'CPA Invitation',
-    `${cpaName} has invited you to connect as your CPA`,
+    `${cpaName} has invited you to connect.`,
     'cpa',
     undefined,
     createdBy
   );
 };
 
+export const notifyConnectionAccepted = async (targetId: string, accepterName: string) => {
+  await createNotification(
+    targetId,
+    'Connection Accepted',
+    `${accepterName} is now connected with you.`,
+    'cpa'
+  );
+};
+
 /**
  * ==============================================================================
- * 🎫 SUPPORT TICKETS
+ * 🎫 SUPPORT TICKETS (Full CRUD)
  * ==============================================================================
  */
 
@@ -724,8 +730,6 @@ export const uploadDocument = async (
             file_path: path, 
             status: 'processed',
             url: publicUrl,
-            mime_type: fileBody.type || 'application/octet-stream', // Add mime_type if available
-            size_bytes: fileBody.size // Add size_bytes if available
         })
         .select()
         .single();
@@ -762,7 +766,7 @@ export const processReceiptAI = async (documentPath: string) => {
 
 /**
  * ==============================================================================
- * 💼 PROFESSIONAL (CPA) SERVICES
+ * 💼 PROFESSIONAL (CPA) SERVICES (Enhanced)
  * ==============================================================================
  */
 
@@ -787,13 +791,89 @@ export const getCpaClients = async (cpaId: string): Promise<CpaClient[]> => {
   }));
 };
 
+export const getClientCpas = async (clientId: string) => {
+  const { data, error } = await supabase
+    .from('cpa_clients')
+    .select(`*, cpa:profiles(*)`)
+    .eq('client_id', clientId);
+
+  if (error) return [];
+  
+  return data.map((item: any) => ({
+    id: item.cpa.id,
+    name: item.cpa.first_name ? `${item.cpa.first_name} ${item.cpa.last_name || ''}`.trim() : 'CPA',
+    email: item.cpa.email,
+    status: item.status
+  }));
+};
+
+// 1. Client Requests a CPA
+export const requestCPA = async (userId: string, cpaEmail: string) => {
+    // Find CPA by email
+    const { data: cpa, error: cpaError } = await supabase.from('profiles').select('id, first_name').eq('email', cpaEmail).eq('role', 'cpa').single();
+    if (!cpa) throw new Error("CPA not found.");
+
+    // Check existing
+    const { data: existing } = await supabase.from('cpa_clients').select('id').match({ client_id: userId, cpa_id: cpa.id }).maybeSingle();
+    if (existing) throw new Error("Connection already exists.");
+
+    // Insert
+    const { error } = await supabase.from('cpa_clients').insert({ client_id: userId, cpa_id: cpa.id, status: 'pending' });
+    if (error) throw error;
+
+    // Notify CPA
+    await notifyCpaRequest(cpa.id, 'New Client', userId);
+};
+
+// 2. CPA Invites a Client
+export const inviteClient = async (cpaId: string, clientEmail: string) => {
+    const { data: client, error } = await supabase.from('profiles').select('id').eq('email', clientEmail).single();
+    if (!client) throw new Error("Client not found.");
+
+    const { error: inviteError } = await supabase.from('cpa_clients').insert({ client_id: client.id, cpa_id: cpaId, status: 'pending' });
+    if (inviteError) throw inviteError;
+
+    await notifyClientInvitation(client.id, 'Your CPA', cpaId);
+};
+
+// 3. Accept/Reject Logic
+export const acceptInvitation = async (userId: string, cpaId: string) => {
+   const { error } = await supabase.from('cpa_clients').update({ status: 'active' }).match({ client_id: userId, cpa_id: cpaId });
+   if (error) throw error;
+   await notifyConnectionAccepted(cpaId, 'Client');
+};
+
+export const declineInvitation = async (userId: string, cpaId: string) => {
+   const { error } = await supabase.from('cpa_clients').delete().match({ client_id: userId, cpa_id: cpaId });
+   if (error) throw error;
+};
+
+export const acceptCpaClient = async (cpaId: string, clientId: string) => {
+   const { error } = await supabase.from('cpa_clients').update({ status: 'active' }).match({ client_id: clientId, cpa_id: cpaId });
+   if (error) throw error;
+   await notifyConnectionAccepted(clientId, 'CPA');
+};
+
+export const rejectCpaClient = async (cpaId: string, clientId: string) => {
+   const { error } = await supabase.from('cpa_clients').delete().match({ client_id: clientId, cpa_id: cpaId });
+   if (error) throw error;
+};
+
+export const getSharedDocuments = async (cpaId: string, clientId: string) => {
+  // Security check handled by RLS, but double check status active
+  const { data } = await supabase.from('cpa_clients').select('status').match({cpaId, client_id: clientId}).single();
+  if (data?.status !== 'active') throw new Error("Not authorized.");
+
+  const { data: docs } = await supabase.from('documents').select('*').eq('user_id', clientId);
+  return docs || [];
+};
+
 /**
  * ==============================================================================
  * 🤖 AI & SETTINGS HELPERS
  * ==============================================================================
  */
 
-// Legacy helper for AI Keys (Settings Service is preferred)
 export const saveGeminiKey = async (userId: string, apiKey: string) => {
   const { error } = await supabase
     .from('user_secrets')
@@ -844,3 +924,7 @@ export const changeUserStatus = adminDeactivateUser;
 export const removeUser = adminDeleteUser;
 export const updateUserStatus = adminDeactivateUser;
 export const updateUserRole = adminChangeUserRole;
+export const isCpaForClient = async (cpaId: string, clientId: string) => {
+    const { data } = await supabase.from('cpa_clients').select('status').match({ cpa_id: cpaId, client_id: clientId }).single();
+    return data?.status === 'active';
+};
