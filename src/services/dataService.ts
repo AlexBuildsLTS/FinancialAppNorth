@@ -2,7 +2,6 @@ import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import { decode } from 'base64-arraybuffer';
-
 // Supabase Client & Admin Utilities
 import {
   supabase,
@@ -10,6 +9,8 @@ import {
   adminDeactivateUser,
   adminDeleteUser
 } from '../lib/supabase';
+
+export { supabase }; // Export supabase for direct use in other modules
 
 // Strict Type Definitions
 import {
