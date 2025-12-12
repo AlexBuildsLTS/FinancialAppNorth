@@ -184,50 +184,6 @@ Contextual Intelligence: The AI Chat doesn't just answer generic questions; it a
 
 Scalability: For the CPA portal, AI can pre-categorize thousands of transactions before the accountant even looks at them, saving hours of billable time and making the "Premium" tier genuinely valuable.
 
-The "God Prompt" for High-Demand Features
-Copy and paste this prompt into an AI coding assistant. It is designed to respect your existing architecture while demanding the most commercially viable features.
-
-PROMPT START
-
-Markdown
-
-Act as a Senior Lead Developer and Product Manager for "NorthFinance," an existing Enterprise-Grade React Native (Expo/Supabase) application.
-
-I have a robust foundation (Auth, Transactions, Budgets, CPA Portal). I now need to implement "High-Demand" features that drive user retention and premium subscriptions.
-
-**Technical Constraints:**
-- Stack: React Native (Expo SDK 53), TypeScript, Supabase (PostgreSQL), NativeWind.
-- Architecture: Service-Layer pattern (UI calls Services, Services call Supabase).
-- Security: RLS must be maintained.
-
-**Objective:**
-Generate the specific code implementation plans (Schema updates + Service Layer + UI Components) for the following 3 High-Demand Features:
-
-### Feature 1: "Subscription Hawk" (Recurring Bill Detection)
-*Logic:* Users hate wasting money on unused subscriptions.
-*Requirement:*
-1. Create a logical function in `dataService.ts` that analyzes transaction history to detect recurring amounts/dates (e.g., $14.99 on the 15th of every month).
-2. Create a `SubscriptionsScreen` that lists these detected items.
-3. Calculate "Yearly Waste" metrics.
-
-### Feature 2: "Tax-Ready Vault" (For CPA/Premium)
-*Logic:* The bridge between User and CPA needs automation.
-*Requirement:*
-1. Add a `is_tax_deductible` boolean to the Transactions table.
-2. Update `geminiService.ts` to have the AI auto-tag a receipt as "Tax Deductible" based on the merchant (e.g., "Office Depot" = True, "McDonalds" = False).
-3. Create a `TaxReport` export function in `dataService.ts` that generates a JSON/CSV summary specifically for the CPA view.
-
-### Feature 3: "Predictive Cash Flow" (Forecasting)
-*Logic:* Users want to know if they will run out of money *next* month.
-*Requirement:*
-1. Create an algorithm in `analysisService.ts` (new file) that takes the last 3 months of income/expenses and projects the next 30 days.
-2. Visual output: A Line Chart where the line changes style from solid (history) to dotted (forecast).
-
-**Output Format:**
-For each feature, provide:
-1. The necessary SQL (Supabase) schema changes.
-2. The TypeScript interfaces.
-3. The specific function code for the Service Layer.
 ```
 
 ---
