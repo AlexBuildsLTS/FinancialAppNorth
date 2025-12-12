@@ -10,7 +10,6 @@ import {
   Platform, 
   Alert 
 } from 'react-native';
-// FIX 1: Import SafeAreaView from safe-area-context to use 'edges' prop
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Send, Bot, User as UserIcon, Settings, Sparkles } from 'lucide-react-native';
 import { useAuth } from '../../shared/context/AuthContext';
@@ -50,24 +49,25 @@ export default function AIChatScreen() {
   const handleSend = async () => {
     if (!input.trim() || !user) return;
     
-    // 1. Create User Message
-    const userMsg: ChatbotMessage = {
+    const textToSend = input.trim();
+    setInput(''); // Clear immediately
+    setLoading(true);
+
+    // 1. Optimistic Update (Show user message immediately)
+    const tempUserMsg: ChatbotMessage = {
       id: Date.now().toString(),
       user_id: user.id,
       sender: 'user',
-      text: input.trim(),
+      text: textToSend,
       created_at: new Date().toISOString()
     };
-
-    // 2. Optimistic Update
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setLoading(true);
+    setMessages(prev => [...prev, tempUserMsg]);
 
     try {
-      // 3. API Call (Routes to Gemini/OpenAI based on service logic)
-      const aiResponseText = await sendUserMessageToAI(user.id, userMsg.text);
+      // 2. Call API
+      const aiResponseText = await sendUserMessageToAI(user.id, textToSend);
       
+      // 3. Update with AI Response
       const aiMsg: ChatbotMessage = {
         id: (Date.now() + 1).toString(),
         user_id: user.id,
@@ -75,24 +75,22 @@ export default function AIChatScreen() {
         text: aiResponseText,
         created_at: new Date().toISOString()
       };
-      
       setMessages(prev => [...prev, aiMsg]);
 
     } catch (error: any) {
       console.error("AI Error:", error);
       
-      // 4. Smart Error Handling
-      if (error.message?.includes("API Key") || error.message?.includes("Missing")) {
+      if (error.message?.includes("API Key")) {
         Alert.alert(
           "Configuration Missing", 
           "You haven't saved an API Key yet. Please configure it in settings.", 
           [
-            { text: "Configure Now", onPress: () => router.push('/(main)/settings/ai-keys') },
+            { text: "Configure", onPress: () => router.push('/(main)/settings/ai-keys') },
             { text: "Cancel", style: "cancel" }
           ]
         );
       } else {
-        Alert.alert("Connection Error", "The AI could not respond at this time.");
+        Alert.alert("Error", error.message || "The AI could not respond.");
       }
     } finally {
       setLoading(false);
@@ -102,7 +100,6 @@ export default function AIChatScreen() {
   // --- Render Item ---
   const renderItem = ({ item }: { item: ChatbotMessage }) => {
     const isUser = item.sender === 'user';
-    // FIX 2: Ensure Date constructor never gets null
     const timeString = new Date(item.created_at || Date.now()).toLocaleTimeString([], {
       hour: '2-digit', 
       minute: '2-digit'
@@ -153,7 +150,7 @@ export default function AIChatScreen() {
             </View>
             <View>
                 <Text className="text-white text-xl font-bold">Financial AI</Text>
-                <Text className="text-[#64FFDA] text-xs">Online • Gemini / GPT-4</Text>
+                <Text className="text-[#64FFDA] text-xs">Online • Gemini</Text>
             </View>
         </View>
         
@@ -173,9 +170,7 @@ export default function AIChatScreen() {
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16, paddingBottom: 20 }}
         className="flex-1"
-        // Auto-scroll when content size changes (new messages)
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        // Auto-scroll when keyboard opens
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
       />
 
