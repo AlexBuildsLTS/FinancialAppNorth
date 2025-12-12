@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, SafeAreaView, A
 import { useAuth } from '../../../shared/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { User, Globe, Moon, Bell, Shield, LogOut, ChevronRight, CreditCard, X, Check, DollarSign, Key } from 'lucide-react-native';
-import { updateCurrency } from '../../../services/dataService';
+import { UserService } from '../../../services/userService';
 
 const SECTIONS = [
   { 
@@ -29,7 +29,7 @@ export default function SettingsScreen() {
     setSaving(true);
     try {
       // 1. Save to Database
-      await updateCurrency(user.id, newCurrency);
+      await UserService.updateCurrency(user.id, newCurrency);
       
       // 2. Refresh App State (Crucial for Dashboard update)
       await refreshProfile();
