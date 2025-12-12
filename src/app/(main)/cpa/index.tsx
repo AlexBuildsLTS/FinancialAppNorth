@@ -1,33 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  Alert, 
-  ActivityIndicator, 
-  RefreshControl,
-  StatusBar
+  View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl 
 } from 'react-native';
 import { 
-  Users, 
-  UserPlus, 
-  Check, 
-  X, 
-  Briefcase, 
-  ArrowRight, 
-  FileText,
-  PieChart
+  Users, UserPlus, Check, X, Briefcase, ArrowRight, ClipboardList, FileText, PieChart 
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { 
-  getCpaClients, 
-  acceptCpaClient, 
-  rejectCpaClient 
-} from '../../../services/dataService'; 
+// FIX: Using the unified dataService logic
+import { getCpaClients, acceptCpaClient, rejectCpaClient } from '../../../services/dataService'; 
 import { useRouter, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CpaDashboard() {
   const { user } = useAuth();
@@ -39,12 +21,10 @@ export default function CpaDashboard() {
   const loadClients = async () => {
     if (!user) return;
     try {
-      // Fetch clients using the fixed dataService query
       const data = await getCpaClients(user.id);
       setClients(data);
     } catch (error: any) {
       console.error('Error loading clients:', error);
-      // Fail silently for UX, logs catch the real issue (PGRST201 etc)
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -57,7 +37,7 @@ export default function CpaDashboard() {
     if (!user) return;
     try {
         await acceptCpaClient(user.id, clientId);
-        Alert.alert("Success", "Client added to your portfolio.");
+        Alert.alert("Success", "Client connected successfully.");
         loadClients();
     } catch (e: any) {
         Alert.alert("Error", e.message);
@@ -66,13 +46,11 @@ export default function CpaDashboard() {
 
   const handleReject = async (clientId: string) => {
     if (!user) return;
-    Alert.alert("Decline", "Reject this client request?", [
+    Alert.alert("Decline", "Reject this request?", [
         { text: "Cancel", style: "cancel" },
         { text: "Reject", style: "destructive", onPress: async () => {
-            try {
-                await rejectCpaClient(user.id, clientId);
-                loadClients();
-            } catch (e: any) { Alert.alert("Error", e.message); }
+            try { await rejectCpaClient(user.id, clientId); loadClients(); } 
+            catch (e: any) { Alert.alert("Error", e.message); }
         }}
     ]);
   };
@@ -81,60 +59,52 @@ export default function CpaDashboard() {
   const pendingClients = clients.filter(c => c.status === 'pending');
 
   if (loading && !refreshing) {
-    return (
-      <View className="flex-1 bg-[#0A192F] items-center justify-center">
-        <ActivityIndicator size="large" color="#64FFDA" />
-      </View>
-    );
+    return <View className="flex-1 bg-[#0A192F] items-center justify-center"><ActivityIndicator color="#64FFDA" /></View>;
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0A192F]" edges={['top']}>
-      <StatusBar barStyle="light-content" />
-      <ScrollView 
-        className="flex-1 px-6" 
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadClients(); }} tintColor="#64FFDA" />}
-      >
-        {/* Header Section */}
-        <View className="pt-4 pb-6">
-          <Text className="text-white font-extrabold text-3xl">CPA Portal</Text>
-          <Text className="text-[#8892B0] text-sm mt-1">Professional Dashboard</Text>
-        </View>
-
-        {/* Quick Actions Row */}
-        <View className="flex-row gap-3 mb-8">
-            <TouchableOpacity
-              onPress={() => router.push('/(main)/cpa/tax-reports')}
-              className="flex-1 bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 p-4 rounded-xl items-center flex-row justify-center"
+    <ScrollView 
+      className="flex-1 bg-[#0A192F]" 
+      contentContainerStyle={{ paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadClients(); }} tintColor="#64FFDA" />}
+    >
+      <View className="px-6 pt-8 pb-4">
+        
+        {/* Header & Quick Actions */}
+        <View className="flex-row justify-between items-start mb-8">
+          <View>
+              <Text className="text-white font-extrabold text-3xl">CPA Portal</Text>
+              <Text className="text-[#8892B0] text-sm mt-1 font-medium">Manage your portfolio</Text>
+          </View>
+          <View className="flex-row gap-2">
+            {/* PURPLE REPORT BUTTON (Restored) */}
+            <TouchableOpacity 
+                onPress={() => router.push('/(main)/cpa/tax-reports')} 
+                className="bg-[#8B5CF6] px-4 py-3 rounded-full flex-row items-center shadow-lg shadow-[#8B5CF6]/20"
             >
-                <FileText size={20} color="#8B5CF6" />
-                <Text className="text-[#8B5CF6] font-bold ml-2">Tax Reports</Text>
+                <ClipboardList size={16} color="#FFFFFF" />
+                <Text className="text-white font-bold text-xs ml-2">Reports</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity
-              onPress={() => router.push('/(main)/cpa/invite')}
-              className="flex-1 bg-[#64FFDA]/10 border border-[#64FFDA]/30 p-4 rounded-xl items-center flex-row justify-center"
+            {/* GREEN INVITE BUTTON (Restored) */}
+            <TouchableOpacity 
+                onPress={() => router.push('/(main)/cpa/invite')} 
+                className="bg-[#64FFDA] px-4 py-3 rounded-full flex-row items-center shadow-lg shadow-[#64FFDA]/20"
             >
-                <UserPlus size={20} color="#64FFDA" />
-                <Text className="text-[#64FFDA] font-bold ml-2">Invite Client</Text>
+                <UserPlus size={16} color="#0A192F" />
+                <Text className="text-[#0A192F] font-bold text-xs ml-2">Invite</Text>
             </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Stats Overview */}
+        {/* Stats Row */}
         <View className="flex-row gap-4 mb-8">
             <View className="bg-[#112240] border border-white/5 p-5 rounded-2xl flex-1 shadow-sm">
-                <View className="flex-row items-center mb-2">
-                    <Users size={16} color="#8892B0" />
-                    <Text className="text-[#8892B0] text-xs font-bold uppercase ml-2 tracking-wider">Active</Text>
-                </View>
+                <Text className="text-[#8892B0] text-xs font-bold uppercase tracking-wider mb-2">Active</Text>
                 <Text className="text-white font-bold text-3xl">{activeClients.length}</Text>
             </View>
             <View className="bg-[#112240] border border-white/5 p-5 rounded-2xl flex-1 shadow-sm">
-                 <View className="flex-row items-center mb-2">
-                    <PieChart size={16} color="#F59E0B" />
-                    <Text className="text-[#8892B0] text-xs font-bold uppercase ml-2 tracking-wider">Pending</Text>
-                </View>
+                <Text className="text-[#8892B0] text-xs font-bold uppercase tracking-wider mb-2">Pending</Text>
                 <Text className="text-[#F59E0B] font-bold text-3xl">{pendingClients.length}</Text>
             </View>
         </View>
@@ -142,44 +112,33 @@ export default function CpaDashboard() {
         {/* Pending Requests */}
         {pendingClients.length > 0 && (
           <View className="mb-8">
-            <Text className="text-white font-bold text-lg mb-4">Pending Approvals</Text>
+            <Text className="text-white font-bold text-lg mb-4 pl-1">Pending Approvals</Text>
             {pendingClients.map((client, index) => (
-              <Animated.View 
-                key={client.id} 
-                entering={FadeInDown.delay(index * 100)} 
-                className="bg-[#112240] border border-[#F59E0B]/30 p-4 rounded-2xl mb-3 flex-row items-center justify-between"
-              >
+              <Animated.View key={client.id} entering={FadeInDown.delay(index * 100)} className="bg-[#112240] border border-[#F59E0B]/30 p-4 rounded-2xl mb-3 flex-row items-center justify-between">
                   <View className="flex-row items-center flex-1 mr-4">
-                      <View className="h-10 w-10 bg-[#F59E0B]/10 rounded-full items-center justify-center mr-3 border border-[#F59E0B]/20">
-                          <Text className="text-[#F59E0B] font-bold">{client.name?.[0]?.toUpperCase()}</Text>
+                      <View className="h-12 w-12 bg-[#F59E0B]/10 rounded-full items-center justify-center mr-3 border border-[#F59E0B]/20">
+                          <Text className="text-[#F59E0B] font-bold text-lg">{client.name?.[0]?.toUpperCase()}</Text>
                       </View>
-                      <View>
-                          <Text className="text-white font-bold text-base">{client.name}</Text>
-                          <Text className="text-[#8892B0] text-xs">{client.email}</Text>
+                      <View className="flex-1">
+                          <Text className="text-white font-bold text-base" numberOfLines={1}>{client.name}</Text>
+                          <Text className="text-[#8892B0] text-xs mt-0.5">{client.email}</Text>
                       </View>
                   </View>
-                  <View className="flex-row gap-3">
-                    <TouchableOpacity onPress={() => handleAccept(client.id)} className="bg-[#64FFDA] p-2 rounded-lg">
-                        <Check size={18} color="#0A192F" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleReject(client.id)} className="bg-red-500/20 p-2 rounded-lg">
-                        <X size={18} color="#F87171" />
-                    </TouchableOpacity>
+                  <View className="flex-row gap-2">
+                    <TouchableOpacity onPress={() => handleAccept(client.id)} className="bg-[#64FFDA]/10 p-3 rounded-xl border border-[#64FFDA]/30"><Check size={20} color="#64FFDA" /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleReject(client.id)} className="bg-red-500/10 p-3 rounded-xl border border-red-500/30"><X size={20} color="#F87171" /></TouchableOpacity>
                   </View>
               </Animated.View>
             ))}
           </View>
         )}
 
-        {/* Active Clients List */}
-        <Text className="text-white font-bold text-lg mb-4">Client Roster</Text>
+        {/* Active Clients */}
+        <Text className="text-white font-bold text-lg mb-4 pl-1">Client Roster</Text>
         {activeClients.length === 0 ? (
-          <View className="bg-[#112240] border border-white/5 p-10 rounded-3xl items-center justify-center border-dashed">
-            <Briefcase size={40} color="#8892B0" />
-            <Text className="text-white font-bold mt-4">No active clients</Text>
-            <Text className="text-[#8892B0] text-sm text-center mt-2 px-6">
-                Invite clients to start managing their financial documents and reports.
-            </Text>
+          <View className="bg-[#112240] border border-white/5 p-12 rounded-3xl items-center justify-center border-dashed">
+            <Briefcase size={32} color="#8892B0" />
+            <Text className="text-[#8892B0] mt-4 font-medium">No active clients</Text>
           </View>
         ) : (
           activeClients.map((client, index) => (
@@ -189,19 +148,19 @@ export default function CpaDashboard() {
                 className="bg-[#112240] border border-white/5 p-4 rounded-2xl mb-3 flex-row items-center justify-between active:bg-[#162C52]"
             >
                 <View className="flex-row items-center flex-1">
-                    <View className="h-10 w-10 bg-[#0A192F] rounded-full items-center justify-center mr-4 border border-white/10">
-                        <Text className="text-[#64FFDA] font-bold">{client.name?.[0]?.toUpperCase()}</Text>
+                    <View className="h-12 w-12 bg-[#0A192F] rounded-full items-center justify-center mr-4 border border-white/5">
+                        <Text className="text-[#64FFDA] font-bold text-lg">{client.name?.[0]?.toUpperCase()}</Text>
                     </View>
                     <View>
                         <Text className="text-white font-bold text-base">{client.name}</Text>
-                        <Text className="text-[#8892B0] text-xs">Last audit: {client.last_audit ? new Date(client.last_audit).toLocaleDateString() : 'Never'}</Text>
+                        <Text className="text-[#8892B0] text-xs">{client.email}</Text>
                     </View>
                 </View>
                 <ArrowRight size={20} color="#64FFDA" />
             </TouchableOpacity>
           ))
         )}
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </ScrollView>
   );
 }
