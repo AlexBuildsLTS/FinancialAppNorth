@@ -67,7 +67,86 @@ const ensureProfileExists = async (userId: string) => {
     console.warn('[DataService] Profile check skipped:', e);
   }
 };
+/**
+ * ==============================================================================
+ * 🦅 TITAN 1: SUBSCRIPTION HAWK (Anomaly Detection)
+ * ==============================================================================
+ */
 
+export interface Subscription {
+  name: string;
+  amount: number;
+  frequency: string;
+  status: 'active' | 'price_hike' | 'cancelled';
+  next_billing_date: string;
+  confidence: number;
+}
+
+export const scanForSubscriptions = async (userId: string): Promise<Subscription[]> => {
+  // 1. Analyze last 90 days of expenses
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  
+  const { data: txs } = await supabase
+    .from('transactions')
+    .select('amount, description, date')
+    .eq('user_id', userId)
+    .eq('type', 'expense')
+    .gte('date', ninetyDaysAgo.toISOString())
+    .order('date', { ascending: false });
+
+  if (!txs) return [];
+
+  const groups: Record<string, any[]> = {};
+  const subscriptions: Subscription[] = [];
+
+  // 2. Group by normalized description (e.g., "Netflix.com" -> "netflix")
+  txs.forEach(tx => {
+    const key = tx.description.toLowerCase().trim().replace(/[^a-z]/g, '').substring(0, 10);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(tx);
+  });
+
+  // 3. Detect Patterns
+  Object.keys(groups).forEach(key => {
+    const history = groups[key];
+    if (history.length >= 2) {
+      // Sort by date desc
+      history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      const latest = history[0];
+      const previous = history[1];
+      
+      // Time gap check (approx 25-35 days for monthly)
+      const daysDiff = (new Date(latest.date).getTime() - new Date(previous.date).getTime()) / (1000 * 3600 * 24);
+      const isMonthly = daysDiff >= 25 && daysDiff <= 35;
+
+      if (isMonthly) {
+        let status: Subscription['status'] = 'active';
+        
+        // ANOMALY DETECTION: Check for price hike
+        if (Math.abs(latest.amount) > Math.abs(previous.amount)) {
+          status = 'price_hike';
+        }
+
+        // Calculate next bill
+        const nextDate = new Date(latest.date);
+        nextDate.setDate(nextDate.getDate() + 30);
+
+        subscriptions.push({
+          name: latest.description,
+          amount: Math.abs(latest.amount),
+          frequency: 'Monthly',
+          status: status,
+          next_billing_date: nextDate.toISOString(),
+          confidence: 0.9
+        });
+      }
+    }
+  });
+
+  return subscriptions;
+};
 /**
  * Ensures a default account exists for transactions.
  * Prevents "null account_id" errors during onboarding.
@@ -710,7 +789,48 @@ export const getBudgets = async (userId: string): Promise<BudgetWithSpent[]> => 
     return [];
   }
 };
+/**
+ * ==============================================================================
+ * 🗣️ TITAN 4: VOICE/NATURAL LANGUAGE LEDGER
+ * ==============================================================================
+ */
 
+export const processNaturalLanguageTransaction = async (userId: string, input: string) => {
+    // 1. Use Gemini to parse intent
+    // Note: We use the existing generateContent but with a strict JSON system prompt
+    const prompt = `
+        Parse this financial command into JSON: "${input}".
+        Return ONLY valid JSON with keys: 
+        - amount (number)
+        - merchant (string)
+        - category (string, infer from context)
+        - type (income or expense)
+        Example: {"amount": 50, "merchant": "Walmart", "category": "Groceries", "type": "expense"}
+    `;
+
+    // Assuming you have imported generateContent from geminiService
+    // We import it dynamically or assume it's available in the file scope
+    const { generateContent } = require('../shared/services/geminiService'); 
+    
+    try {
+        const responseText = await generateContent(prompt, userId);
+        const cleanJson = responseText.replace(/```json|```/g, '').trim();
+        const data = JSON.parse(cleanJson);
+
+        // 2. Execute Transaction
+        return await createTransaction({
+            amount: data.type === 'expense' ? -Math.abs(data.amount) : Math.abs(data.amount),
+            description: data.merchant,
+            category: data.category,
+            date: new Date().toISOString(),
+            type: data.type
+        }, userId);
+
+    } catch (error: any) {
+        console.error("NL Processing Error:", error);
+        throw new Error("Could not understand command. Try 'Spent $20 at Shell'.");
+    }
+};
 export const createBudget = async (userId: string, categoryName: string, limit: number) => {
   // Find category ID from name
   const { data: cats } = await supabase.from('categories').select('id').eq('name', categoryName).limit(1);
