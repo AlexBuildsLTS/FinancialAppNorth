@@ -1,6 +1,7 @@
-import React from 'react';
 import { Tabs } from 'expo-router';
-import { Users, FileText, ClipboardList } from 'lucide-react-native';
+import { Users, Calculator, ClipboardList } from 'lucide-react-native';
+import React from 'react';
+import { Platform } from 'react-native';
 
 export default function CpaLayout() {
   return (
@@ -10,54 +11,63 @@ export default function CpaLayout() {
         tabBarStyle: {
           backgroundColor: '#0A192F',
           borderTopWidth: 1,
-          borderTopColor: '#1E293B',
-          height: 60,
-          paddingBottom: 10,
-          paddingTop: 10
+          borderTopColor: 'rgba(255,255,255,0.1)',
+          height: Platform.OS === 'ios' ? 85 : 65,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+          paddingTop: 10,
         },
         tabBarActiveTintColor: '#64FFDA',
-        tabBarInactiveTintColor: '#64748B',
+        tabBarInactiveTintColor: '#8892B0',
         tabBarLabelStyle: {
             fontSize: 10,
             fontWeight: '600',
-            marginTop: -5
+            marginTop: -2
         }
       }}
     >
-      {/* Main Dashboard Tab */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Clients',
-          tabBarIcon: ({ color }: { color: string }) => <Users size={24} color={color} />,
+          tabBarIcon: ({ color }: { color?: string }) => <Users size={22} color={color} />,
         }}
       />
       
-      {/* Hidden Route: Invite Screen */}
+      {/* Renamed route for clarity. 
+         Using 'Calculator' as the icon for Tax/Variable data.
+      */}
+      <Tabs.Screen
+        name="tax-reports"
+        options={{
+          title: 'Tax Reports',
+          tabBarIcon: ({ color }: { color?: string }) => <Calculator size={22} color={color} />,
+        }}
+      />
+
+      {/* Hidden Utility Routes */}
       <Tabs.Screen
         name="invite"
         options={{
-          href: null, // Hides from tab bar
+          href: null,
           title: 'Invite Client',
         }}
       />
 
-      {/* Hidden Route: Documents Viewer */}
       <Tabs.Screen
         name="client-documents"
         options={{
-          href: null, // Hides from tab bar
+          href: null,
           title: 'Documents',
         }}
       />
 
-      {/* Placeholder/Future Tab (Optional) */}
+      {/* Requests - Keep hidden if managed on main screen */}
       <Tabs.Screen
         name="requests"
         options={{
-          href: null, // Hiding for now as requests are merged into Dashboard
+          href: null, 
           title: 'Requests',
-          tabBarIcon: ({ color }: { color: string }) => <ClipboardList size={24} color={color} />,
+          tabBarIcon: ({ color }: { color?: string }) => <ClipboardList size={22} color={color} />,
         }}
       />
     </Tabs>

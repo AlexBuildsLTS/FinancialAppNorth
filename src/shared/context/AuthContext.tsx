@@ -1,278 +1,198 @@
-import React, { 
-  createContext, 
-  useContext, 
-  useState, 
-  useEffect, 
-  useCallback, 
-  useMemo,
-  useRef
-} from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { useRouter, useSegments } from 'expo-router';
-import * as Linking from 'expo-linking';
+import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { supabase } from '../../lib/supabase';
-import { User, UserRole } from '../../types'; 
-
-// Database Row Definition
-export type ProfileRow = {
-  id: string;
-  email: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  role: UserRole;
-  avatar_url?: string | null;
-  currency?: string | null;
-  country?: string | null;
-  updated_at?: string | null;
-};
+import { User, UserRole } from '../../types';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
-  profile?: ProfileRow | null;
-  login: (email: string, password?: string) => Promise<void>;
-  register: (email: string, password: string, fName: string, lName: string) => Promise<void>;
+  login: (e: string, p: string) => Promise<void>;
+  register: (e: string, p: string, f: string, l: string) => Promise<void>;
   logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  updatePassword: (newPassword: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const AVATARS_BUCKET = 'avatars';
 
-export const AuthProvider = ({ children }: React.PropsWithChildren<{}>) => {
-  // --- State ---
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-   
+  const [isMounted, setIsMounted] = useState(false);
+  
   const router = useRouter();
   const segments = useSegments();
-  const mountedRef = useRef(true);
+  const navigationState = useRootNavigationState(); // Check if nav is ready
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => { mountedRef.current = false; };
-  }, []);
-
-  // --- HELPER: RESOLVE AVATAR ---
-  const resolveAvatarUrl = useCallback((avatarPath: string | null | undefined): string | null => {
-    if (!avatarPath) return null;
-    if (avatarPath.startsWith('http')) return avatarPath; 
+  // --- 1. Robust Profile Fetcher ---
+  const fetchProfile = async (currentSession: Session) => {
     try {
-      const { data } = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(avatarPath);
-      return data.publicUrl;
-    } catch { return null; }
-  }, []);
-
-  // --- CORE: FETCH & SYNC PROFILE ---
-  const fetchAndSetProfile = useCallback(async (userId: string, email: string) => {
-    if (!mountedRef.current) return;
-    
-    try {
-      console.log(`🔍 [Auth] Fetching profile for user ${userId}`);
-      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+        .eq('id', currentSession.user.id)
+        .single();
 
-      if (error) {
-        console.error("❌ [Auth] Profile fetch error:", error);
-        return;
-      }
+      if (error && error.code !== 'PGRST116') throw error;
 
-      let profileData = data as ProfileRow | null;
+      // Robust Fallback if profile missing (Self-Healing)
+      const profile = data || {
+         first_name: 'Member',
+         role: UserRole.MEMBER,
+         avatar_url: null,
+         currency: 'USD',
+         country: 'US'
+      };
 
-      // Auto-Repair if Missing
-      if (!profileData) {
-        console.log(`🛠️ [Auth] Profile missing. Repairing...`);
-        const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .upsert({
-                id: userId,
-                email: email,
-                role: UserRole.MEMBER,
-                first_name: 'Member',
-                last_name: '',
-                currency: 'USD',
-                country: 'US',
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'id' })
-            .select()
-            .single();
-
-        if (createError) {
-            console.error("❌ [Auth] Repair Failed:", createError);
-            return;
-        }
-        profileData = newProfile as ProfileRow;
-      }
-
-      if (mountedRef.current && profileData) {
-          setProfile(profileData);
-          const avatarUrl = resolveAvatarUrl(profileData.avatar_url);
-          
-          setUser({
-            id: userId,
-            email,
-            name: profileData.first_name ? `${profileData.first_name} ${profileData.last_name || ''}`.trim() : email.split('@')[0],
-            role: profileData.role || UserRole.MEMBER,
-            status: 'active',
-            avatar: avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${userId}`,
-            currency: profileData.currency || 'USD', 
-            country: profileData.country || 'US',
-            last_login: new Date().toISOString()
-          });
-      }
-    } catch (err) {
-      console.error('[Auth] Unexpected Fetch Error:', err);
+      setUser({
+        id: currentSession.user.id,
+        email: currentSession.user.email!,
+        name: profile.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : currentSession.user.email!.split('@')[0],
+        role: profile.role || UserRole.MEMBER,
+        status: 'active',
+        avatar: profile.avatar_url,
+        currency: profile.currency || 'USD',
+        country: profile.country || 'US'
+      });
+    } catch (e) {
+      console.warn("[Auth] Profile Load Warning:", e);
+      // Ensure we still set a user so the app doesn't hang
+      setUser({
+         id: currentSession.user.id,
+         email: currentSession.user.email!,
+         name: 'User',
+         role: UserRole.MEMBER,
+         status: 'active',
+         currency: 'USD',
+         country: 'US'
+      });
     }
-  }, [resolveAvatarUrl]);
+  };
 
-  // --- INIT SESSION ---
+  // --- 2. Initialization Logic ---
   useEffect(() => {
-    let initComplete = false;
+    let mounted = true;
+    setIsMounted(true);
 
-    const runInit = async () => {
-        try {
-            const { data, error } = await supabase.auth.getSession();
-            
-            if (error) {
-                console.error("[Auth] Session Init Error:", error.message);
-                if (mountedRef.current) setIsLoading(false);
-                return;
-            }
-
-            if (mountedRef.current) {
-                setSession(data.session);
-                if (data.session?.user) {
-                    await fetchAndSetProfile(data.session.user.id, data.session.user.email!);
-                }
-            }
-        } catch (err) {
-            console.error('[Auth] Init Failed:', err);
-        } finally {
-            if (mountedRef.current && !initComplete) {
-                initComplete = true;
-                setIsLoading(false); 
-            }
+    const initializeAuth = async () => {
+      try {
+        // A. Get Session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (mounted) {
+          setSession(initialSession);
+          if (initialSession) {
+             await fetchProfile(initialSession);
+          }
         }
+      } catch (error) {
+        console.error("[Auth] Init Error:", error);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
     };
 
-    runInit();
+    initializeAuth();
 
+    // B. Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log(`[Auth] Event: ${event}`);
-      if (!mountedRef.current) return;
-
-      if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-        setIsLoading(false);
-        router.replace('/(auth)/login');
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setSession(newSession);
-        if (newSession?.user) {
-            await fetchAndSetProfile(newSession.user.id, newSession.user.email!);
+      if (!mounted) return;
+      
+      setSession(newSession);
+      
+      if (newSession) {
+        // Only fetch profile if user ID changed or we don't have a user yet
+        if (!user || user.id !== newSession.user.id) {
+           await fetchProfile(newSession);
         }
-        setIsLoading(false);
+      } else {
+        setUser(null);
       }
+      
+      setIsLoading(false);
     });
 
-    return () => { 
-        subscription.unsubscribe(); 
-    };
-  }, [fetchAndSetProfile, router]); // Minimized dependencies
+    // C. Failsafe Timeout (Prevents infinite loading screen)
+    const timeout = setTimeout(() => {
+        if (mounted && isLoading) {
+            console.warn("[Auth] Failsafe triggered - forcing load completion");
+            setIsLoading(false);
+        }
+    }, 4000);
 
-  // --- PUBLIC ACTIONS ---
-   
-  const refreshProfile = async () => { 
-      if (session?.user) await fetchAndSetProfile(session.user.id, session.user.email!); 
-  };
-   
-  const login = async (email: string, password?: string) => {
+    return () => {
+      mounted = false;
+      setIsMounted(false);
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  // --- 3. Protection & Redirects ---
+  useEffect(() => {
+    // Only redirect if:
+    // 1. Loading is done
+    // 2. Navigation is ready (RootState exists)
+    // 3. Component is mounted
+    if (isLoading || !navigationState?.key || !isMounted) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!user && !inAuthGroup) {
+      // User not logged in, trying to access protected area
+      router.replace('/(auth)/login');
+    } else if (user && inAuthGroup) {
+      // User logged in, trying to access login screen
+      router.replace('/(main)');
+    }
+  }, [user, isLoading, segments, navigationState, isMounted]);
+
+  // --- Actions ---
+  const login = async (email: string, p: string) => {
     setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: password || '' });
-      if (error) throw error;
-    } catch (error) {
-      setIsLoading(false);
-      throw error;
+    const { error } = await supabase.auth.signInWithPassword({ email, password: p });
+    if (error) {
+        setIsLoading(false);
+        throw error;
     }
   };
 
-  const register = async (email: string, password: string, fName: string, lName: string) => {
+  const register = async (email: string, p: string, f: string, l: string) => {
     setIsLoading(true);
-    try {
-        const { data, error } = await supabase.auth.signUp({ 
-            email, 
-            password, 
-            options: { data: { first_name: fName, last_name: lName } } 
-        });
-        
-        if (error) throw error;
-        
-        if (data.user) {
-            await fetchAndSetProfile(data.user.id, email);
-        }
-    } catch (error) {
-        throw error;
-    } finally {
+    const { error } = await supabase.auth.signUp({
+        email, password: p, options: { data: { first_name: f, last_name: l } }
+    });
+    if (error) {
         setIsLoading(false);
+        throw error;
     }
   };
 
   const logout = async () => {
-    try { 
-        await supabase.auth.signOut(); 
-    } catch (e) {
-        console.warn("SignOut Error", e);
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    // Explicitly navigate to ensure UI updates
+    router.replace('/(auth)/login');
+  };
+
+  const refreshProfile = async () => {
+    if (session) {
+        await fetchProfile(session);
     }
   };
 
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { 
-        redirectTo: Linking.createURL('reset-password') 
-    });
-    if (error) throw error;
-  };
-
-  const updatePassword = async (pw: string) => {
-    const { error } = await supabase.auth.updateUser({ password: pw });
-    if (error) throw error;
-  };
-
   const value = useMemo(() => ({
-    user, 
-    session, 
-    isAuthenticated: !!session, 
-    login, 
-    register, 
-    logout,
-    resetPassword, 
-    updatePassword, 
-    isLoading, 
-    refreshProfile, 
-    profile
-  }), [user, session, isLoading, profile, refreshProfile]);
+    user, session, isLoading, login, register, logout, refreshProfile
+  }), [user, session, isLoading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
-};
-
-export const useProfile = () => {
-  const { profile, isLoading, refreshProfile, user } = useAuth();
-  return { profile, isLoading, refreshProfile, avatar: user?.avatar || null };
+    const context = useContext(AuthContext);
+    if (!context) throw new Error("useAuth must be used within AuthProvider");
+    return context;
 };

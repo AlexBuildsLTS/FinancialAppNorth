@@ -150,6 +150,7 @@ export enum TaxCategory {
 
 // --- Feature: Tax Report Summary ---
 export interface TaxReportSummary {
+  transactions: any;
   user_id: string;
   generated_at: string;
   total_deductible_amount: number;

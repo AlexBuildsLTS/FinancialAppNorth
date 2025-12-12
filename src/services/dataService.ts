@@ -1194,7 +1194,8 @@ export const generateTaxReport = async (userId: string, cpaId?: string): Promise
     transaction_count: taxTransactions?.length || 0,
     tax_categories_breakdown: categoryBreakdown,
     potential_savings: totalDeductible * 0.3, // Rough estimate
-    evidence_files: evidenceFiles
+    evidence_files: evidenceFiles,
+    transactions: taxTransactions || []
   };
 };
 

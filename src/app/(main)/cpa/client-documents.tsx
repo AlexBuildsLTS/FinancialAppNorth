@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FileText, ArrowLeft, Download, ShieldAlert } from 'lucide-react-native';
+import { FileText, ArrowLeft, Download, ShieldAlert, Lock } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-// FIX: Use unified dataService
 import { isCpaForClient, getSharedDocuments, getCpaClients } from '../../../services/dataService'; 
 
 interface ClientDocument {
@@ -21,96 +20,107 @@ export default function ClientDocumentsScreen() {
   const router = useRouter();
   const { clientId } = useLocalSearchParams();
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
-  const [clientName, setClientName] = useState('');
+  const [clientName, setClientName] = useState('Client');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadClientDocuments();
+    loadData();
   }, [clientId, user]);
 
-  const loadClientDocuments = async () => {
+  const loadData = async () => {
     if (!user || !clientId) return;
 
     try {
+      // 1. Verify Authorization
       const isAuthorized = await isCpaForClient(user.id, clientId as string);
       if (!isAuthorized) {
-        Alert.alert('Access Denied', 'You are not authorized to view this client\'s documents.');
+        Alert.alert('Access Denied', 'You do not have permission to view this vault.');
         router.back();
         return;
       }
 
+      // 2. Fetch Client Info
       const clients = await getCpaClients(user.id);
       const client = clients.find(c => c.id === clientId);
       if (client) setClientName(client.name);
 
+      // 3. Fetch Documents
       const docs = await getSharedDocuments(user.id, clientId as string);
       setDocuments(docs || []);
       
     } catch (error: any) {
-      console.error('Error loading client documents:', error);
-      Alert.alert('Error', 'Failed to load documents.');
+      console.error(error);
+      Alert.alert('Error', 'Failed to load vault.');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return 'Unknown';
-    const kb = bytes / 1024;
-    if (kb < 1024) return `${kb.toFixed(1)} KB`;
-    const mb = kb / 1024;
-    return `${mb.toFixed(1)} MB`;
-  };
-
   const getFileIcon = (mimeType?: string) => {
-    if (mimeType?.includes('pdf')) return '📄';
-    if (mimeType?.includes('image')) return '🖼️';
-    return '📁';
+    if (mimeType?.includes('pdf')) return <FileText size={24} color="#F59E0B" />;
+    if (mimeType?.includes('image')) return <FileText size={24} color="#60A5FA" />;
+    return <FileText size={24} color="#8892B0" />;
   };
 
   if (loading) {
     return (
       <View className="flex-1 bg-[#0A192F] items-center justify-center">
         <ActivityIndicator color="#64FFDA" size="large" />
-        <Text className="text-[#8892B0] mt-4">Accessing secure vault...</Text>
+        <Text className="text-[#8892B0] mt-4 font-medium">Accessing Secure Vault...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#0A192F] p-5" contentContainerStyle={{ paddingBottom: 100 }}>
-      <View className="flex-row items-center mb-6">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2 bg-[#112240] rounded-full border border-white/5">
+    <ScrollView className="flex-1 bg-[#0A192F] p-6" contentContainerStyle={{ paddingBottom: 100 }}>
+      {/* Header */}
+      <View className="flex-row items-center mb-8">
+        <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2 bg-[#112240] rounded-full border border-white/10">
           <ArrowLeft size={24} color="#64FFDA" />
         </TouchableOpacity>
         <View className="flex-1">
           <Text className="text-white font-bold text-2xl" numberOfLines={1}>{clientName}'s Vault</Text>
-          <Text className="text-[#8892B0] text-sm">Shared secure documents</Text>
+          <View className="flex-row items-center mt-1">
+             <Lock size={12} color="#64FFDA" className="mr-1" />
+             <Text className="text-[#64FFDA] text-xs font-bold uppercase">End-to-End Encrypted</Text>
+          </View>
         </View>
-        <ShieldAlert size={24} color="#64FFDA" />
+        <View className="bg-[#112240] p-3 rounded-full border border-white/5">
+            <ShieldAlert size={24} color="#64FFDA" />
+        </View>
       </View>
 
+      {/* List */}
       {documents.length === 0 ? (
-        <View className="bg-[#112240] border border-white/5 p-10 rounded-2xl items-center justify-center border-dashed mt-4">
-          <FileText size={48} color="#1E293B" />
-          <Text className="text-[#8892B0] mt-4 text-center font-medium">Vault is empty.</Text>
-          <Text className="text-[#64748B] text-sm text-center mt-1">Client hasn't shared any documents yet.</Text>
+        <View className="bg-[#112240] border border-white/5 p-12 rounded-3xl items-center justify-center border-dashed">
+          <View className="bg-[#0A192F] p-6 rounded-full mb-4">
+             <Lock size={40} color="#8892B0" />
+          </View>
+          <Text className="text-white font-bold text-lg">Vault Empty</Text>
+          <Text className="text-[#8892B0] text-center mt-2 px-4 leading-6">
+            This client hasn't uploaded any documents yet.
+          </Text>
         </View>
       ) : (
         <View className="gap-3">
           {documents.map((doc) => (
-            <View key={doc.id} className="bg-[#112240] border border-white/5 p-4 rounded-xl flex-row items-center justify-between">
+            <View key={doc.id} className="bg-[#112240] border border-white/5 p-4 rounded-2xl flex-row items-center justify-between shadow-sm">
               <View className="flex-row items-center flex-1 mr-4">
-                <View className="w-10 h-10 bg-[#0A192F] rounded-lg items-center justify-center mr-3 border border-white/5">
-                    <Text className="text-lg">{getFileIcon(doc.mime_type)}</Text>
+                <View className="w-12 h-12 bg-[#0A192F] rounded-xl items-center justify-center mr-4 border border-white/5">
+                    {getFileIcon(doc.mime_type)}
                 </View>
                 <View className="flex-1">
-                  <Text className="text-white font-medium text-base" numberOfLines={1}>{doc.file_name}</Text>
-                  <Text className="text-[#8892B0] text-xs mt-0.5">{formatFileSize(doc.size_bytes)} • {new Date(doc.created_at).toLocaleDateString()}</Text>
+                  <Text className="text-white font-bold text-base" numberOfLines={1}>{doc.file_name}</Text>
+                  <Text className="text-[#8892B0] text-xs mt-1 font-medium">
+                    {(doc.size_bytes ? doc.size_bytes / 1024 : 0).toFixed(1)} KB • {new Date(doc.created_at).toLocaleDateString()}
+                  </Text>
                 </View>
               </View>
 
-              <TouchableOpacity onPress={() => Alert.alert('Download', `Downloading ${doc.file_name}...`)} className="bg-[#64FFDA]/10 p-3 rounded-xl border border-[#64FFDA]/20">
+              <TouchableOpacity 
+                onPress={() => Alert.alert('Download', `Downloading ${doc.file_name}...`)} 
+                className="bg-[#64FFDA]/10 p-3 rounded-xl border border-[#64FFDA]/20 active:bg-[#64FFDA]/20"
+              >
                 <Download size={20} color="#64FFDA" />
               </TouchableOpacity>
             </View>
