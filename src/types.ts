@@ -8,7 +8,6 @@ export type TablesUpdate<T extends keyof Database['public']['Tables']> = Databas
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
 
 // --- Enums ---
-// Aligned with Database['public']['Enums']['user_role']
 export enum UserRole {
   ADMIN = 'admin',
   CPA = 'cpa',
@@ -29,7 +28,6 @@ export interface User {
   avatar?: string;
   currency?: string;
   country?: string;
-  // Metadata from profiles table
   last_login?: string;
 }
 
@@ -42,7 +40,6 @@ export interface AppSettings {
 }
 
 // --- Feature: Transactions ---
-// Extends the raw DB row to include joined data (e.g. Category Name instead of just ID)
 export interface Transaction extends Tables<'transactions'> {
   category?: {
     id: string;
@@ -50,18 +47,15 @@ export interface Transaction extends Tables<'transactions'> {
     icon?: string;
     color?: string;
   } | null;
-  // UI Helper: formatted amounts or dates can be added here if needed
 }
 
 // --- Feature: Documents ---
-// Extends raw DB row with UI specific fields
 export interface DocumentItem extends Tables<'documents'> {
-  // Mapped fields for UI consistency
-  name: string; // Mapped from file_name
-  type: 'receipt' | 'invoice' | 'contract' | 'other'; // Derived from mime_type or categorization
-  url: string; // Signed URL from storage
-  date: string; // formatted created_at
-  formattedSize: string; // e.g. "1.2 MB"
+  name: string;
+  type: 'receipt' | 'invoice' | 'contract' | 'other';
+  url: string;
+  date: string;
+  formattedSize: string;
 }
 
 // --- Feature: Chat & AI ---
@@ -88,9 +82,9 @@ export interface CpaClient {
 export interface BudgetWithSpent extends Tables<'budgets'> {
   category_name: string;
   category_color?: string;
-  spent: number; // Calculated field from transactions
-  remaining: number; // Calculated
-  percentage: number; // Calculated
+  spent: number;
+  remaining: number;
+  percentage: number;
 }
 
 // --- Feature: Financial Summary ---
@@ -104,4 +98,17 @@ export interface FinancialSummary {
     value: number;
     label?: string;
   }[];
+}
+
+// --- Feature: Notifications ---
+export interface NotificationItem {
+  id: string;
+  user_id: string;
+  created_by?: string;
+  title: string;
+  message: string;
+  type: 'ticket' | 'cpa' | 'message' | 'system';
+  is_read: boolean;
+  created_at: string;
+  related_id?: string;
 }
