@@ -3,76 +3,101 @@ import { CashFlowPoint, SafeSpendMetrics } from '../types';
 
 /**
  * ==============================================================================
- * 📈 PREDICTIVE CASH FLOW ANALYSIS
+ * 📈 PREDICTIVE CASH FLOW ANALYSIS (Titan Edition)
  * ==============================================================================
  */
 
 /**
- * Generates a 30-day cash flow forecast based on last 3 months of data.
- * Uses linear regression for income and exponential smoothing for expenses.
+ * Generates a 30-day cash flow forecast.
+ * IMPROVEMENT: Uses real `accounts` balance and specific `subscriptions` dates for accuracy.
  */
 export const generateCashFlowForecast = async (userId: string): Promise<CashFlowPoint[]> => {
-  // 1. Fetch last 90 days of transactions
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  // 1. Get Real Current Balance
+  const { data: account } = await supabase
+    .from('accounts')
+    .select('balance')
+    .eq('user_id', userId)
+    .single();
+    
+  const currentBalance = account?.balance || 0;
+
+  // 2. Fetch History (Last 30 Days) for Context
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const { data: transactions } = await supabase
     .from('transactions')
     .select('amount, date')
     .eq('user_id', userId)
-    .gte('date', ninetyDaysAgo.toISOString())
+    .gte('date', thirtyDaysAgo.toISOString())
     .order('date', { ascending: true });
 
-  if (!transactions || transactions.length < 10) {
-    return [];
+  // 3. Fetch Active Subscriptions (Known Future Expenses)
+  const { data: subscriptions } = await supabase
+    .from('subscriptions')
+    .select('amount, next_billing_date')
+    .eq('user_id', userId)
+    .eq('status', 'active');
+
+  // --- RECONSTRUCT HISTORY (Working backwards from current balance) ---
+  const historicalPoints: CashFlowPoint[] = [];
+  let tempBalance = currentBalance;
+  
+  // We iterate backwards from yesterday to build the historical line
+  const today = new Date();
+  const txMap = new Map<string, number>();
+  
+  transactions?.forEach(t => {
+      const d = t.date.split('T')[0];
+      txMap.set(d, (txMap.get(d) || 0) + Number(t.amount));
+  });
+
+  for (let i = 0; i < 30; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      
+      historicalPoints.unshift({
+          date: dateStr,
+          balance: parseFloat(tempBalance.toFixed(2)),
+          is_forecast: false
+      });
+
+      // Reverse engineering the balance: 
+      // Balance Yesterday = Today - (Income - Expense) -> Today - NetChange
+      const dayChange = txMap.get(dateStr) || 0;
+      tempBalance -= dayChange;
   }
 
-  // 2. Calculate daily running balance (historical)
-  let runningBalance = 0;
-  const historicalPoints: CashFlowPoint[] = [];
-  const dailyTotals: { [date: string]: number } = {};
+  // --- GENERATE FORECAST (Forward looking) ---
+  // Calculate Avg Daily Burn (Excluding massive outliers if we were using a real ML model)
+  const totalSpend = transactions?.filter(t => Number(t.amount) < 0)
+    .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+  const avgDailyBurn = Math.abs(totalSpend / 30);
 
-  // Group by date
-  transactions.forEach(t => {
-    const dateKey = t.date.split('T')[0];
-    dailyTotals[dateKey] = (dailyTotals[dateKey] || 0) + parseFloat(t.amount);
-  });
-
-  // Calculate running balance
-  Object.keys(dailyTotals).sort().forEach(date => {
-    runningBalance += dailyTotals[date];
-    historicalPoints.push({
-      date,
-      balance: runningBalance,
-      is_forecast: false
-    });
-  });
-
-  // 3. Analyze patterns (last 30 days for forecasting)
-  const recentTransactions = transactions.slice(-30);
-  const avgDailyIncome = recentTransactions
-    .filter(t => parseFloat(t.amount) > 0)
-    .reduce((sum, t) => sum + parseFloat(t.amount), 0) / 30;
-
-  const avgDailyExpense = Math.abs(recentTransactions
-    .filter(t => parseFloat(t.amount) < 0)
-    .reduce((sum, t) => sum + parseFloat(t.amount), 0)) / 30;
-
-  // 4. Generate 30-day forecast
   const forecastPoints: CashFlowPoint[] = [];
-  let forecastBalance = runningBalance;
+  let forecastBalance = currentBalance;
 
   for (let i = 1; i <= 30; i++) {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + i);
     const dateStr = futureDate.toISOString().split('T')[0];
 
-    // Simple forecast: income - expenses
-    forecastBalance += (avgDailyIncome - avgDailyExpense);
+    // 1. Apply Baseline Burn
+    forecastBalance -= avgDailyBurn;
+
+    // 2. Apply Specific Subscription Hits
+    // (Simple logic: if billing day matches today's day of month)
+    subscriptions?.forEach(sub => {
+        const billDate = new Date(sub.next_billing_date);
+        if (billDate.getDate() === futureDate.getDate()) {
+            forecastBalance -= Number(sub.amount);
+        }
+    });
 
     forecastPoints.push({
       date: dateStr,
-      balance: forecastBalance,
+      balance: parseFloat(forecastBalance.toFixed(2)),
       is_forecast: true
     });
   }
@@ -81,99 +106,82 @@ export const generateCashFlowForecast = async (userId: string): Promise<CashFlow
 };
 
 /**
- * Calculates risk level based on forecast (will balance go negative?)
+ * Calculates risk level based on forecast
  */
 export const getCashFlowRiskLevel = (forecast: CashFlowPoint[]): 'low' | 'medium' | 'high' => {
-  const forecastPoints = forecast.filter(p => p.is_forecast);
-  const negativeDays = forecastPoints.filter(p => p.balance < 0).length;
+  const futurePoints = forecast.filter(p => p.is_forecast);
+  const minBalance = Math.min(...futurePoints.map(p => p.balance));
 
-  if (negativeDays > 10) return 'high';
-  if (negativeDays > 5) return 'medium';
+  if (minBalance < 0) return 'high'; // Going broke
+  if (minBalance < 100) return 'medium'; // Cutting it close
   return 'low';
 };
 
 /**
- * Calculates the safe daily spending limit based on upcoming bills and cash flow.
+ * Calculates the "Safe-to-Spend" daily limit.
+ * FORMULA: (Balance - Recurring Bills) / Days until Payday
  */
 export const calculateSafeToSpend = async (userId: string): Promise<SafeSpendMetrics> => {
   const today = new Date();
+  
+  // 1. Identify Payday (Simple heuristic: largest recurring deposit or default +14 days)
+  // In a real app, user sets this. Here we assume standard bi-weekly.
   const nextPayday = new Date(today);
-  nextPayday.setDate(today.getDate() + 14); // Assume bi-weekly pay cycle
+  nextPayday.setDate(today.getDate() + 14); 
 
-  // Get current balance
-  const { data: balanceData } = await supabase
+  // 2. Get REAL Balance
+  const { data: account } = await supabase
+    .from('accounts')
+    .select('balance')
+    .eq('user_id', userId)
+    .single();
+  const currentBalance = account?.balance || 0;
+
+  // 3. Get Upcoming Subscriptions (The "Committed" money)
+  const { data: subs } = await supabase
+    .from('subscriptions')
+    .select('amount')
+    .eq('user_id', userId)
+    .eq('status', 'active');
+  
+  const totalRecurringBills = subs?.reduce((sum, s) => sum + Number(s.amount), 0) || 0;
+
+  // 4. Calculate Days
+  const daysUntilPayday = Math.ceil((nextPayday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  // 5. Safe Calculation
+  // We reserve the money for bills first.
+  const availableAfterBills = currentBalance - totalRecurringBills;
+  
+  // We assume you need to eat.
+  // const dailySurvivalNeeds = 20; // Hardcoded survival buffer
+  // const discretionary = availableAfterBills - (dailySurvivalNeeds * daysUntilPayday);
+
+  const safeDailyLimit = Math.max(0, availableAfterBills / daysUntilPayday);
+
+  // 6. Get Avg Spending for Context
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const { data: recent } = await supabase
     .from('transactions')
     .select('amount')
     .eq('user_id', userId)
-    .order('date', { ascending: false })
-    .limit(1);
-
-  let currentBalance = 0;
-  if (balanceData && balanceData.length > 0) {
-    // Calculate running balance from recent transactions
-    const { data: recentTxns } = await supabase
-      .from('transactions')
-      .select('amount')
-      .eq('user_id', userId)
-      .order('date', { ascending: false })
-      .limit(50);
-
-    currentBalance = recentTxns?.reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0;
-  }
-
-  // Get recurring bills due before next payday
-  const { data: upcomingBills } = await supabase
-    .from('transactions')
-    .select('amount, description')
-    .eq('user_id', userId)
     .eq('type', 'expense')
-    .lt('amount', 0)
-    .gte('date', today.toISOString())
-    .lte('date', nextPayday.toISOString());
-
-  const totalRecurringBills = upcomingBills?.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0;
-
-  // Get average daily spending (last 30 days)
-  const thirtyDaysAgo = new Date(today);
-  thirtyDaysAgo.setDate(today.getDate() - 30);
-
-  const { data: recentSpending } = await supabase
-    .from('transactions')
-    .select('amount, date')
-    .eq('user_id', userId)
-    .eq('type', 'expense')
-    .lt('amount', 0)
     .gte('date', thirtyDaysAgo.toISOString());
+    
+  const totalRecent = recent?.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0) || 0;
+  const averageDailySpending = totalRecent / 30;
 
-  const dailySpendingGroups: { [date: string]: number } = {};
-  recentSpending?.forEach(t => {
-    const dateKey = t.date.split('T')[0];
-    dailySpendingGroups[dateKey] = (dailySpendingGroups[dateKey] || 0) + Math.abs(parseFloat(t.amount));
-  });
-
-  const dailySpends = Object.values(dailySpendingGroups);
-  const averageDailySpending = dailySpends.length > 0
-    ? dailySpends.reduce((a, b) => a + b, 0) / dailySpends.length
-    : 0;
-
-  // Calculate days until payday
-  const daysUntilPayday = Math.ceil((nextPayday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-  // Safe to spend calculation
-  const availableAfterBills = currentBalance - totalRecurringBills;
-  const projectedSpending = averageDailySpending * daysUntilPayday;
-  const safeDailyLimit = Math.max(0, (availableAfterBills - projectedSpending) / daysUntilPayday);
-
-  // Risk assessment
+  // 7. Risk Assessment
   let riskLevel: 'low' | 'medium' | 'high' = 'low';
-  if (safeDailyLimit < averageDailySpending * 0.5) riskLevel = 'high';
-  else if (safeDailyLimit < averageDailySpending * 0.8) riskLevel = 'medium';
+  if (safeDailyLimit < averageDailySpending * 0.5) riskLevel = 'high'; // You usually spend double what is safe
+  else if (safeDailyLimit < averageDailySpending) riskLevel = 'medium';
 
   return {
-    daily_limit: Math.round(safeDailyLimit * 100) / 100,
+    daily_limit: parseFloat(safeDailyLimit.toFixed(2)),
     days_until_payday: daysUntilPayday,
     total_recurring_bills: totalRecurringBills,
-    average_daily_spending: Math.round(averageDailySpending * 100) / 100,
+    average_daily_spending: parseFloat(averageDailySpending.toFixed(2)),
     risk_level: riskLevel,
     next_payday: nextPayday.toISOString()
   };
