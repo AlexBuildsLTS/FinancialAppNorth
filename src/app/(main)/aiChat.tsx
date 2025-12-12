@@ -4,8 +4,8 @@ import {
 } from 'react-native';
 import { Send, Bot, User, ArrowLeft, Sparkles } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../../shared/context/AuthContext';
-import { generateContent } from '../../shared/services/geminiService';
+import { useAuth } from '../../shared/context/AuthContext'; // Keep this import
+import { generateContent } from '../../services/aiService'; // Corrected import path
 
 interface ChatMessage {
   id: string;

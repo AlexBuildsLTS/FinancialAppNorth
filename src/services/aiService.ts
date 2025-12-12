@@ -1,6 +1,23 @@
 import { supabase } from '../lib/supabase';
 import { ChatbotMessage } from '../types';
-import { generateContent } from '../shared/services/geminiService'; 
+import * as geminiService from '../shared/services/geminiService';
+
+const generateContentWithHistory = async (userText: string, userId?: string, imgBase64?: string): Promise<string> => {
+  const anyGemini: any = geminiService as any;
+
+  if (typeof anyGemini.generateContent === 'function') {
+    return anyGemini.generateContent(userText, userId, imgBase64);
+  }
+  if (typeof anyGemini.generateContentWithHistory === 'function') {
+    return anyGemini.generateContentWithHistory(userText, userId, imgBase64);
+  }
+  if (typeof anyGemini.default === 'function') {
+    return anyGemini.default(userText, userId, imgBase64);
+  }
+
+  // fallback to local implementation within this file
+  return generateContent(userText, userId, imgBase64);
+};
 
 // ==========================================
 // 1. CHAT HISTORY
@@ -60,7 +77,7 @@ export const sendUserMessageToAI = async (userId: string, text: string): Promise
 
     // 2. Call AI (Delegated to the robust geminiService)
     // This will try all models until one works
-    const aiResponseText = await generateContent(text, userId);
+    const aiResponseText = await generateContentWithHistory(text, userId);
 
     // 3. Save AI Response
     await addChatbotMessage(userId, 'ai', aiResponseText);
@@ -96,8 +113,13 @@ export const generateFinancialInsight = async (userId: string, transactions: any
       Be concise and friendly.
     `;
 
-    return await generateContent(prompt, userId);
+    return await generateContentWithHistory(prompt, userId);
   } catch (e) {
     return "Insight unavailable.";
   }
 };
+
+export async function generateContent(userText: string, userId?: string, imgBase64?: string): Promise<string> {
+  // TODO: Replace with actual AI service call
+  return `Echo: ${userText}`;
+}

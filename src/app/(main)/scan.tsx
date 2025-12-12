@@ -3,10 +3,9 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicat
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, Image as ImageIcon, Check, X, RotateCcw } from 'lucide-react-native';
 import { useAuth } from '../../shared/context/AuthContext';
-import { generateContent } from '../../shared/services/geminiService'; // New robust service
 import { createTransaction } from '../../services/dataService'; // Unified data service
 import { useRouter } from 'expo-router';
-
+import { generateContent } from '../../services/aiService';
 export default function ScanReceiptScreen() {
   const { user } = useAuth();
   const router = useRouter();

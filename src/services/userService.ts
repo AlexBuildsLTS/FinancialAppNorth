@@ -35,14 +35,15 @@ export class UserService {
    * Update user currency
    */
   static async updateCurrency(userId: string, currency: string) {
-    return this.updateProfile(userId, { currency });
+    // You may want to fetch the current first and last name, or pass empty strings if not available
+    return this.updateProfile(userId, '', '', { currency });
   }
 
   /**
    * Update user name
    */
   static async updateName(userId: string, firstName: string, lastName: string) {
-    return this.updateProfile(userId, { first_name: firstName, last_name: lastName });
+    return this.updateProfile(userId, firstName, lastName, { first_name: firstName, last_name: lastName });
   }
 
   /**
