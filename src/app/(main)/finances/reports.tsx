@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, useWindowDimensions, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, useWindowDimensions, TouchableOpacity, RefreshControl } from 'react-native';
 import { PieChart, BarChart } from "react-native-gifted-charts";
 import { useAuth } from '../../../shared/context/AuthContext';
-import { supabase } from '../../../lib/supabase';
+import { getTransactions } from '../../../services/dataService'; // Unified Import
 import { useFocusEffect } from 'expo-router';
-import "../../../../global.css";
 
 export default function ReportsScreen() {
   const { user } = useAuth();
@@ -12,6 +11,7 @@ export default function ReportsScreen() {
   const isDesktop = width >= 768;
   
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [pieData, setPieData] = useState<any[]>([]);
   const [barData, setBarData] = useState<any[]>([]);
   const [totalSpent, setTotalSpent] = useState(0);
@@ -21,34 +21,19 @@ export default function ReportsScreen() {
 
   const generateReport = async () => {
     if (!user) return;
-    setLoading(true);
+    if (!refreshing) setLoading(true);
     try {
-      // 1. Fetch Expenses
-      const { data: txs, error: txError } = await supabase
-        .from('transactions')
-        .select('amount, category_id')
-        .eq('user_id', user.id)
-        .lt('amount', 0); 
-
-      if (txError) throw txError;
-
-      // 2. Fetch Category Names
-      const { data: cats, error: catError } = await supabase
-        .from('categories')
-        .select('id, name');
+      const txs = await getTransactions(user.id);
       
-      if (catError) throw catError;
-
-      if (!txs || !cats) { setLoading(false); return; }
-
-      // 3. Aggregate Data
       const categoryMap: Record<string, number> = {};
       let total = 0;
 
       txs.forEach((t: any) => {
         const amt = Math.abs(Number(t.amount));
-        const catName = cats.find(c => c.id === t.category_id)?.name || 'Uncategorized';
-        if (amt > 0) {
+        const catName = typeof t.category === 'string' ? t.category : t.category?.name || 'Uncategorized';
+        
+        // Only expenses
+        if (Number(t.amount) < 0) {
             categoryMap[catName] = (categoryMap[catName] || 0) + amt;
             total += amt;
         }
@@ -58,29 +43,26 @@ export default function ReportsScreen() {
 
       const colors = ['#64FFDA', '#F472B6', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
       
-      // Prepare Data for Pie Chart
       const pData = Object.keys(categoryMap).map((key, index) => ({
         value: categoryMap[key],
         color: colors[index % colors.length],
         text: `${Math.round((categoryMap[key] / total) * 100)}%`,
         category: key,
         amount: categoryMap[key],
-        // Interaction properties
         onPress: () => setFocusedIndex(index),
-        focused: false, // Default
+        focused: false,
         shiftTextX: -10,
       }));
 
       pData.sort((a, b) => b.value - a.value);
       setPieData(pData);
 
-      // Prepare Data for Bar Chart
       const bData = pData.map((item) => ({
         value: item.amount,
-        label: item.category.substring(0, 3), // Short label
+        label: item.category.substring(0, 3).toUpperCase(),
         frontColor: item.color,
         topLabelComponent: () => (
-            <Text style={{ color: '#8892B0', fontSize: 10, marginBottom: 2 }}>${item.amount}</Text>
+            <Text style={{ color: '#8892B0', fontSize: 10, marginBottom: 2 }}>${item.amount.toFixed(0)}</Text>
         )
       }));
       setBarData(bData);
@@ -89,8 +71,14 @@ export default function ReportsScreen() {
       console.error("Report Error:", e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(() => {
+      setRefreshing(true);
+      generateReport();
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,7 +87,6 @@ export default function ReportsScreen() {
     }, [user])
   );
 
-  // Helper: Render Center Text for Donut
   const renderCenterLabel = () => {
     let labelText = "Total";
     let valueText = `$${totalSpent.toFixed(0)}`;
@@ -120,7 +107,7 @@ export default function ReportsScreen() {
     );
   };
 
-  if (loading && pieData.length === 0) {
+  if (loading && !refreshing && pieData.length === 0) {
     return (
         <View className="flex-1 bg-[#0A192F] justify-center items-center">
             <ActivityIndicator size="large" color="#64FFDA" />
@@ -129,24 +116,19 @@ export default function ReportsScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#0A192F] p-6" contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView className="flex-1 bg-[#0A192F] p-6" contentContainerStyle={{ paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#64FFDA"/>}>
       <View className="mb-8">
-        <Text className="text-white text-3xl font-bold">Financial Analysis</Text>
-        <Text className="text-[#8892B0]">Interactive Spending Reports</Text>
+        <Text className="text-white text-3xl font-bold">Analytics</Text>
+        <Text className="text-[#8892B0]">Spending Breakdown</Text>
       </View>
 
       {pieData.length > 0 ? (
         <View className={`gap-6 ${isDesktop ? 'flex-row' : 'flex-col'}`}>
           
-          {/* DONUT CHART (Interactive) */}
           <View className={`bg-[#112240] p-8 rounded-3xl border border-white/5 items-center justify-center ${isDesktop ? 'w-1/2' : 'w-full'}`}>
-             <Text className="text-white text-lg font-bold mb-6 self-start">Spending Distribution</Text>
              <View className="items-center justify-center">
                 <PieChart
-                  data={pieData.map((item, index) => ({
-                      ...item,
-                      focused: focusedIndex === index, // Trigger pop-out
-                  }))}
+                  data={pieData.map((item, index) => ({ ...item, focused: focusedIndex === index }))}
                   donut
                   radius={isDesktop ? 140 : 120}
                   innerRadius={isDesktop ? 100 : 80}
@@ -158,13 +140,12 @@ export default function ReportsScreen() {
                   strokeColor="#112240"
                   strokeWidth={4}
                 />
-                <Text className="text-[#8892B0] text-xs mt-6">Tap a slice to see details</Text>
+                <Text className="text-[#8892B0] text-xs mt-6">Tap slices for details</Text>
              </View>
           </View>
 
-          {/* BAR CHART (Comparison) */}
           <View className={`bg-[#112240] p-6 rounded-3xl border border-white/5 ${isDesktop ? 'w-1/2' : 'w-full'} justify-center`}>
-             <Text className="text-white text-lg font-bold mb-6">Category Comparison</Text>
+             <Text className="text-white text-lg font-bold mb-6">Top Categories</Text>
              <View className="overflow-hidden">
                 <BarChart
                     data={barData}
@@ -184,16 +165,13 @@ export default function ReportsScreen() {
                 />
              </View>
           </View>
-
         </View>
       ) : (
         <View className="py-20 items-center bg-[#112240] rounded-3xl border border-white/5">
-            <Text className="text-[#8892B0] text-xl">No data available.</Text>
-            <Text className="text-[#8892B0] text-sm mt-2">Add transactions to generate reports.</Text>
+            <Text className="text-[#8892B0] text-xl">No expenses found.</Text>
         </View>
       )}
 
-      {/* LIST DETAILS (Bottom) */}
       {pieData.length > 0 && (
           <View className="bg-[#112240] p-6 rounded-3xl border border-white/5 mt-6">
             <Text className="text-white text-xl font-bold mb-4">Detailed Breakdown</Text>
@@ -202,18 +180,12 @@ export default function ReportsScreen() {
                     <TouchableOpacity 
                         key={index} 
                         onPress={() => setFocusedIndex(index)}
-                        className={`flex-row items-center justify-between p-3 rounded-xl border ${
-                            focusedIndex === index 
-                            ? `bg-[#1D3255] border-[${item.color}]` 
-                            : 'bg-[#0A192F] border-white/5'
-                        }`}
+                        className={`flex-row items-center justify-between p-3 rounded-xl border ${focusedIndex === index ? `bg-[#1D3255] border-[${item.color}]` : 'bg-[#0A192F] border-white/5'}`}
                         style={focusedIndex === index ? { borderColor: item.color, borderWidth: 1 } : {}}
                     >
                         <View className="flex-row items-center gap-3">
                             <View className="w-4 h-4 rounded-full" style={{ backgroundColor: item.color }} />
-                            <Text className={`font-medium text-base ${focusedIndex === index ? 'text-white font-bold' : 'text-[#8892B0]'}`}>
-                                {item.category}
-                            </Text>
+                            <Text className={`font-medium text-base ${focusedIndex === index ? 'text-white font-bold' : 'text-[#8892B0]'}`}>{item.category}</Text>
                         </View>
                         <View className="items-end">
                             <Text className="text-white font-bold">${item.amount.toFixed(2)}</Text>
@@ -224,7 +196,6 @@ export default function ReportsScreen() {
             </View>
           </View>
       )}
-
     </ScrollView>
   );
 }

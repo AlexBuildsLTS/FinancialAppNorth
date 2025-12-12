@@ -24,7 +24,7 @@ import {
   getCpaClients, 
   acceptCpaClient, 
   rejectCpaClient 
-} from '../../../services/dataService'; // Unified Service
+} from '../../../services/dataService';
 import { useRouter, useFocusEffect } from 'expo-router';
 
 export default function CpaDashboard() {

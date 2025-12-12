@@ -1,23 +1,27 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Zap, TrendingUp, DollarSign, List, PieChart } from 'lucide-react-native'; 
-import { useRouter } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
+import { 
+  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar 
+} from 'react-native';
+import { 
+  TrendingUp, TrendingDown, DollarSign, Sparkles, ArrowRight, Wallet, Receipt 
+} from 'lucide-react-native'; 
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { getFinancialSummary, getTransactions } from '../../../services/dataService';
 import { generateFinancialInsight } from '../../../services/aiService';
-import "../../../../global.css"; 
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function FinanceOverviewScreen() {
     const { user } = useAuth();
     const router = useRouter();
+    
+    // State
     const [metrics, setMetrics] = useState({ income: 0, expense: 0, balance: 0 });
-    const [insight, setInsight] = useState("Analyzing your spending...");
+    const [insight, setInsight] = useState("Analyzing your spending habits...");
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    useEffect(() => {
-        if (user) loadData();
-    }, [user]);
-
+    // Load Data
     const loadData = async () => {
         if (!user) return;
         try {
@@ -25,87 +29,130 @@ export default function FinanceOverviewScreen() {
             const summary = await getFinancialSummary(user.id);
             setMetrics(summary);
 
-            // 2. Get AI Insight
+            // 2. Get AI Insight (Only if we have transactions)
             const txs = await getTransactions(user.id);
-            const aiText = await generateFinancialInsight(user.id, txs);
-            setInsight(aiText);
+            if (txs.length > 0) {
+                const aiText = await generateFinancialInsight(user.id, txs);
+                setInsight(aiText);
+            } else {
+                setInsight("Start adding transactions to get AI-powered financial advice!");
+            }
 
         } catch (e) {
-            console.error(e);
+            console.error("Finance Overview Error:", e);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
-    const StatCard = ({ title, value, icon: Icon, color }: any) => (
-        <View className="bg-[#112240] p-4 rounded-xl border border-white/5 flex-1 min-w-[150px]">
-            <View className="flex-row items-center mb-2">
-                <View className={`p-2 rounded-lg ${color === 'green' ? 'bg-[#64FFDA]/10' : 'bg-red-500/10'}`}>
-                    <Icon size={20} color={color === 'green' ? '#64FFDA' : '#F87171'} />
-                </View>
-                <Text className="text-[#8892B0] text-xs font-medium uppercase ml-2">{title}</Text>
+    useFocusEffect(
+        useCallback(() => { loadData(); }, [user])
+    );
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        loadData();
+    };
+
+    const StatCard = ({ title, value, icon: Icon, color, bg }: any) => (
+        <View className="flex-1 bg-[#112240] p-4 rounded-2xl border border-white/5 mx-1 shadow-sm">
+            <View className={`w-10 h-10 rounded-full items-center justify-center mb-3 ${bg}`}>
+                <Icon size={20} color={color} />
             </View>
-            <Text className="text-2xl font-bold text-white">{value}</Text>
+            <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1">{title}</Text>
+            <Text className="text-white text-xl font-bold" numberOfLines={1}>{value}</Text>
         </View>
     );
 
-    if (loading) return <View className="flex-1 bg-[#0A192F] justify-center items-center"><ActivityIndicator color="#64FFDA"/></View>;
-
     return (
         <View className="flex-1 bg-[#0A192F]">
-            <ScrollView className="p-6">
+            <StatusBar barStyle="light-content" />
+            <ScrollView 
+                className="flex-1 px-5"
+                contentContainerStyle={{ paddingBottom: 100, paddingTop: 20 }}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#64FFDA" />}
+            >
+                {/* Header */}
                 <View className="mb-8">
-                    <Text className="text-white text-3xl font-bold">Financial Health</Text>
-                    <Text className="text-[#8892B0]">AI-powered spending insights</Text>
-                </View>
-
-                {/* Stat Cards */}
-                <View className="flex-row justify-between gap-4 mb-6">
-                    <StatCard 
-                        title="Income (Mo)" 
-                        value={`$${metrics.income.toFixed(2)}`} 
-                        icon={TrendingUp} 
-                        color="green" 
-                    />
-                    <StatCard 
-                        title="Expense (Mo)" 
-                        value={`$${metrics.expense.toFixed(2)}`} 
-                        icon={DollarSign} 
-                        color="red" 
-                    />
+                    <Text className="text-[#8892B0] text-sm font-medium">Financial Overview</Text>
+                    <Text className="text-white text-3xl font-extrabold">Your Wealth</Text>
                 </View>
 
                 {/* AI Insight Card */}
-                <View className="bg-[#112240] p-5 rounded-2xl border border-[#64FFDA]/20 mb-6">
-                    <View className="flex-row items-center mb-3">
-                        <Zap size={24} color="#64FFDA" className="mr-2" />
-                        <Text className="text-white font-bold text-lg">NorthFinance AI Analysis</Text>
+                <LinearGradient
+                    colors={['#1D3255', '#112240']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    className="p-5 rounded-3xl border border-[#64FFDA]/20 mb-8"
+                >
+                    <View className="flex-row items-center gap-2 mb-3">
+                        <Sparkles size={18} color="#64FFDA" />
+                        <Text className="text-[#64FFDA] font-bold text-sm uppercase tracking-widest">AI Insight</Text>
                     </View>
-                    <Text className="text-[#8892B0] text-sm leading-6 italic">
-                        "{insight}"
+                    <Text className="text-white text-base leading-6 font-medium">
+                        "{insight.replace(/"/g, '')}"
                     </Text>
-                    <TouchableOpacity onPress={() => router.push('/(main)/finances/budgets')} className="mt-4 self-start flex-row items-center">
-                        <Text className="text-[#64FFDA] font-bold text-sm mr-1">Manage Budgets</Text>
-                        <TrendingUp size={14} color="#64FFDA" />
-                    </TouchableOpacity>
+                </LinearGradient>
+
+                {/* Metrics Row */}
+                <View className="flex-row justify-between mb-8">
+                    <StatCard 
+                        title="Income" 
+                        value={`$${metrics.income.toFixed(0)}`} 
+                        icon={TrendingUp} 
+                        color="#4ADE80" 
+                        bg="bg-green-500/10"
+                    />
+                    <StatCard 
+                        title="Expense" 
+                        value={`$${metrics.expense.toFixed(0)}`} 
+                        icon={TrendingDown} 
+                        color="#F87171" 
+                        bg="bg-red-500/10"
+                    />
+                    <StatCard 
+                        title="Net" 
+                        value={`$${metrics.balance.toFixed(0)}`} 
+                        icon={DollarSign} 
+                        color="#64FFDA" 
+                        bg="bg-[#64FFDA]/10"
+                    />
                 </View>
 
-                {/* Navigation Links */}
+                {/* Actions */}
+                <Text className="text-white text-lg font-bold mb-4">Quick Actions</Text>
                 <View className="gap-3">
                     <TouchableOpacity 
                         onPress={() => router.push('/(main)/finances/transactions')} 
-                        className="bg-white/5 p-4 rounded-xl border border-white/10 flex-row items-center justify-between"
+                        className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
                     >
-                        <Text className="text-white font-bold text-base">View Transactions</Text>
-                        <List size={20} color="white" />
+                        <View className="flex-row items-center gap-4">
+                            <View className="w-10 h-10 rounded-full bg-blue-500/10 items-center justify-center">
+                                <Wallet size={20} color="#60A5FA" />
+                            </View>
+                            <View>
+                                <Text className="text-white font-bold text-base">Add Transaction</Text>
+                                <Text className="text-[#8892B0] text-xs">Log income or expense</Text>
+                            </View>
+                        </View>
+                        <ArrowRight size={20} color="#8892B0" />
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
-                        onPress={() => router.push('/(main)/finances/reports')} 
-                        className="bg-white/5 p-4 rounded-xl border border-white/10 flex-row items-center justify-between"
+                        onPress={() => router.push('/(main)/scan')} 
+                        className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
                     >
-                        <Text className="text-white font-bold text-base">View Full Reports</Text>
-                        <PieChart size={20} color="white" />
+                        <View className="flex-row items-center gap-4">
+                            <View className="w-10 h-10 rounded-full bg-purple-500/10 items-center justify-center">
+                                <Receipt size={20} color="#A78BFA" />
+                            </View>
+                            <View>
+                                <Text className="text-white font-bold text-base">Scan Receipt</Text>
+                                <Text className="text-[#8892B0] text-xs">AI-powered extraction</Text>
+                            </View>
+                        </View>
+                        <ArrowRight size={20} color="#8892B0" />
                     </TouchableOpacity>
                 </View>
             </ScrollView>

@@ -1,232 +1,181 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Modal, TextInput, SafeAreaView, ScrollView, Alert, ActivityIndicator, RefreshControl } from 'react-native';
-import { Plus, X, BarChart, Target, Settings } from 'lucide-react-native';
+import { Plus, X, Settings, Trash2, TrendingUp } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { BudgetService } from '../../../services/budgetService';
-import { useFocusEffect } from 'expo-router';
+import { getBudgets, createBudget, deleteBudget } from '../../../services/dataService';
 import { supabase } from '../../../lib/supabase';
-import "../../../../global.css";
+import { useFocusEffect } from 'expo-router';
 
-const CATEGORIES = ['Food', 'Travel', 'Utilities', 'Entertainment', 'Business', 'Healthcare'];
-
-// Updated Card to accept onDelete prop
-const BudgetCard = ({ budget, onDelete }: { budget: any, onDelete: (id: string) => void }) => {
-  const spent = Number(budget.spent) || 0;
-  const limit = Number(budget.amount) || 0; 
-  const progress = limit > 0 ? Math.round((spent / limit) * 100) : 0;
-  
-  let progressBarColor = 'bg-[#64FFDA]'; 
-  if (progress > 90) progressBarColor = 'bg-red-500';
-  else if (progress > 70) progressBarColor = 'bg-yellow-500';
-
-  const remaining = limit - spent;
-  const statusText = remaining >= 0 ? `Remaining: ${remaining.toFixed(2)}` : `Overage: ${Math.abs(remaining).toFixed(2)}`;
-
-  const handleSettingsPress = () => {
-    Alert.alert(
-      "Manage Budget",
-      `Options for ${budget.category_name}`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive", 
-          onPress: () => onDelete(budget.id) 
-        }
-      ]
-    );
-  };
-
-  return (
-    <View className="bg-[#112240] p-4 rounded-xl border border-white/10 mb-4 shadow-md">
-      <View className="flex-row justify-between items-start mb-2">
-        <View className="flex-row items-center gap-2">
-          <Target size={20} color="#8892B0" />
-          <Text className="text-white font-bold text-lg">{budget.category_name || 'General'}</Text>
-        </View>
-        <Text className="text-[#8892B0] text-xs uppercase">{budget.period}</Text>
-      </View>
-
-      <View className="w-full bg-[#0A192F] h-2 rounded-full mb-2 overflow-hidden">
-        <View className={`${progressBarColor} h-full`} style={{ width: `${Math.min(100, progress)}%` }} />
-      </View>
-
-      <View className="flex-row justify-between items-center">
-        <View>
-          <Text className="text-white text-base font-bold">{spent.toFixed(2)} / {limit.toFixed(2)}</Text>
-          <Text className={`text-xs font-medium ${progress > 100 ? 'text-red-400' : 'text-[#8892B0]'}`}>{statusText}</Text>
-        </View>
-        
-        {/* Settings Icon with Action */}
-        <TouchableOpacity 
-          onPress={handleSettingsPress}
-          className="p-2 rounded-lg bg-white/5 border border-white/10"
-        >
-            <Settings size={18} color="#8892B0" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
+const CATEGORIES = ['Food', 'Travel', 'Utilities', 'Entertainment', 'Business', 'Healthcare', 'Shopping'];
 
 export default function BudgetsScreen() {
   const { user } = useAuth();
   const [budgets, setBudgets] = useState<any[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   
+  // Modals
+  const [createVisible, setCreateVisible] = useState(false);
+  const [editVisible, setEditVisible] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState<any>(null);
+  
+  // Form Inputs
   const [newLimit, setNewLimit] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
+  const [editLimit, setEditLimit] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const loadBudgets = async () => {
     if (!user) return;
+    setLoading(true);
     try {
-      const data = await BudgetService.getBudgets(user.id);
+      const data = await getBudgets(user.id);
       setBudgets(data);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); } 
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    loadBudgets();
+  useFocusEffect(useCallback(() => { loadBudgets(); }, [user]));
 
-    // Set up real-time subscription for transactions that affect budgets
-    if (user) {
-      const subscription = supabase
-        .channel('budget-updates')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'transactions',
-            filter: `user_id=eq.${user.id}`
-          },
-          () => {
-            // Refresh budgets when new transactions are added
-            loadBudgets();
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'transactions',
-            filter: `user_id=eq.${user.id}`
-          },
-          () => {
-            // Refresh budgets when transactions are updated
-            loadBudgets();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
-  }, [user]);
-
-  useFocusEffect(
-    useCallback(() => { loadBudgets(); }, [user])
-  );
-
-  const handleCreateBudget = async () => {
-    if (!newLimit || !user) return;
+  const handleCreate = async () => {
+    if (!newLimit) return Alert.alert("Error", "Enter a limit");
     setSubmitting(true);
     try {
-        await BudgetService.createBudget(user.id, selectedCategory, parseFloat(newLimit));
-        await loadBudgets();
-        setIsModalOpen(false);
-        setNewLimit('');
-    } catch (e: any) {
-        Alert.alert("Error", "Failed to create budget: " + e.message);
-    } finally {
-        setSubmitting(false);
-    }
+      await createBudget(user!.id, selectedCategory, parseFloat(newLimit));
+      setCreateVisible(false);
+      setNewLimit('');
+      loadBudgets();
+    } catch (e: any) { Alert.alert("Error", e.message); } 
+    finally { setSubmitting(false); }
   };
 
-  // Added Delete Function
-  const handleDeleteBudget = async (budgetId: string) => {
+  const openEdit = (budget: any) => {
+    setSelectedBudget(budget);
+    setEditLimit(String(budget.amount));
+    setEditVisible(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!selectedBudget || !editLimit) return;
+    setSubmitting(true);
     try {
-        await BudgetService.deleteBudget(budgetId);
-        // Optimistic update
-        setBudgets(prev => prev.filter(b => b.id !== budgetId));
-    } catch (e: any) {
-        Alert.alert("Error", "Failed to delete budget");
-    }
+        await supabase.from('budgets').update({ amount: parseFloat(editLimit) }).eq('id', selectedBudget.id);
+        setEditVisible(false);
+        loadBudgets();
+    } catch (e: any) { Alert.alert("Error", e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedBudget) return;
+    try {
+        await deleteBudget(selectedBudget.id);
+        setEditVisible(false);
+        loadBudgets();
+    } catch (e) { Alert.alert("Error", "Could not delete."); }
+  };
+
+  const renderItem = ({ item }: { item: any }) => {
+    const progress = Math.min((item.spent / item.amount) * 100, 100);
+    const color = progress > 90 ? 'bg-red-500' : progress > 75 ? 'bg-yellow-500' : 'bg-[#64FFDA]';
+    
+    return (
+        <View className="bg-[#112240] p-5 rounded-2xl mb-4 border border-white/5 shadow-sm">
+            <View className="flex-row justify-between items-center mb-3">
+                <View className="flex-row items-center gap-3">
+                    <View className="w-10 h-10 rounded-full items-center justify-center bg-[#0A192F] border border-white/5">
+                        <TrendingUp size={18} color="#8892B0" />
+                    </View>
+                    <View>
+                        <Text className="text-white font-bold text-lg">{item.category_name}</Text>
+                        <Text className="text-[#8892B0] text-xs">${item.spent.toFixed(0)} spent</Text>
+                    </View>
+                </View>
+                <TouchableOpacity onPress={() => openEdit(item)} className="p-2 bg-white/5 rounded-full">
+                    <Settings size={18} color="#8892B0" />
+                </TouchableOpacity>
+            </View>
+            
+            <View className="h-2 bg-[#0A192F] rounded-full overflow-hidden mb-2">
+                <View style={{ width: `${progress}%` }} className={`h-full rounded-full ${color}`} />
+            </View>
+            
+            <View className="flex-row justify-between">
+                <Text className="text-[#8892B0] text-[10px] font-bold">{progress.toFixed(0)}% Used</Text>
+                <Text className="text-white text-[10px] font-bold">${item.amount.toFixed(0)} Limit</Text>
+            </View>
+        </View>
+    );
   };
 
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
-      <View className="px-6 pt-6 pb-4 flex-row justify-between items-center border-b border-[#233554]">
-        <View>
-          <Text className="text-white text-3xl font-bold">Budgets</Text>
-          <Text className="text-[#64FFDA] text-sm">Real-Time Tracking</Text>
-        </View>
-        <TouchableOpacity onPress={() => setIsModalOpen(true)} className="w-12 h-12 bg-[#64FFDA] rounded-full items-center justify-center shadow-lg">
-          <Plus size={24} color="#0A192F" />
+      <View className="p-6 pb-0 flex-row justify-between items-center mb-4">
+        <Text className="text-white text-3xl font-extrabold tracking-tight">Budgets</Text>
+        <TouchableOpacity onPress={() => setCreateVisible(true)} className="bg-[#64FFDA] p-3 rounded-full shadow-lg shadow-[#64FFDA]/20">
+            <Plus size={24} color="#0A192F" />
         </TouchableOpacity>
       </View>
 
-      <FlatList
+      <FlatList 
         data={budgets}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => <BudgetCard budget={item} onDelete={handleDeleteBudget} />}
-        contentContainerStyle={{ padding: 24 }}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => { setLoading(true); loadBudgets(); }} tintColor="#64FFDA" />}
+        renderItem={renderItem}
+        keyExtractor={i => i.id}
+        contentContainerStyle={{ padding: 24, paddingTop: 0 }}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadBudgets} tintColor="#64FFDA" />}
         ListEmptyComponent={
-            <View className="mt-20 items-center">
-                <BarChart size={40} color="#112240" />
-                <Text className="text-[#8892B0] mt-4">No active budgets. Create one!</Text>
+            <View className="items-center mt-20 opacity-50">
+                <Text className="text-[#8892B0]">No active budgets.</Text>
             </View>
         }
       />
 
-      <Modal visible={isModalOpen} transparent animationType="slide">
+      {/* CREATE MODAL */}
+      <Modal visible={createVisible} transparent animationType="slide">
         <View className="flex-1 bg-black/80 justify-end">
-          <View className="bg-[#112240] rounded-t-3xl p-6 h-[70%] border-t border-[#233554]">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-white text-xl font-bold">Set Budget Limit</Text>
-              <TouchableOpacity onPress={() => setIsModalOpen(false)}><X size={24} color="#8892B0" /></TouchableOpacity>
+            <View className="bg-[#112240] p-6 rounded-t-3xl border-t border-white/10">
+                <View className="flex-row justify-between mb-6">
+                    <Text className="text-white text-xl font-bold">New Budget</Text>
+                    <TouchableOpacity onPress={() => setCreateVisible(false)}><X size={24} color="#8892B0"/></TouchableOpacity>
+                </View>
+                
+                <Text className="text-[#8892B0] text-xs font-bold uppercase mb-2">Category</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+                    {CATEGORIES.map(c => (
+                        <TouchableOpacity key={c} onPress={() => setSelectedCategory(c)} className={`px-4 py-2 rounded-full mr-2 border ${selectedCategory === c ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#0A192F] border-white/10'}`}>
+                            <Text className={`font-bold ${selectedCategory === c ? 'text-[#0A192F]' : 'text-white'}`}>{c}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
+                <Text className="text-[#8892B0] text-xs font-bold uppercase mb-2">Limit</Text>
+                <TextInput className="bg-[#0A192F] text-white p-4 rounded-xl mb-6 border border-white/10 text-xl font-bold" placeholder="0.00" placeholderTextColor="#475569" keyboardType="decimal-pad" value={newLimit} onChangeText={setNewLimit}/>
+                
+                <TouchableOpacity onPress={handleCreate} disabled={submitting} className="bg-[#64FFDA] p-4 rounded-xl items-center mb-4">
+                    {submitting ? <ActivityIndicator color="#0A192F"/> : <Text className="text-[#0A192F] font-bold text-lg">Create Budget</Text>}
+                </TouchableOpacity>
             </View>
+        </View>
+      </Modal>
 
-            <ScrollView>
-              <Text className="text-[#8892B0] text-xs font-bold uppercase mb-2">Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-                {CATEGORIES.map(cat => (
-                  <TouchableOpacity 
-                    key={cat} 
-                    onPress={() => setSelectedCategory(cat)}
-                    className={`mr-3 px-4 py-3 rounded-xl border ${selectedCategory === cat ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#0A192F] border-white/10'}`}
-                  >
-                    <Text className={`font-bold ${selectedCategory === cat ? 'text-[#0A192F]' : 'text-[#8892B0]'}`}>{cat}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+      {/* EDIT MODAL */}
+      <Modal visible={editVisible} transparent animationType="fade">
+        <View className="flex-1 bg-black/70 justify-center items-center p-6">
+            <View className="bg-[#112240] w-full rounded-3xl border border-white/10 p-6 shadow-2xl">
+                <View className="flex-row justify-between mb-6">
+                    <Text className="text-white text-xl font-bold">Edit Budget</Text>
+                    <TouchableOpacity onPress={() => setEditVisible(false)}><X size={24} color="#8892B0"/></TouchableOpacity>
+                </View>
 
-              <Text className="text-[#8892B0] text-xs font-bold uppercase mb-2">Monthly Limit</Text>
-              <View className="bg-[#0A192F] rounded-xl flex-row items-center px-4 py-4 mb-8 border border-white/10">
-                <TextInput 
-                  className="flex-1 text-white ml-2 text-2xl font-bold" 
-                  placeholder="0.00" 
-                  placeholderTextColor="#475569" 
-                  keyboardType="numeric"
-                  value={newLimit}
-                  onChangeText={setNewLimit}
-                />
-              </View>
+                <Text className="text-[#8892B0] text-xs font-bold uppercase mb-2">New Limit</Text>
+                <TextInput className="bg-[#0A192F] text-white p-4 rounded-xl mb-6 border border-white/10 text-xl font-bold" keyboardType="decimal-pad" value={editLimit} onChangeText={setEditLimit}/>
 
-              <TouchableOpacity onPress={handleCreateBudget} disabled={submitting} className="bg-[#64FFDA] py-4 rounded-xl items-center">
-                {submitting ? <ActivityIndicator color="#0A192F" /> : <Text className="text-[#0A192F] font-bold text-lg">Create Budget</Text>}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+                <View className="flex-row gap-3">
+                    <TouchableOpacity onPress={handleDelete} className="flex-1 bg-red-500/10 border border-red-500/30 p-4 rounded-xl items-center"><Trash2 size={20} color="#F87171"/></TouchableOpacity>
+                    <TouchableOpacity onPress={handleUpdate} disabled={submitting} className="flex-[3] bg-[#64FFDA] p-4 rounded-xl items-center">
+                        {submitting ? <ActivityIndicator color="#0A192F"/> : <Text className="text-[#0A192F] font-bold text-lg">Update</Text>}
+                    </TouchableOpacity>
+                </View>
+            </View>
         </View>
       </Modal>
     </SafeAreaView>
