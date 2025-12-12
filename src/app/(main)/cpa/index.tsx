@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
-import { UserPlus, MessageCircle, Check, X, FileText, Briefcase, ArrowRight } from 'lucide-react-native';
+import { Users, UserPlus, MessageCircle, Check, X, FileText, Briefcase, ArrowRight } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { getCpaClients, acceptCpaClient, rejectCpaClient } from '../../../services/dataService'; // Unified Service
@@ -75,7 +75,7 @@ export default function CpaDashboard() {
         <View className="flex-row justify-between items-start mb-6">
           <View>
               <Text className="text-white font-bold text-3xl">CPA Portal</Text>
-              <Text className="text-[#8892B0] text-sm mt-1">Manage your clients securely</Text>
+              <Text className="text-[#8892B0] text-sm mt-1">Manage your clients</Text>
           </View>
           <TouchableOpacity
             onPress={() => router.push('/(main)/cpa/invite')}

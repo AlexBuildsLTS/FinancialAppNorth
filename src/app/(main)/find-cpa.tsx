@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { Search, UserPlus, MessageCircle, Check, X, Mail } from 'lucide-react-native';
 import { useAuth } from '../../shared/context/AuthContext';
-import { CpaService } from '../../services/cpaService';
+import { requestCPA, getClientCpas, acceptInvitation, declineInvitation } from '../../services/dataService';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -36,9 +36,9 @@ export default function FindCpaScreen() {
       if (cpaError) throw cpaError;
       setCpaList(cpaData || []);
 
-      // Load pending invitations
-      const invitations = await CpaService.getClientCpas(user.id);
-      const pending = invitations.filter(inv => inv.status === 'pending');
+      // Load pending invitations using unified dataService
+      const invitations = await getClientCpas(user.id);
+      const pending = invitations.filter((inv: any) => inv.status === 'pending');
       setPendingInvitations(pending);
 
     } catch (error) {
@@ -63,9 +63,8 @@ export default function FindCpaScreen() {
 
     setRequesting(cpaId);
     try {
-      await CpaService.requestCPA(user.id, cpaEmail);
+      await requestCPA(user.id, cpaEmail);
       Alert.alert('Success', 'CPA request sent successfully!');
-      // Optionally refresh the list or update UI
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to send request');
     } finally {
@@ -76,7 +75,7 @@ export default function FindCpaScreen() {
   const handleAcceptInvitation = async (cpaId: string) => {
     if (!user) return;
     try {
-      await CpaService.acceptInvitation(user.id, cpaId);
+      await acceptInvitation(user.id, cpaId);
       Alert.alert('Success', 'CPA invitation accepted!');
       loadCpas(); // Refresh
     } catch (error: any) {
@@ -87,7 +86,7 @@ export default function FindCpaScreen() {
   const handleDeclineInvitation = async (cpaId: string) => {
     if (!user) return;
     try {
-      await CpaService.declineInvitation(user.id, cpaId);
+      await declineInvitation(user.id, cpaId);
       Alert.alert('Success', 'CPA invitation declined');
       loadCpas(); // Refresh
     } catch (error: any) {
@@ -126,7 +125,7 @@ export default function FindCpaScreen() {
                   <Mail size={18} color="#64FFDA" />
                 </View>
                 <View>
-                  <Text className="text-white font-medium">{invitation.name}</Text>
+                  <Text className="text-white font-medium">{invitation.first_name} {invitation.last_name}</Text>
                   <Text className="text-[#8892B0] text-xs">CPA Invitation</Text>
                 </View>
               </View>
@@ -194,7 +193,7 @@ export default function FindCpaScreen() {
 
             <View className="flex-row gap-2">
               <TouchableOpacity
-                onPress={() => router.push(`/(main)/messages?user=${cpa.id}`)}
+                onPress={() => router.push(`/(main)/messages?user=${cpa.id}` as any)}
                 className="bg-white/5 p-3 rounded-lg"
               >
                 <MessageCircle size={18} color="#8892B0" />

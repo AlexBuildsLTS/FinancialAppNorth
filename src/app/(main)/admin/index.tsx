@@ -92,18 +92,21 @@ export default function AdminDashboard() {
             value={loading ? "..." : stats.totalTransactions.toString()}
             icon={TrendingUp}
             color="green"
+            link="/(main)/finances/transactions"
           />
           <StatCard
             title="Documents"
             value={loading ? "..." : stats.totalDocuments.toString()}
             icon={FileText}
             color="blue"
+            link="/(main)/documents"
           />
           <StatCard
             title="Active Tickets"
             value={loading ? "..." : stats.activeTickets.toString()}
             icon={AlertTriangle}
             color="red"
+            link="/(main)/support" // Added missing link
           />
         </View>
 

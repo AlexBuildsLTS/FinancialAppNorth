@@ -1,23 +1,22 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { decode } from 'base64-arraybuffer';
 
 // Supabase Client & Admin Utilities
-import { 
-  supabase, 
-  adminChangeUserRole, 
-  adminDeactivateUser, 
-  adminDeleteUser 
+import {
+  supabase,
+  adminChangeUserRole,
+  adminDeactivateUser,
+  adminDeleteUser
 } from '../lib/supabase';
 
 // Strict Type Definitions
-import { 
-  Transaction, 
-  DocumentItem, 
-  User, 
-  Message, 
+import {
+  Transaction,
+  DocumentItem,
+  User,
+  Message,
   BudgetWithSpent,
   FinancialSummary,
   CpaClient,
@@ -37,7 +36,7 @@ import {
 const ensureProfileExists = async (userId: string) => {
   try {
     const { data } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle();
-    
+
     if (!data) {
       console.log(`[DataService] 🛠️ Repairing missing profile for ${userId}...`);
       // Create if missing (RLS now allows this for authenticated users)
@@ -64,7 +63,7 @@ const ensureProfileExists = async (userId: string) => {
  */
 const getDefaultAccountId = async (userId: string): Promise<string> => {
   const { data: accounts } = await supabase.from('accounts').select('id').eq('user_id', userId).limit(1);
-  
+
   if (accounts && accounts.length > 0) {
     return accounts[0].id;
   }
@@ -139,8 +138,8 @@ export const getOrCreateConversation = async (currentUserId: string, targetUserI
 };
 
 export const sendMessage = async (
-  conversationId: string, 
-  senderId: string, 
+  conversationId: string,
+  senderId: string,
   content: string, // Can be text or empty if sending file
   attachment?: { uri: string; type: 'image' | 'document' | 'csv'; name: string }
 ) => {
@@ -153,9 +152,9 @@ export const sendMessage = async (
       console.log('[Messaging] Uploading attachment:', attachment.name);
       // Create a clean file path
       const path = `${conversationId}/${Date.now()}_${attachment.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-      
+
       let fileBody: any;
-      
+
       if (Platform.OS === 'web') {
           const response = await fetch(attachment.uri);
           fileBody = await response.blob();
@@ -164,19 +163,19 @@ export const sendMessage = async (
           const base64 = await FileSystem.readAsStringAsync(attachment.uri, { encoding: FileSystem.EncodingType.Base64 });
           fileBody = decode(base64);
       }
-      
+
       const { error: uploadError } = await supabase.storage
-        .from('documents') 
-        .upload(path, fileBody, { 
-            contentType: attachment.type === 'image' ? 'image/jpeg' : 'application/octet-stream', 
-            upsert: true 
+        .from('documents')
+        .upload(path, fileBody, {
+            contentType: attachment.type === 'image' ? 'image/jpeg' : 'application/octet-stream',
+            upsert: true
         });
 
       if (uploadError) {
           console.error('[Messaging] Upload Error:', uploadError);
           throw uploadError;
       }
-      
+
       const { data } = supabase.storage.from('documents').getPublicUrl(path);
       attachmentUrl = data.publicUrl;
       attachmentType = attachment.type;
@@ -186,7 +185,7 @@ export const sendMessage = async (
     const { error } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: senderId,
-      content_encrypted: content || (attachment ? '[Attachment]' : ''), 
+      content_encrypted: content || (attachment ? '[Attachment]' : ''),
       attachment_url: attachmentUrl,
       attachment_type: attachmentType,
       is_system_message: false,
@@ -254,13 +253,13 @@ export const getConversations = async (userId: string) => {
     .neq('id', userId);
 
   if (error) return [];
-  
+
   return data.map((p: any) => ({
     id: p.id,
     name: p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : 'User',
     avatar: p.avatar_url,
     role: p.role,
-    lastMessage: 'Tap to start secure chat', 
+    lastMessage: 'Tap to start secure chat',
   }));
 };
 
@@ -318,11 +317,15 @@ export const markNotificationRead = async (notificationId: string) => {
 };
 
 export const markAllNotificationsRead = async (userId: string) => {
-  await supabase
+  const { data, error } = await supabase
     .from('notifications')
     .update({ is_read: true })
     .eq('user_id', userId)
-    .eq('is_read', false);
+    .eq('is_read', false)
+    .select(); // Return updated rows to confirm UI update
+
+  if (error) throw error;
+  return data;
 };
 
 export const subscribeToNotifications = (userId: string, callback: (n: NotificationItem) => void) => {
@@ -362,7 +365,7 @@ export const notifyCpaRequest = async (cpaId: string, clientName: string, create
   await createNotification(
     cpaId,
     'New CPA Request',
-    `${clientName} has requested to connect with you.`,
+    `${clientName} has requested to connect.`, // Updated message as per prompt
     'cpa',
     undefined,
     createdBy
@@ -469,7 +472,7 @@ export const getTicketDetails = async (ticketId: string) => {
 export const updateTicketStatus = async (ticketId: string, status: string) => {
   const { error } = await supabase.from('tickets').update({ status }).eq('id', ticketId);
   if (error) throw error;
-  
+
   const { data: ticket } = await supabase.from('tickets').select('user_id, subject').eq('id', ticketId).single();
   if (ticket) {
     notifyUserTicketUpdate(ticket.user_id, ticketId, status);
@@ -481,7 +484,7 @@ export const addInternalNote = async (ticketId: string, userId: string, note: st
     ticket_id: ticketId,
     user_id: userId,
     message: note,
-    is_internal: true 
+    is_internal: true
   });
   if (error) throw error;
 };
@@ -515,7 +518,7 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
     .order('date', { ascending: false });
 
   if (error) return [];
-  
+
   return data.map((t: any) => ({
       ...t,
       category: t.categories?.name || 'Uncategorized',
@@ -528,7 +531,7 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
   try {
     const accountId = await getDefaultAccountId(userId);
     let categoryId = transaction.category_id;
-    
+
     // Auto-create category if sent as string name
     if (!categoryId && transaction.category) {
         const { data: existingCat } = await supabase
@@ -547,7 +550,7 @@ export const createTransaction = async (transaction: Partial<Transaction>, userI
              if (newCat) categoryId = newCat.id;
         }
     }
-    
+
     // Calculate final amount (Expenses negative)
     let finalAmount = Number(transaction.amount || 0);
     const type = transaction.type || (finalAmount >= 0 ? 'income' : 'expense');
@@ -585,28 +588,28 @@ export const getBudgets = async (userId: string): Promise<BudgetWithSpent[]> => 
   try {
     const { data: budgets } = await supabase
       .from('budgets')
-      .select(`*, categories (name, color)`) 
+      .select(`*, categories (name, color)`)
       .eq('user_id', userId);
 
     if (!budgets) return [];
 
     const { data: transactions } = await supabase
       .from('transactions')
-      .select('amount, category_id') 
+      .select('amount, category_id')
       .eq('user_id', userId)
       .eq('type', 'expense')
       .lt('amount', 0);
 
     return budgets.map((b: any) => {
       const spent = transactions
-        ?.filter((t: any) => t.category_id === b.category_id) 
+        ?.filter((t: any) => t.category_id === b.category_id)
         .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0) || 0;
 
       const percentage = b.amount > 0 ? (spent / b.amount) * 100 : 0;
 
-      return { 
-        ...b, 
-        category_name: b.categories?.name || 'Uncategorized', 
+      return {
+        ...b,
+        category_name: b.categories?.name || 'Uncategorized',
         spent,
         remaining: b.amount - spent,
         percentage: Math.min(percentage, 100)
@@ -654,7 +657,7 @@ export const getFinancialSummary = async (userId: string): Promise<FinancialSumm
   let income = 0;
   let expense = 0;
   let runningBalance = 0;
-  
+
   const trend = transactions.map((t: any) => {
       runningBalance += parseFloat(t.amount);
       if (t.amount > 0) income += t.amount;
@@ -684,7 +687,7 @@ export const getDocuments = async (userId: string): Promise<DocumentItem[]> => {
     .order('created_at', { ascending: false });
 
   if (error) return [];
-  
+
   return data.map((d: any) => ({
       ...d,
       name: d.file_name,
@@ -695,16 +698,16 @@ export const getDocuments = async (userId: string): Promise<DocumentItem[]> => {
 };
 
 export const uploadDocument = async (
-    userId: string, 
-    uri: string, 
-    fileName: string, 
+    userId: string,
+    uri: string,
+    fileName: string,
     type: 'receipt' | 'invoice' | 'contract' | 'other'
 ) => {
   try {
     const timestamp = Date.now();
     const cleanName = fileName.replace(/[^a-zA-Z0-9.]/g, '_');
     const path = `${userId}/${timestamp}_${cleanName}`;
-    
+
     let fileBody: any;
     if (Platform.OS === 'web') {
         const response = await fetch(uri);
@@ -721,13 +724,13 @@ export const uploadDocument = async (
     if (uploadError) throw uploadError;
 
     const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(path);
-    
+
     const { data, error } = await supabase
         .from('documents')
         .insert({
             user_id: userId,
             file_name: fileName,
-            file_path: path, 
+            file_path: path,
             status: 'processed',
             url: publicUrl,
         })
@@ -760,8 +763,8 @@ export const processReceiptAI = async (documentPath: string) => {
 
   if (error) throw new Error(error.message || 'AI processing failed');
   if (data?.error) throw new Error(data.error);
-  
-  return data.data; 
+
+  return data.data;
 };
 
 /**
@@ -798,7 +801,7 @@ export const getClientCpas = async (clientId: string) => {
     .eq('client_id', clientId);
 
   if (error) return [];
-  
+
   return data.map((item: any) => ({
     id: item.cpa.id,
     name: item.cpa.first_name ? `${item.cpa.first_name} ${item.cpa.last_name || ''}`.trim() : 'CPA',
@@ -811,7 +814,8 @@ export const getClientCpas = async (clientId: string) => {
 export const requestCPA = async (userId: string, cpaEmail: string) => {
     // Find CPA by email
     const { data: cpa, error: cpaError } = await supabase.from('profiles').select('id, first_name').eq('email', cpaEmail).eq('role', 'cpa').single();
-    if (!cpa) throw new Error("CPA not found.");
+    if (cpaError) throw cpaError; // Addressed 'cpaError' not read hint
+    if (!cpa) throw new Error("CPA not found with that email."); // Updated message
 
     // Check existing
     const { data: existing } = await supabase.from('cpa_clients').select('id').match({ client_id: userId, cpa_id: cpa.id }).maybeSingle();
@@ -828,7 +832,8 @@ export const requestCPA = async (userId: string, cpaEmail: string) => {
 // 2. CPA Invites a Client
 export const inviteClient = async (cpaId: string, clientEmail: string) => {
     const { data: client, error } = await supabase.from('profiles').select('id').eq('email', clientEmail).single();
-    if (!client) throw new Error("Client not found.");
+    if (error) throw error; // Addressed 'error' not read hint
+    if (!client) throw new Error("Client not found with that email."); // Updated message
 
     const { error: inviteError } = await supabase.from('cpa_clients').insert({ client_id: client.id, cpa_id: cpaId, status: 'pending' });
     if (inviteError) throw inviteError;
@@ -861,7 +866,7 @@ export const rejectCpaClient = async (cpaId: string, clientId: string) => {
 
 export const getSharedDocuments = async (cpaId: string, clientId: string) => {
   // Security check handled by RLS, but double check status active
-  const { data } = await supabase.from('cpa_clients').select('status').match({cpaId, client_id: clientId}).single();
+  const { data } = await supabase.from('cpa_clients').select('status').match({cpa_id: cpaId, client_id: clientId}).single(); // Corrected cpaId parameter
   if (data?.status !== 'active') throw new Error("Not authorized.");
 
   const { data: docs } = await supabase.from('documents').select('*').eq('user_id', clientId);
@@ -900,13 +905,13 @@ export const getGeminiKey = async (userId: string) => {
 export const getUsers = async (): Promise<User[]> => {
   const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
   return (data || []).map((p: any) => ({
-    id: p.id, 
-    email: p.email, 
+    id: p.id,
+    email: p.email,
     name: p.first_name ? `${p.first_name} ${p.last_name}` : 'User',
-    role: p.role, 
-    status: 'active', 
-    avatar: p.avatar_url, 
-    currency: p.currency, 
+    role: p.role,
+    status: 'active',
+    avatar: p.avatar_url,
+    currency: p.currency,
     country: p.country
   }));
 };
