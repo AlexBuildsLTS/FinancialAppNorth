@@ -1,30 +1,52 @@
 import React, { useState, useCallback } from 'react';
 import { 
-  View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl 
+  View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { 
-  Users, UserPlus, Check, X, Briefcase, ArrowRight, ClipboardList, FileText, PieChart 
+  Users, UserPlus, Check, X, Briefcase, ArrowRight, ClipboardList
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../../../shared/context/AuthContext';
-// FIX: Using the unified dataService logic
 import { getCpaClients, acceptCpaClient, rejectCpaClient } from '../../../services/dataService'; 
 import { useRouter, useFocusEffect } from 'expo-router';
+
+// Define expected client structure for safety
+interface Client {
+    id: string;
+    name: string;
+    email: string;
+    status: 'active' | 'pending';
+    last_audit?: string;
+}
 
 export default function CpaDashboard() {
   const { user } = useAuth();
   const router = useRouter();
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadClients = async () => {
     if (!user) return;
+    setLoading(true);
+    setRefreshing(true);
     try {
+      // 1. Fetch clients
       const data = await getCpaClients(user.id);
-      setClients(data);
+      
+      // 2. Validate data structure (Crucial for preventing the "Fetch Error: Object" crash)
+      if (Array.isArray(data)) {
+        setClients(data as Client[]);
+      } else {
+         // Handle case where service returns an error object, not an array
+         console.warn("CPA Clients Fetch returned non-array data:", data);
+         Alert.alert("Data Error", "Could not load client list due to an unexpected format.");
+         setClients([]);
+      }
     } catch (error: any) {
-      console.error('Error loading clients:', error);
+      console.error('CPA Clients Fetch Error:', error);
+      Alert.alert("Load Failed", "Could not connect to the database to retrieve clients.");
+      setClients([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -40,7 +62,7 @@ export default function CpaDashboard() {
         Alert.alert("Success", "Client connected successfully.");
         loadClients();
     } catch (e: any) {
-        Alert.alert("Error", e.message);
+        Alert.alert("Error", e.message || "Failed to accept client.");
     }
   };
 
@@ -50,7 +72,7 @@ export default function CpaDashboard() {
         { text: "Cancel", style: "cancel" },
         { text: "Reject", style: "destructive", onPress: async () => {
             try { await rejectCpaClient(user.id, clientId); loadClients(); } 
-            catch (e: any) { Alert.alert("Error", e.message); }
+            catch (e: any) { Alert.alert("Error", e.message || "Failed to reject client."); }
         }}
     ]);
   };
@@ -66,7 +88,7 @@ export default function CpaDashboard() {
     <ScrollView 
       className="flex-1 bg-[#0A192F]" 
       contentContainerStyle={{ paddingBottom: 100 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadClients(); }} tintColor="#64FFDA" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadClients} tintColor="#64FFDA" />}
     >
       <View className="px-6 pt-8 pb-4">
         
@@ -77,7 +99,7 @@ export default function CpaDashboard() {
               <Text className="text-[#8892B0] text-sm mt-1 font-medium">Manage your portfolio</Text>
           </View>
           <View className="flex-row gap-2">
-            {/* PURPLE REPORT BUTTON (Restored) */}
+            {/* PURPLE REPORT BUTTON */}
             <TouchableOpacity 
                 onPress={() => router.push('/(main)/cpa/tax-reports')} 
                 className="bg-[#8B5CF6] px-4 py-3 rounded-full flex-row items-center shadow-lg shadow-[#8B5CF6]/20"
@@ -86,7 +108,7 @@ export default function CpaDashboard() {
                 <Text className="text-white font-bold text-xs ml-2">Reports</Text>
             </TouchableOpacity>
             
-            {/* GREEN INVITE BUTTON (Restored) */}
+            {/* GREEN INVITE BUTTON */}
             <TouchableOpacity 
                 onPress={() => router.push('/(main)/cpa/invite')} 
                 className="bg-[#64FFDA] px-4 py-3 rounded-full flex-row items-center shadow-lg shadow-[#64FFDA]/20"
@@ -100,16 +122,16 @@ export default function CpaDashboard() {
         {/* Stats Row */}
         <View className="flex-row gap-4 mb-8">
             <View className="bg-[#112240] border border-white/5 p-5 rounded-2xl flex-1 shadow-sm">
-                <Text className="text-[#8892B0] text-xs font-bold uppercase tracking-wider mb-2">Active</Text>
+                <Text className="text-[#8892B0] text-xs font-bold uppercase tracking-wider mb-2">Active Clients</Text>
                 <Text className="text-white font-bold text-3xl">{activeClients.length}</Text>
             </View>
             <View className="bg-[#112240] border border-white/5 p-5 rounded-2xl flex-1 shadow-sm">
-                <Text className="text-[#8892B0] text-xs font-bold uppercase tracking-wider mb-2">Pending</Text>
+                <Text className="text-[#8892B0] text-xs font-bold uppercase tracking-wider mb-2">Pending Requests</Text>
                 <Text className="text-[#F59E0B] font-bold text-3xl">{pendingClients.length}</Text>
             </View>
         </View>
 
-        {/* Pending Requests */}
+        {/* Pending Requests List */}
         {pendingClients.length > 0 && (
           <View className="mb-8">
             <Text className="text-white font-bold text-lg mb-4 pl-1">Pending Approvals</Text>
@@ -133,7 +155,7 @@ export default function CpaDashboard() {
           </View>
         )}
 
-        {/* Active Clients */}
+        {/* Active Clients List */}
         <Text className="text-white font-bold text-lg mb-4 pl-1">Client Roster</Text>
         {activeClients.length === 0 ? (
           <View className="bg-[#112240] border border-white/5 p-12 rounded-3xl items-center justify-center border-dashed">

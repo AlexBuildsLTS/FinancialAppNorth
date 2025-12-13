@@ -17,8 +17,7 @@ import {
   Settings,
   LogOut,
   Bot,
-  ScanLine,
-  Search
+  Search,
 } from 'lucide-react-native';
 
 // --- 1. NAVIGATION CONFIGURATION ---
@@ -60,7 +59,8 @@ const SidebarContent = ({ user, logout }: any) => {
   const router = useRouter();
   const pathname = usePathname();
   
-  const allowedItems = ROLE_NAV_ITEMS[user.role as UserRole] || ROLE_NAV_ITEMS['member'];
+  // Get allowed items based on role
+  let allowedItems = ROLE_NAV_ITEMS[user.role as UserRole] || ROLE_NAV_ITEMS['member'];
   const navItems = allowedItems.map((key: string) => NAV_CONFIG[key]).filter(Boolean);
 
   return (
@@ -128,17 +128,8 @@ export default function MainLayout() {
   if (isLoading) return <View className="flex-1 bg-[#0A192F] items-center justify-center"><Text className="text-[#64FFDA]">Loading...</Text></View>;
   if (!user) return <Redirect href="/(auth)/login" />;
 
-  const allowedItems = ROLE_NAV_ITEMS[user.role as UserRole] || ROLE_NAV_ITEMS['member'];
-  const navItems = allowedItems.map((key: string) => NAV_CONFIG[key]).filter(Boolean);
-
   if (isMobile) {
     // Mobile Navigation: Bottom Tabs
-    // Remove 'Messages' from bottom bar (it lives in Header)
-    const mobileNavItems = navItems.filter(config => 
-        config.name !== 'messages/index' && 
-        !config.name.includes('/') // Keep only single-level routes
-    ); 
-
     return (
       <View style={{ flex: 1, backgroundColor: '#0A192F' }}>
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
@@ -182,18 +173,7 @@ export default function MainLayout() {
                 )
             }} />
 
-            {/* 3. Documents */}
-            <Tabs.Screen name="documents" options={{
-                href: '/(main)/documents',
-                tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center gap-1 w-16">
-                        <FileText size={24} color={color} />
-                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
-                    </View>
-                )
-            }} />
-
-            {/* 4. AI Chat */}
+            {/* 3. AI Chat (REPLACES the blank tab) */}
             <Tabs.Screen name="aiChat" options={{
                 href: '/(main)/aiChat',
                 tabBarIcon: ({ color }: { color: string }) => (
@@ -204,18 +184,7 @@ export default function MainLayout() {
                 )
             }} />
 
-            {/* 5. Support (NEW VISIBLE TAB) */}
-            <Tabs.Screen name="support" options={{
-                href: '/(main)/support',
-                tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center gap-1 w-16">
-                        <LifeBuoy size={24} color={color} />
-                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
-                    </View>
-                )
-            }} />
-
-            {/* 6. Settings Folder */}
+            {/* 4. Settings Folder */}
             <Tabs.Screen name="settings" options={{
                 href: '/(main)/settings',
                 tabBarIcon: ({ color }: { color: string }) => (
@@ -226,18 +195,38 @@ export default function MainLayout() {
                 )
             }} />
 
-            {/* --- ADMIN / CPA TABS (Removed from bottom bar to reduce clutter - access via profile dropdown) --- */}
-            <Tabs.Screen name="admin" options={{ href: null }} />
-            <Tabs.Screen name="cpa" options={{ href: null }} />
+            {/* --- ADMIN / CPA TABS (Conditional) --- */}
+            {/* Only show Admin tab if user is Admin */}
+            <Tabs.Screen name="admin" options={{
+                href: user.role === UserRole.ADMIN ? '/(main)/admin' : null,
+                tabBarIcon: ({ color }: { color: string }) => (
+                    <View className="items-center justify-center gap-1 w-16">
+                        <ShieldAlert size={24} color={color} />
+                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                    </View>
+                )
+            }} />
+            
+            {/* Only show CPA tab if user is CPA */}
+            <Tabs.Screen name="cpa" options={{
+                href: user.role === UserRole.CPA ? '/(main)/cpa' : null,
+                tabBarIcon: ({ color }: { color: string }) => (
+                    <View className="items-center justify-center gap-1 w-16">
+                        <Users size={24} color={color} />
+                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                    </View>
+                )
+            }} />
 
             {/* --- HIDDEN SCREENS (Registered but No Icon) --- */}
-            {/* Messages Folder (Index + Dynamic ID) */}
+            {/* These routes exist but are hidden from the bottom bar */}
             <Tabs.Screen name="messages/index" options={{ href: null }} />
             <Tabs.Screen name="messages/[id]" options={{ href: null }} />
-
-            {/* Other Hidden Screens */}
+            <Tabs.Screen name="documents" options={{ href: null }} />
             <Tabs.Screen name="scan" options={{ href: null }} />
             <Tabs.Screen name="find-cpa" options={{ href: null }} />
+            <Tabs.Screen name="support" options={{ href: null }} />
+            <Tabs.Screen name="quick-add" options={{ href: null }} />
 
           </Tabs>
         </SafeAreaView>

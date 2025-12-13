@@ -20,10 +20,11 @@ export default function QuickAddScreen() {
     try {
         await processNaturalLanguageTransaction(user.id, input);
         Alert.alert("Success", "Transaction processed by AI and saved.", [
-            { text: "Done", onPress: () => router.back() }
+            { text: "Done", onPress: () => router.push('/(main)/finances') }
         ]);
+        setInput('');
     } catch (error: any) {
-        Alert.alert("AI Error", "Could not understand. Try 'Spent $15 at Target'.");
+        Alert.alert("Try 'Spent $5 at Lidl'.");
     } finally {
         setProcessing(false);
     }
@@ -35,25 +36,26 @@ export default function QuickAddScreen() {
         <TouchableOpacity onPress={() => router.back()} className="mr-4">
             <ArrowLeft size={24} color="#8892B0" />
         </TouchableOpacity>
-        <Text className="text-white font-bold text-xl">Quick Add</Text>
+        <Text className="text-white font-bold text-xl">Smart Ledger</Text>
       </View>
 
       <View className="flex-1 px-6 justify-center">
-        <View className="items-center mb-8">
-            <View className="w-20 h-20 bg-[#64FFDA]/10 rounded-full items-center justify-center mb-4 border border-[#64FFDA]/20 shadow-[0_0_30px_rgba(100,255,218,0.2)]">
-                <Sparkles size={40} color="#64FFDA" />
+        <View className="items-center mb-10">
+            <View className="w-24 h-24 bg-[#64FFDA]/10 rounded-full items-center justify-center mb-6 border border-[#64FFDA]/20 shadow-lg">
+                <Sparkles size={48} color="#64FFDA" />
             </View>
-            <Text className="text-white text-2xl font-bold text-center">Describe it.</Text>
-            <Text className="text-[#8892B0] text-center mt-2 px-8 leading-6">
-                "Spent $45 on gas" or "Received $1000 salary".{'\n'}Our AI handles the rest.
+            <Text className="text-white text-3xl font-extrabold text-center mb-2">Just Say It</Text>
+            <Text className="text-[#8892B0] text-center px-4 leading-6 text-base">
+                "300SEK I LIDL"{'\n'}
+                "Fick 100 SEK swish"{'\n'}
             </Text>
         </View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <View className="bg-[#112240] p-2 rounded-3xl border border-white/10 flex-row items-center">
+            <View className="bg-[#112240] p-3 rounded-3xl border border-white/10 flex-row items-end shadow-xl">
                 <TextInput 
-                    className="flex-1 text-white text-lg p-4 font-medium"
-                    placeholder="Type or use dictation..."
+                    className="flex-1 text-white text-lg p-4 font-medium max-h-32"
+                    placeholder="Type here..."
                     placeholderTextColor="#475569"
                     value={input}
                     onChangeText={setInput}
@@ -61,11 +63,14 @@ export default function QuickAddScreen() {
                     multiline
                 />
                 {processing ? (
-                    <View className="p-4"><ActivityIndicator color="#64FFDA" /></View>
+                    <View className="p-4 bg-[#64FFDA]/10 rounded-full m-1">
+                        <ActivityIndicator color="#64FFDA" />
+                    </View>
                 ) : (
                     <TouchableOpacity 
                         onPress={handleSubmit}
-                        className={`p-4 rounded-full ${input.trim() ? 'bg-[#64FFDA]' : 'bg-white/5'}`}
+                        disabled={!input.trim()}
+                        className={`p-4 rounded-full m-1 ${input.trim() ? 'bg-[#64FFDA]' : 'bg-white/5'}`}
                     >
                         {input.trim() ? <Send size={24} color="#0A192F" /> : <Mic size={24} color="#8892B0" />}
                     </TouchableOpacity>

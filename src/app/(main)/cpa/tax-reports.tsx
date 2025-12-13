@@ -1,15 +1,18 @@
 import React, { useState, useCallback } from 'react';
 import { 
-  View, Text, FlatList, TouchableOpacity, ActivityIndicator, ScrollView, Alert 
+  View, Text, FlatList, TouchableOpacity, ActivityIndicator, ScrollView, Alert, Dimensions 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { ArrowLeft, FileText, Download, Calculator, TrendingDown } from 'lucide-react-native';
+import { ArrowLeft, FileText, Download, Calculator, TrendingDown, PieChart as PieIcon } from 'lucide-react-native';
 import { PieChart } from "react-native-gifted-charts"; 
 import { useAuth } from '../../../shared/context/AuthContext';
-// Importing from the unified robust dataService
 import { generateTaxReport, autoTagTaxDeductible } from '../../../services/dataService';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+
+// Screen Dimensions for Responsive Chart
+const { width } = Dimensions.get('window');
+const isDesktop = width >= 768;
 
 interface TaxReportData {
   total_deductible: number;
@@ -31,28 +34,32 @@ export default function TaxReportsScreen() {
     if (!user?.id) return;
     setGenerating(true);
     try {
-      // 1. Run AI Tagging to ensure latest data is categorized
+      // 1. AI Analysis Step
       await autoTagTaxDeductible(user.id);
       
-      // 2. Fetch the structured report from DB
+      // 2. Fetch Aggregated Data
       const data = await generateTaxReport(user.id);
       
-      // 3. Process Data for Visualization
+      // 3. Process & Normalize
       const txs = data.transactions || [];
-      const deductible = txs.filter((t: any) => t.is_tax_deductible).reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
-      const nonDeductible = txs.filter((t: any) => !t.is_tax_deductible).reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
+      const deductible = txs
+        .filter((t: any) => t.is_tax_deductible)
+        .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
+        
+      const nonDeductible = txs
+        .filter((t: any) => !t.is_tax_deductible)
+        .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
 
       setReport({
         total_deductible: deductible,
         total_non_deductible: nonDeductible,
         transaction_count: txs.filter((t: any) => t.is_tax_deductible).length,
-        transactions: txs.filter((t: any) => t.is_tax_deductible), // Only show relevant items in list
-        potential_savings: deductible * 0.30 // Estimate 30% tax rate savings
+        transactions: txs.filter((t: any) => t.is_tax_deductible),
+        potential_savings: deductible * 0.30 // Est. Tax Rate
       });
 
     } catch (error: any) {
-      console.error(error);
-      Alert.alert('Generation Failed', 'Could not analyze transactions. Please try again.');
+      Alert.alert('Error', 'Failed to generate tax report. Please check your connection.');
     } finally {
       setGenerating(false);
     }
@@ -63,7 +70,7 @@ export default function TaxReportsScreen() {
     return () => setFocusedIndex(null);
   }, []));
 
-  // --- Chart Configuration ---
+  // --- Chart Setup ---
   const pieData = report ? [
     { 
         value: report.total_deductible, 
@@ -75,7 +82,7 @@ export default function TaxReportsScreen() {
     { 
         value: report.total_non_deductible, 
         color: '#1E293B', 
-        text: 'Other', 
+        text: 'Non', 
         focused: focusedIndex === 1, 
         onPress: () => setFocusedIndex(1) 
     }
@@ -85,7 +92,7 @@ export default function TaxReportsScreen() {
     if (!report) return null;
     const isDed = focusedIndex === 0;
     const val = isDed ? report.total_deductible : (focusedIndex === 1 ? report.total_non_deductible : report.total_deductible + report.total_non_deductible);
-    const label = isDed ? "Deductible" : (focusedIndex === 1 ? "Non-Ded" : "Total");
+    const label = isDed ? "Deductible" : (focusedIndex === 1 ? "Other" : "Total");
     
     return (
         <View className="items-center justify-center">
@@ -129,11 +136,24 @@ export default function TaxReportsScreen() {
             </View>
         )}
 
+        {/* Empty State */}
+        {!generating && !report && (
+           <View className="items-center py-20">
+               <FileText size={64} color="#112240" />
+               <Text className="text-[#8892B0] text-center mt-6 mb-8 px-8">
+                   Generate a comprehensive tax report based on your AI-tagged transactions.
+               </Text>
+               <TouchableOpacity onPress={generateReport} className="bg-[#64FFDA] py-4 px-8 rounded-full shadow-lg">
+                   <Text className="text-[#0A192F] font-bold text-lg">Generate Report</Text>
+               </TouchableOpacity>
+           </View>
+        )}
+
         {/* Report Content */}
         {!generating && report && (
           <Animated.View entering={FadeInDown.duration(500)}>
             
-            {/* Interactive Chart Card */}
+            {/* Main Visual Card */}
             <View className="bg-[#112240] p-6 rounded-3xl border border-white/5 mb-6 flex-row items-center justify-between shadow-lg">
                 <View>
                     <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1 tracking-widest">Total Deductible</Text>
