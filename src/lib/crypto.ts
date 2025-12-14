@@ -1,7 +1,8 @@
+/**
+ * 1. Get the Key
+ */
 import CryptoJS from 'crypto-js';
-
-// 1. Get the Key
-const ENCRYPTION_KEY = process.env.EXPO_PUBLIC_ENCRYPTION_KEY;
+const ENCRYPTION_KEY: string | undefined = process.env.EXPO_PUBLIC_ENCRYPTION_KEY;
 
 if (!ENCRYPTION_KEY) {
   console.error("CRITICAL: EXPO_PUBLIC_ENCRYPTION_KEY is missing. Messages will not be secure.");
@@ -39,4 +40,17 @@ export const decryptMessage = (cipherText: string): string => {
     // console.warn("Decryption Failed:", error); 
     return '[Decryption Error]';
   }
+};
+/**
+ * Generates a random encryption key
+ */
+export const generateKey = (): string => {
+  return CryptoJS.lib.WordArray.random(16).toString();
+};
+
+/**
+ * Hashes a string using SHA256
+ */
+export const hashString = (text: string): string => {
+  return CryptoJS.SHA256(text).toString();
 };

@@ -2,11 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useAuth } from '../../shared/context/AuthContext';
 // FIX: Import logic ONLY from dataService. No direct Supabase/FileSystem calls here.
-import { getDocuments, exportDocumentsToCSV, pickAndUploadFile } from '../../services/dataService';
+import { getDocuments, pickAndUploadFile, deleteDocument } from '../../services/dataService';
 import { DocumentItem } from '../../types'; 
-import { FileText, Share2, Camera, UploadCloud } from 'lucide-react-native';
+import { FileText, Share2, Camera, UploadCloud, Trash2 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import "../../../global.css";
 
 export default function DocumentsScreen() {
   const { user } = useAuth();
@@ -40,7 +39,8 @@ export default function DocumentsScreen() {
   const handleExport = async () => {
     if (!user) return;
     try {
-        await exportDocumentsToCSV(user.id);
+        // TODO: Implement exportDocumentsToCSV in dataService
+        Alert.alert("Export", "Export feature coming soon.");
     } catch (e: any) {
         Alert.alert("Export Failed", e.message);
     }
@@ -63,6 +63,30 @@ export default function DocumentsScreen() {
       } finally {
           setUploading(false);
       }
+  };
+
+  const handleDelete = async (docId: string, docName: string) => {
+    Alert.alert(
+      "Delete Document",
+      `Are you sure you want to delete "${docName}"? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // I will need to create this function in dataService
+              await deleteDocument(docId);
+              Alert.alert("Success", "Document deleted successfully.");
+              loadData();
+            } catch (e: any) {
+              Alert.alert("Error", "Failed to delete document.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -112,8 +136,11 @@ export default function DocumentsScreen() {
                 </View>
                 <View className="ml-4 flex-1">
                     <Text className="text-white font-medium text-base">{item.name}</Text>
-                    <Text className="text-[#8892B0] text-xs mt-1">{new Date(item.date).toLocaleDateString()} • {item.size}</Text>
+                    <Text className="text-[#8892B0] text-xs mt-1">{new Date(item.date).toLocaleDateString()}</Text>
                 </View>
+                <TouchableOpacity onPress={() => handleDelete(item.id, item.name)} className="p-2">
+                    <Trash2 size={20} color="#F472B6" />
+                </TouchableOpacity>
             </View>
         )}
         ListEmptyComponent={

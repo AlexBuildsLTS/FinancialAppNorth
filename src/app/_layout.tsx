@@ -1,3 +1,5 @@
+import 'react-native-reanimated';
+// @ts-ignore
 import "../../global.css";
 import { LogBox, Platform } from 'react-native';
 import { useEffect, useState } from "react";
@@ -80,13 +82,21 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const [loaded] = useFonts({});
+  const [loaded, error] = useFonts({
+  });
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded || error) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+    if(error){
+        console.error("Font loading error:", error);
+    }
+  }, [loaded, error]);
+
+  if (!loaded && !error) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

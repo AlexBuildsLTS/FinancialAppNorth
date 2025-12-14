@@ -96,6 +96,11 @@ This application is **fully functional** and implements complex workflows includ
 
 * **State/Data:** Custom Service Layer + React Context
 
+---
+
+## 📘 Best Practices
+
+Core engineering and operational best practices are collected in `docs/BEST_PRACTICES.md`. Review it for guidance on security, RLS policies, AI/OCR usage, testing, CI/CD, and production readiness.
 
 
 ---

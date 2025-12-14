@@ -1,32 +1,82 @@
-import React, { useState } from 'react';
-import { 
-  View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView 
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { supabase } from '../../../lib/supabase';
-import { ArrowLeft, Lock, Save, ShieldCheck } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { PasswordStrengthIndicator } from '../../../shared/components/PasswordStrengthIndicator';
+/**
+ * ============================================================================
+ * NORTHFINANCE: SECURITY SETTINGS
+ * ============================================================================
+ * Manages:
+ * - Biometric Login (FaceID/TouchID)
+ * - Password Updates
+ * - Session Management
+ * ============================================================================
+ */
 
-export default function SecuritySettings() {
+import React, { useState, useEffect } from 'react';
+import { View, Text, Switch, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, Fingerprint, Lock, ShieldCheck, Smartphone, Key } from 'lucide-react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../../../shared/context/AuthContext';
+import { supabase } from '../../../lib/supabase';
+import * as Linking from 'expo-linking';
+
+export default function SecurityScreen() {
   const router = useRouter();
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const { user } = useAuth();
+  
+  const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+  const [biometricsEnabled, setBiometricsEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleUpdatePassword = async () => {
-    if (!password || !confirmPassword) return Alert.alert('Error', 'Fill all fields');
-    if (password !== confirmPassword) return Alert.alert('Error', 'Passwords do not match');
-    if (password.length < 6) return Alert.alert('Error', 'Password too short');
+  // Check hardware availability on mount
+  useEffect(() => {
+    checkBiometrics();
+    loadPreference();
+  }, []);
 
+  const checkBiometrics = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    setBiometricsAvailable(hasHardware && isEnrolled);
+  };
+
+  const loadPreference = async () => {
+    const stored = await AsyncStorage.getItem('biometrics_enabled');
+    setBiometricsEnabled(stored === 'true');
+  };
+
+  const toggleBiometrics = async (value: boolean) => {
+    if (value) {
+      // Verify identity before enabling
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Authenticate to enable biometrics',
+      });
+      
+      if (result.success) {
+        setBiometricsEnabled(true);
+        await AsyncStorage.setItem('biometrics_enabled', 'true');
+      } else {
+        Alert.alert('Authentication failed', 'Could not verify identity.');
+        return;
+      }
+    } else {
+      setBiometricsEnabled(false);
+      await AsyncStorage.setItem('biometrics_enabled', 'false');
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) return;
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      const redirectUrl = Linking.createURL('/(auth)/login');
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: redirectUrl,
+      });
       if (error) throw error;
-      Alert.alert('Success', 'Password updated');
-      router.back();
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Email Sent', 'Check your inbox for password reset instructions.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
@@ -34,55 +84,98 @@ export default function SecuritySettings() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
-      <View className="px-6 py-4 border-b border-[#233554] flex-row items-center gap-4">
-        <TouchableOpacity onPress={() => router.back()}><ArrowLeft size={24} color="white" /></TouchableOpacity>
-        <Text className="text-xl font-bold text-white">Security</Text>
+      {/* Header */}
+      <View className="flex-row items-center px-6 py-4 border-b border-white/5">
+        <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2 -ml-2">
+          <ArrowLeft size={24} color="#8892B0" />
+        </TouchableOpacity>
+        <Text className="text-white text-2xl font-bold">Security</Text>
       </View>
 
       <ScrollView className="flex-1 p-6">
-        <View className="flex-row items-start bg-[#112240] p-4 rounded-xl border border-blue-500/30 mb-8">
-            <ShieldCheck size={24} color="#60A5FA" className="mt-1 mr-3" />
-            <Text className="text-[#8892B0] text-sm flex-1 leading-5">Use a strong password to keep your financial data safe.</Text>
+        
+        {/* Biometrics Section */}
+        <View className="mb-8">
+          <Text className="text-[#64FFDA] font-bold text-sm uppercase mb-4 tracking-widest">Authentication</Text>
+          
+          <View className="bg-[#112240] rounded-2xl border border-white/5 overflow-hidden">
+            <View className="p-4 flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1 mr-4">
+                <View className="w-10 h-10 rounded-full bg-[#64FFDA]/10 items-center justify-center mr-3">
+                  <Fingerprint size={20} color="#64FFDA" />
+                </View>
+                <View>
+                  <Text className="text-white font-bold text-base">Biometric Login</Text>
+                  <Text className="text-[#8892B0] text-xs mt-0.5">Use FaceID or Fingerprint</Text>
+                </View>
+              </View>
+              
+              {biometricsAvailable ? (
+                <Switch
+                  value={biometricsEnabled}
+                  onValueChange={toggleBiometrics}
+                  trackColor={{ false: '#0A192F', true: '#64FFDA' }}
+                  thumbColor={biometricsEnabled ? '#112240' : '#8892B0'}
+                />
+              ) : (
+                <Text className="text-[#8892B0] text-xs italic">Not Available</Text>
+              )}
+            </View>
+
+            <View className="h-[1px] bg-white/5 mx-4" />
+
+            <View className="p-4 flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1 mr-4">
+                <View className="w-10 h-10 rounded-full bg-[#64FFDA]/10 items-center justify-center mr-3">
+                  <Smartphone size={20} color="#64FFDA" />
+                </View>
+                <View>
+                  <Text className="text-white font-bold text-base">2-Factor Auth</Text>
+                  <Text className="text-[#8892B0] text-xs mt-0.5">Recommended for high security</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => Alert.alert('Coming Soon', '2FA will be available in the next update.')}>
+                <Text className="text-[#64FFDA] font-bold">Setup</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
-        <View className="gap-6">
-          <View>
-            <Text className="text-[#8892B0] mb-2 text-xs font-bold uppercase ml-1">New Password</Text>
-            <View className="bg-[#112240] border border-[#233554] rounded-xl px-4 py-3 flex-row items-center">
-              <Lock size={20} color="#8892B0" />
-              <TextInput 
-                className="flex-1 text-white text-base ml-3" 
-                placeholder="New Password" 
-                placeholderTextColor="#475569"
-                secureTextEntry
-                value={password} 
-                onChangeText={setPassword}
-                autoComplete="off"
-              />
-            </View>
-            <PasswordStrengthIndicator password={password} />
+        {/* Password Section */}
+        <View className="mb-8">
+          <Text className="text-[#64FFDA] font-bold text-sm uppercase mb-4 tracking-widest">Account Access</Text>
+          
+          <View className="bg-[#112240] rounded-2xl border border-white/5 overflow-hidden">
+            <TouchableOpacity 
+              onPress={handlePasswordReset}
+              disabled={loading}
+              className="p-4 flex-row items-center justify-between active:bg-[#162C52]"
+            >
+              <View className="flex-row items-center">
+                <View className="w-10 h-10 rounded-full bg-orange-500/10 items-center justify-center mr-3">
+                  <Key size={20} color="#F97316" />
+                </View>
+                <View>
+                  <Text className="text-white font-bold text-base">Change Password</Text>
+                  <Text className="text-[#8892B0] text-xs mt-0.5">Send reset link to email</Text>
+                </View>
+              </View>
+              {loading ? <ActivityIndicator size="small" color="#64FFDA" /> : <ArrowLeft size={16} color="#8892B0" style={{ transform: [{ rotate: '180deg' }] }} />}
+            </TouchableOpacity>
           </View>
-
-          <View>
-            <Text className="text-[#8892B0] mb-2 text-xs font-bold uppercase ml-1">Confirm Password</Text>
-            <View className="bg-[#112240] border border-[#233554] rounded-xl px-4 py-3 flex-row items-center">
-              <Lock size={20} color="#8892B0" />
-              <TextInput 
-                className="flex-1 text-white text-base ml-3" 
-                placeholder="Confirm Password" 
-                placeholderTextColor="#475569"
-                secureTextEntry
-                value={confirmPassword} 
-                onChangeText={setConfirmPassword}
-                autoComplete="off"
-              />
-            </View>
-          </View>
-
-          <TouchableOpacity onPress={handleUpdatePassword} disabled={loading} className="bg-[#64FFDA] h-14 rounded-xl items-center justify-center mt-4 flex-row gap-2">
-            {loading ? <ActivityIndicator color="#0A192F" /> : <><Save size={20} color="#0A192F" /><Text className="text-[#0A192F] font-bold text-lg">Update Password</Text></>}
-          </TouchableOpacity>
         </View>
+
+        {/* Device Info */}
+        <View className="p-4 bg-[#64FFDA]/5 rounded-2xl border border-[#64FFDA]/20 flex-row items-start">
+            <ShieldCheck size={20} color="#64FFDA" className="mt-0.5" />
+            <View className="ml-3 flex-1">
+                <Text className="text-[#64FFDA] font-bold mb-1">Security Status: Good</Text>
+                <Text className="text-[#8892B0] text-xs leading-5">
+                    Your connection is encrypted. Biometrics are handled securely on your device hardware and never shared with our servers.
+                </Text>
+            </View>
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );

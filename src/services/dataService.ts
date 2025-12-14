@@ -943,6 +943,45 @@ export const getDocuments = async (userId: string): Promise<DocumentItem[]> => {
   }));
 };
 
+export const deleteDocument = async (docId: string) => {
+  try {
+    // 1. Get the document to find its file path
+    const { data: doc, error: docError } = await supabase
+      .from('documents')
+      .select('file_path')
+      .eq('id', docId)
+      .single();
+
+    if (docError) throw docError;
+    if (!doc) throw new Error("Document not found.");
+
+    // 2. Delete the file from storage
+    if (doc.file_path) {
+      const { error: storageError } = await supabase.storage
+        .from('documents')
+        .remove([doc.file_path]);
+      
+      if (storageError) {
+        // Log the error but proceed to delete the DB record anyway
+        console.error('[DataService] Storage Delete Error:', storageError);
+      }
+    }
+
+    // 3. Delete the record from the database
+    const { error: dbError } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', docId);
+
+    if (dbError) throw dbError;
+
+  } catch (e: any) {
+    console.error('[DataService] Delete Document Error:', e.message);
+    throw e;
+  }
+};
+
+
 export const uploadDocument = async (
     userId: string, 
     uri: string, 

@@ -36,7 +36,8 @@ export class DocumentService {
     userId: string,
     uri: string,
     fileName: string,
-    type: 'receipt' | 'invoice' | 'contract' | 'other' = 'other'
+    type: 'receipt' | 'invoice' | 'contract' | 'other' = 'other',
+    mimeType: string = 'image/jpeg'
   ) {
     try {
       const filePath = `${userId}/${Date.now()}_${fileName}`;
@@ -52,7 +53,7 @@ export class DocumentService {
 
       const { error: uploadError } = await supabase.storage
         .from('documents')
-        .upload(filePath, fileBody, { contentType: 'image/jpeg', upsert: true });
+        .upload(filePath, fileBody, { contentType: mimeType, upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -73,7 +74,7 @@ export class DocumentService {
         user_id: userId,
         file_name: fileName,
         file_path: filePath,
-        mime_type: 'image/jpeg',
+        mime_type: mimeType,
         size_bytes: sizeBytes,
         status: 'processed',
         extracted_data: {},
@@ -114,7 +115,7 @@ export class DocumentService {
       if (result.canceled) return null;
 
       const asset = result.assets[0];
-      return await this.uploadDocument(userId, asset.uri, asset.name, 'other');
+      return await this.uploadDocument(userId, asset.uri, asset.name, 'other', asset.mimeType);
     } catch (e: any) {
       console.error("File Picker Error:", e.message);
       throw e;
@@ -162,9 +163,9 @@ export class DocumentService {
     if (error) throw error;
   }
 
-  /**
   static async exportToCSV(userId: string) {
     const docs = await this.getDocuments(userId);
+    // Dynamic import to avoid circular dependency issues
     const { TransactionService } = await import('./transactionService.js');
     const txs = await TransactionService.getTransactions(userId);
 
@@ -174,14 +175,14 @@ export class DocumentService {
 
     let csvContent = "Type,Date,Description,Amount,Category,File Name\n";
 
-    txs.forEach((t: TransactionItem) => {
-
-    txs.forEach(t => {
-      const amount = t.amount ? t.amount.toFixed(2) : "0.00";
-      csvContent += `Transaction,${t.date},"${t.description || ''}",${amount},${t.category || ''},-\n`;
+    txs.forEach((t: any) => {
+      const amount = t.amount ? Number(t.amount).toFixed(2) : "0.00";
+      const desc = t.description ? t.description.replace(/"/g, '""') : '';
+      const cat = typeof t.category === 'string' ? t.category : (t.category?.name || '');
+      csvContent += `Transaction,${t.date},"${desc}",${amount},"${cat}",-\n`;
     });
 
-    docs.forEach(d => {
+    docs.forEach((d: any) => {
       csvContent += `Document,${d.date},"${d.name || 'Doc'}",-,-,"${d.file_name || ''}"\n`;
     });
 

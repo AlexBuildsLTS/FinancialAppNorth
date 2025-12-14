@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { corsHeaders } from "../_shared/cors.ts";
+import { ensureAdmin, AdminAuthError } from "../_shared/auth.ts";
 
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -12,45 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-
-    if (userError) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (!user) {
-        return new Response(JSON.stringify({ error: "User not found" }), {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-    }
-
-    const { data: callerProfile, error: pErr } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single();
-    if (pErr) {
-        console.error('Error fetching caller profile:', pErr);
-        return new Response(JSON.stringify({ error: "Failed to fetch caller profile" }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-    }
-    if (callerProfile?.role !== "admin") {
-        return new Response(JSON.stringify({ error: "forbidden" }), {
-            status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-    }
+    await ensureAdmin(req);
 
     const { userId } = await req.json();
     if (!userId) {
@@ -75,8 +38,9 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error(e);
+    const status = e instanceof AdminAuthError ? e.status : 500;
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
