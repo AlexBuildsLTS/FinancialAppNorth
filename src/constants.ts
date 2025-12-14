@@ -1,11 +1,10 @@
-// Assuming your UserRole enum is correctly defined in src/types.ts
 import { UserRole } from './types';
 
 // The list below defines which top-level navigation items are visible to each user role.
 // NOTE: 'Transactions' maps to the /finances hub route in the layout.
 export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
   // Members see core financial tools
-  [UserRole.MEMBER]: [
+  'member': [
     'Dashboard',
     'Transactions',
     'Documents',
@@ -17,7 +16,7 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
   ],
 
   // Premium users get all member features + Messages + CPA Portal
-  [UserRole.PREMIUM]: [
+  'premium_member': [
     'Dashboard',
     'Transactions',
     'Documents',
@@ -30,8 +29,8 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
     'Support'
   ],
 
-  // FIX: CPA sees all Premium features (minus general Support) + CPA Portal
-  [UserRole.CPA]: [
+  // CPA sees all Premium features (minus general Support) + CPA Portal
+  'cpa': [
     'Dashboard', 
     'Transactions', 
     'Documents', 
@@ -39,11 +38,11 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
     'AI Chat', 
     'Messages', 
     'Settings', 
-    'CPA Portal' // Added dedicated CPA management hub
+    'CPA Portal'
   ],
 
-  // FIX: Support sees ALL Premium features + Admin for user/ticket management
-  [UserRole.SUPPORT]: [
+  // Support sees ALL Premium features + Admin for user/ticket management
+  'support': [
     'Dashboard',
     'Transactions',
     'Documents',
@@ -53,11 +52,11 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
     'CPA Portal',
     'Settings',
     'Support', // For viewing/responding to tickets
-    'Admin' // For limited admin/user lookup/logs
+    'Admin'    // For limited admin/user lookup/logs
   ],
 
   // Admins see every possible feature in the system.
-  [UserRole.ADMIN]: [
+  'admin': [
     'Dashboard', 
     'Transactions', 
     'Documents', 
@@ -66,8 +65,8 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
     'Support', 
     'AI Chat',
     'Messages', 
-    'Settings',
-    'Admin' // The dedicated Admin Control Panel route
+    'Settings', 
+    'Admin'
   ]
 };
 

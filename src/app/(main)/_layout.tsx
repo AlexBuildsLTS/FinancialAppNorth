@@ -21,7 +21,6 @@ import {
 } from 'lucide-react-native';
 
 // --- 1. NAVIGATION CONFIGURATION ---
-// Maps "Friendly Names" to "File Routes"
 const NAV_CONFIG: Record<string, { name: string, icon: any, path: string, label: string }> = {
   'Dashboard':    { name: 'index',          icon: LayoutDashboard, path: '/(main)/',             label: 'Home' },
   'Transactions': { name: 'finances',       icon: CreditCard,      path: '/(main)/finances',     label: 'Finances' },
@@ -36,15 +35,16 @@ const NAV_CONFIG: Record<string, { name: string, icon: any, path: string, label:
 };
 
 // --- 2. DESKTOP SIDEBAR COMPONENT ---
-const RoleBadge = ({ role }: { role: UserRole }) => {
+const RoleBadge = ({ role }: { role: string }) => {
   let bg = 'bg-[#112240]';
   let text = 'text-[#8892B0]';
+  
+  // Robust check using string literals to prevent Enum crashes
   switch (role) {
-    case UserRole.ADMIN: bg = 'bg-red-500/10'; text = 'text-red-500'; break;
-    case UserRole.CPA:   bg = 'bg-purple-500/10'; text = 'text-purple-400'; break;
-    case UserRole.PREMIUM: bg = 'bg-[#64FFDA]/10'; text = 'text-[#64FFDA]'; break;
-    case UserRole.SUPPORT: bg = 'bg-blue-500/10'; text = 'text-blue-400'; break;
-    case UserRole.MEMBER: 
+    case 'admin': bg = 'bg-red-500/10'; text = 'text-red-500'; break;
+    case 'cpa':   bg = 'bg-purple-500/10'; text = 'text-purple-400'; break;
+    case 'premium': bg = 'bg-[#64FFDA]/10'; text = 'text-[#64FFDA]'; break;
+    case 'support': bg = 'bg-blue-500/10'; text = 'text-blue-400'; break;
     default:
         bg = 'bg-white/5'; text = 'text-[#8892B0]';
   }
@@ -59,17 +59,18 @@ const SidebarContent = ({ user, logout }: any) => {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Get allowed items based on role
-  let allowedItems = ROLE_NAV_ITEMS[user.role as UserRole] || ROLE_NAV_ITEMS['member'];
+  // Safe role access
+  const userRole = user.role || 'member';
+  const allowedItems = ROLE_NAV_ITEMS[userRole] || ROLE_NAV_ITEMS['member'];
   const navItems = allowedItems.map((key: string) => NAV_CONFIG[key]).filter(Boolean);
 
   return (
-    <View className="flex-1 flex-col">
-      <View className="p-6 items-center mb-6">
+    <View className="flex-col flex-1">
+      <View className="items-center p-6 mb-6">
         <View className="w-12 h-12 bg-[#112240] rounded-xl items-center justify-center mb-3 border border-[#233554]">
           <Text className="text-[#64FFDA] font-bold text-2xl">N</Text>
         </View>
-        <Text className="text-white font-bold text-lg">NorthFinance</Text>
+        <Text className="text-lg font-bold text-white">NorthFinance</Text>
       </View>
 
       <ScrollView className="flex-1 px-3">
@@ -93,7 +94,7 @@ const SidebarContent = ({ user, logout }: any) => {
       </ScrollView>
 
       <View className="p-4 border-t border-[#233554]">
-        <View className="flex-row items-center gap-3 mb-4 px-2">
+        <View className="flex-row items-center gap-3 px-2 mb-4">
           <TouchableOpacity 
             onPress={() => router.push('/(main)/settings/profile')}
             className="w-10 h-10 rounded-full bg-[#112240] overflow-hidden border border-[#233554]"
@@ -104,13 +105,13 @@ const SidebarContent = ({ user, logout }: any) => {
               <View className="items-center justify-center h-full"><Text className="text-[#64FFDA] font-bold">{user.name?.[0]}</Text></View>
             )}
           </TouchableOpacity>
-          <View className="flex-1 justify-center">
-            <Text className="text-white text-sm font-bold truncate">{user.name}</Text>
-            <RoleBadge role={user.role as UserRole} />
+          <View className="justify-center flex-1">
+            <Text className="text-sm font-bold text-white truncate">{user.name}</Text>
+            <RoleBadge role={user.role} />
           </View>
         </View>
         
-        <TouchableOpacity onPress={logout} className="flex-row items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 justify-center">
+        <TouchableOpacity onPress={logout} className="flex-row items-center justify-center gap-3 px-4 py-3 border rounded-xl bg-red-500/10 border-red-500/20">
           <LogOut size={18} color="#F87171" />
           <Text className="text-[#F87171] font-medium">Sign Out</Text>
         </TouchableOpacity>
@@ -128,8 +129,8 @@ export default function MainLayout() {
   if (isLoading) return <View className="flex-1 bg-[#0A192F] items-center justify-center"><Text className="text-[#64FFDA]">Loading...</Text></View>;
   if (!user) return <Redirect href="/(auth)/login" />;
 
+  // Mobile Tabs Logic
   if (isMobile) {
-    // Mobile Navigation: Bottom Tabs
     return (
       <View style={{ flex: 1, backgroundColor: '#0A192F' }}>
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
@@ -155,71 +156,69 @@ export default function MainLayout() {
             <Tabs.Screen name="index" options={{
                 href: '/(main)/',
                 tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center gap-1 w-16">
+                    <View className="items-center justify-center w-16 gap-1">
                         <LayoutDashboard size={24} color={color} />
                         <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
                     </View>
                 )
             }} />
 
-            {/* 2. Finances Folder */}
+            {/* 2. Finances */}
             <Tabs.Screen name="finances" options={{
                 href: '/(main)/finances',
                 tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center gap-1 w-16">
+                    <View className="items-center justify-center w-16 gap-1">
                         <CreditCard size={24} color={color} />
                         <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
                     </View>
                 )
             }} />
 
-            {/* 3. AI Chat (REPLACES the blank tab) */}
+            {/* 3. AI Chat */}
             <Tabs.Screen name="aiChat" options={{
                 href: '/(main)/aiChat',
                 tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center gap-1 w-16">
+                    <View className="items-center justify-center w-16 gap-1">
                         <Bot size={24} color={color} />
                         <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
                     </View>
                 )
             }} />
 
-            {/* 4. Settings Folder */}
+            {/* 4. Settings */}
             <Tabs.Screen name="settings" options={{
-                href: '/(main)/settings',
+                href: '/(main)/settings', 
                 tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center gap-1 w-16">
+                    <View className="items-center justify-center w-16 gap-1">
                         <Settings size={24} color={color} />
                         <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
                     </View>
                 )
             }} />
 
-            {/* --- ADMIN / CPA TABS (Conditional) --- */}
-            {/* Only show Admin tab if user is Admin */}
+            {/* Conditional Admin Tab */}
             <Tabs.Screen name="admin" options={{
-                href: user.role === UserRole.ADMIN ? '/(main)/admin' : null,
+                href: user.role === 'admin' ? '/(main)/admin' : null,
                 tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center gap-1 w-16">
+                    <View className="items-center justify-center w-16 gap-1">
                         <ShieldAlert size={24} color={color} />
                         <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
                     </View>
                 )
             }} />
             
-            {/* Only show CPA tab if user is CPA */}
+            {/* Conditional CPA Tab */}
             <Tabs.Screen name="cpa" options={{
-                href: user.role === UserRole.CPA ? '/(main)/cpa' : null,
+                href: user.role === 'cpa' ? '/(main)/cpa' : null, 
                 tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center gap-1 w-16">
+                    <View className="items-center justify-center w-16 gap-1">
                         <Users size={24} color={color} />
                         <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
                     </View>
                 )
             }} />
 
-            {/* --- HIDDEN SCREENS (Registered but No Icon) --- */}
-            {/* These routes exist but are hidden from the bottom bar */}
+            {/* Hidden Screens */}
             <Tabs.Screen name="messages/index" options={{ href: null }} />
             <Tabs.Screen name="messages/[id]" options={{ href: null }} />
             <Tabs.Screen name="documents" options={{ href: null }} />
@@ -234,18 +233,14 @@ export default function MainLayout() {
     );
   }
 
-  // --- DESKTOP LAYOUT ---
+  // Desktop Layout
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
-      <View className="flex-1 flex-row">
-        {/* Left Sidebar */}
+      <View className="flex-row flex-1">
         <View className="w-64 bg-[#0A192F] border-r border-[#233554] h-full">
           <SidebarContent user={user} logout={logout} />
         </View>
-        
-        {/* Main Content */}
         <View className="flex-1 bg-[#0A192F]">
-          {/* Use Slot to render the child route */}
           <Slot />
         </View>
       </View>

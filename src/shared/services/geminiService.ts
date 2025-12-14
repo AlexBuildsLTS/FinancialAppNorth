@@ -1,215 +1,67 @@
-import { supabase } from '../../lib/supabase';
-import { User, TablesUpdate, FinancialSummary, UserRole } from '../../types';
-import { encryptMessage, decryptMessage } from '../../lib/crypto';
-export class UserService {
-  /**
-   * Get user profile
-   */
-  static async getProfile(userId: string) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { dataService } from '../../services/dataService';
 
-    if (error) throw error;
-    return data;
-  }
-   
-  static async getProfileByEmail(email: string) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', email)
-      .single();
+// Fallback is dangerous in production, but okay for dev if you don't have DB keys yet.
+// Ideally, always rely on dataService.getGeminiKey
+const DEFAULT_API_KEY = ""; 
 
-    if (error) throw error;
-    return data;
-  }
-  
-  /**
-   * Update user profile
-   */
-  static async updateProfile(userId: string, firstName: string, lastName: string, updates: TablesUpdate<'profiles'>) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  /**
-   * Update user currency
-   */
-  static async updateCurrency(userId: string, currency: string) {
-    // You may want to fetch the current first and last name, or pass empty strings if not available
-    return this.updateProfile(userId, '', '', { currency });
-  }
-
-  /**
-   * Update user name
-   */
-  static async updateName(userId: string, firstName: string, lastName: string) {
-    return this.updateProfile(userId, firstName, lastName, { first_name: firstName, last_name: lastName });
-  }
-
-  /**
-   * Get financial summary for dashboard
-   * FIX: Added 'date' to trend objects to match FinancialSummary type definition
-   */
-  static async getFinancialSummary(userId: string): Promise<FinancialSummary> {
-    const { data: transactions, error } = await supabase
-      .from('transactions')
-      .select('amount, type, date')
-      .eq('user_id', userId)
-      .order('date', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching financial summary:', error);
-      // Return proper fallback structure matching interface
-      return { 
-        balance: 0, 
-        income: 0, 
-        expense: 0, 
-        trend: [{ date: new Date().toISOString(), value: 0 }] 
-      };
+export const generateContent = async (prompt: string, userId: string, financialContext?: any) => {
+  try {
+    // 1. Retrieve the User's API Key securely from the database
+    let apiKey = await dataService.getGeminiKey(userId);
+    
+    // Fallback logic (optional, remove if you want strict security)
+    if (!apiKey) {
+      if (DEFAULT_API_KEY) {
+        console.warn("[Gemini] Using hardcoded fallback key.");
+        apiKey = DEFAULT_API_KEY;
+      } else {
+        console.warn("[Gemini] No API key found.");
+        throw new Error("Please save your Gemini API Key in Settings > AI Keys first.");
+      }
     }
 
-    let income = 0;
-    let expense = 0;
-    let runningBalance = 0;
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    // FIX: Include 'date' in the map function
-    const trend = transactions.map((t: any) => {
-      runningBalance += parseFloat(t.amount);
-      return { 
-        value: runningBalance,
-        date: t.date // Required by FinancialSummary interface
-      };
-    });
-
-    transactions.forEach((tx: any) => {
-      const amt = parseFloat(tx.amount);
-      if (amt > 0) income += amt;
-      else expense += Math.abs(amt);
-    });
-
-    const totalBalance = runningBalance;
-
-    return {
-      balance: totalBalance,
-      income,
-      expense,
-      // Provide valid fallback if no transactions exist
-      trend: trend.length > 0 ? trend : [{ date: new Date().toISOString(), value: 0 }]
-    };
-  }
-
-  /**
-   * Get all users (admin only)
-   */
-  static async getUsers(): Promise<User[]> {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    return (data || []).map((p: any) => ({
-      id: p.id,
-      email: p.email || 'No Email',
-      name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown',
-      role: (p.role as UserRole) || UserRole.MEMBER,
-      status: 'active', 
-      avatar: p.avatar_url,
-      currency: p.currency,
-      country: p.country
-    }));
-  }
-
-  /**
-   * Update user role (admin only)
-   */
-  static async updateUserRole(userId: string, newRole: string) {
-    const { error } = await supabase
-      .from('profiles')
-      // Cast string to specific role enum if necessary, or let DB handle validation
-      .update({ role: newRole as any, updated_at: new Date().toISOString() })
-      .eq('id', userId);
-
-    if (error) throw error;
-  }
-
-  /**
-   * Deactivate user (admin only)
-   */
-  static async deactivateUser(userId: string) {
-    console.warn('deactivateUser: Logical delete not implemented yet');
-  }
-
-  /**
-   * Delete user (admin only)
-   */
-  static async deleteUser(userId: string) {
-    console.warn('deleteUser: Hard delete not implemented yet');
-  }
-
-  /**
-   * Save API key for user
-   */
-  static async saveApiKey(userId: string, service: string, apiKey: string) {
-    const { data: existing } = await supabase
-      .from('user_secrets')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('service', service)
-      .maybeSingle();
-
-    if (existing) {
-      const { error } = await supabase
-        .from('user_secrets')
-        .update({ api_key_encrypted: apiKey })
-        .eq('id', existing.id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase
-        .from('user_secrets')
-        .insert({ user_id: userId, service, api_key_encrypted: apiKey });
-      if (error) throw error;
+    // 2. Construct a System Prompt with Financial Context (if provided)
+    let finalPrompt = prompt;
+    
+    if (financialContext) {
+      const { balance, expense, income, recentTransactions, budgets } = financialContext;
+      
+      const contextString = `
+        [SYSTEM ROLE: You are NorthFinance AI, an elite financial advisor. Be concise, professional, and encouraging.]
+        [USER DATA SNAPSHOT]
+        - Current Balance: ${balance}
+        - Monthly Income: ${income}
+        - Monthly Expenses: ${expense}
+        - Active Budgets: ${JSON.stringify(budgets)}
+        - Recent 5 Transactions: ${JSON.stringify(recentTransactions)}
+        
+        [INSTRUCTION]
+        Answer the user's question based strictly on this data. If they ask to perform an action (like adding a transaction), confirm you understand but explain you are currently in "Analysis Mode".
+      `;
+      
+      finalPrompt = `${contextString}\n\nUser Query: ${prompt}`;
     }
-  }
 
-  /**
-   * Get API key for user
-   */
-  static async getApiKey(userId: string, service: string): Promise<string | null> {
-    const { data, error } = await supabase
-      .from('user_secrets')
-      .select('api_key_encrypted')
-      .eq('user_id', userId)
-      .eq('service', service)
-      .maybeSingle();
+    // 3. Generate Response
+    const result = await model.generateContent(finalPrompt);
+    const response = await result.response;
+    return response.text();
 
-    if (error) throw error;
-    return data && data.api_key_encrypted ? data.api_key_encrypted : null;
+  } catch (error: any) {
+    console.error("[Gemini Service] Error:", error.message);
+    throw new Error(error.message || "AI Service unavailable.");
   }
-}
+};
+
 /**
- * Get user profile by email
+ * Auto-generates a monthly financial report/insight summary
  */
-async function getProfileByEmail(email: string) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('email', email)
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
+export const generateFinancialInsights = async (userId: string) => {
+    const summary = await dataService.getFinancialSummary(userId);
+    const prompt = `Analyze this financial summary: Income ${summary.income}, Expense ${summary.expense}. Give me 3 bullet points on how to save money next month.`;
+    return await generateContent(prompt, userId);
+};

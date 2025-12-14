@@ -1,24 +1,34 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { 
+  View, Text, FlatList, TouchableOpacity, ActivityIndicator, 
+  RefreshControl, Modal, TextInput, Alert, Animated
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { ArrowLeft, AlertTriangle, DollarSign, Calendar, TrendingUp } from 'lucide-react-native';
+import { ArrowLeft, AlertTriangle, DollarSign, Calendar, TrendingUp, Plus, X, Trash2 } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-// FIX: Correct import names matching dataService.ts
-import { scanForSubscriptions, Subscription } from '../../../services/dataService';
+import { getSubscriptions, addSubscription, deleteSubscription, Subscription } from '../../../services/dataService';
 
 export default function SubscriptionsScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  
+  // Data State
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // UI State
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newAmount, setNewAmount] = useState('');
+  const [saving, setSaving] = useState(false);
 
+  // --- DATA LOADING ---
   const loadSubscriptions = useCallback(async () => {
     if (!user?.id) return;
     try {
-      // FIX: Correct function call
-      const data = await scanForSubscriptions(user.id);
+      const data = await getSubscriptions(user.id);
       setSubscriptions(data);
     } catch (error) {
       console.error('Failed to load subscriptions:', error);
@@ -37,27 +47,72 @@ export default function SubscriptionsScreen() {
     loadSubscriptions();
   }, [loadSubscriptions]);
 
-  // Logic: Calculate waste on the fly (Monthly * 12)
+  // --- ACTIONS ---
+  const handleAdd = async () => {
+    if (!newName.trim() || !newAmount || !user) {
+        Alert.alert("Invalid Input", "Please enter a name and amount.");
+        return;
+    }
+    setSaving(true);
+    try {
+        await addSubscription(user.id, {
+            name: newName,
+            amount: parseFloat(newAmount),
+            frequency: 'Monthly',
+            next_billing_date: new Date().toISOString()
+        });
+        setModalVisible(false);
+        setNewName('');
+        setNewAmount('');
+        loadSubscriptions();
+    } catch (e) {
+        Alert.alert("Error", "Failed to add subscription. Check your connection.");
+    } finally {
+        setSaving(false);
+    }
+  };
+
+  const handleDelete = async (sub: Subscription) => {
+      if (!sub.id) {
+          Alert.alert("Cannot Delete", "This is an AI-detected subscription. It will disappear if you stop paying it.");
+          return;
+      }
+      
+      Alert.alert("Confirm Delete", `Remove ${sub.name} from tracked subscriptions?`, [
+          { text: "Cancel", style: "cancel" },
+          { 
+              text: "Delete", 
+              style: "destructive", 
+              onPress: async () => {
+                  try {
+                      await deleteSubscription(sub.id!);
+                      loadSubscriptions();
+                  } catch(e) {
+                      Alert.alert("Error", "Could not delete.");
+                  }
+              }
+          }
+      ]);
+  };
+
   const totalYearlyWaste = subscriptions.reduce((sum, sub) => sum + (sub.amount * 12), 0);
 
+  // --- RENDER ITEM ---
   const renderSubscription = ({ item }: { item: Subscription }) => {
-    // Helper for yearly cost
     const yearlyCost = item.amount * 12;
+    const isManual = item.confidence === 1.0;
 
     return (
-      <View className={`bg-[#112240] rounded-xl p-4 mb-3 border ${
-        item.status === 'price_hike' ? 'border-red-500/50 bg-red-500/5' : 'border-white/5'
-      }`}>
-        {item.status === 'price_hike' && (
-          <View className="flex-row items-center mb-3 p-2 bg-red-500/10 rounded-lg">
-            <AlertTriangle size={16} color="#F87171" />
-            <Text className="text-red-400 font-bold text-sm ml-2">PRICE HIKE DETECTED!</Text>
-          </View>
-        )}
-
-        <View className="flex-row justify-between items-start mb-3">
+      <TouchableOpacity 
+        onLongPress={() => handleDelete(item)}
+        activeOpacity={0.8}
+        className={`bg-[#112240] rounded-xl p-4 mb-3 border ${
+          item.status === 'price_hike' ? 'border-red-500/50 bg-red-500/5' : 'border-white/5'
+        }`}
+      >
+        <View className="flex-row items-start justify-between mb-3">
           <View className="flex-1">
-            <Text className="text-white font-bold text-lg">{item.name}</Text>
+            <Text className="text-lg font-bold text-white">{item.name}</Text>
             <View className="flex-row items-center mt-1">
               <DollarSign size={14} color="#64FFDA" />
               <Text className="text-[#64FFDA] font-bold text-base ml-1">
@@ -68,28 +123,24 @@ export default function SubscriptionsScreen() {
           
           <View className="items-end">
             <View className={`px-2 py-1 rounded-full mb-1 ${
-              item.status === 'price_hike' ? 'bg-red-500/20' : 'bg-green-500/20'
+              isManual ? 'bg-blue-500/20' : 'bg-purple-500/20'
             }`}>
-              <Text className={`text-xs font-bold ${
-                item.status === 'price_hike' ? 'text-red-400' : 'text-green-400'
+              <Text className={`text-[10px] font-bold ${
+                isManual ? 'text-blue-400' : 'text-purple-400'
               }`}>
-                {item.status === 'price_hike' ? 'UNSTABLE' : 'ACTIVE'}
+                {isManual ? 'MANUAL' : 'AI DETECTED'}
               </Text>
             </View>
-            <Text className="text-[#8892B0] text-xs capitalize">
-              {item.confidence ? `${Math.round(item.confidence * 100)}% Match` : 'Detected'}
+            <Text className="text-[#8892B0] text-xs">
+               Next: {new Date(item.next_billing_date).getDate()}th
             </Text>
           </View>
         </View>
 
-        <View className="flex-row justify-between items-center border-t border-white/5 pt-3 mt-1">
-          <View className="flex-row items-center">
-            <Calendar size={14} color="#8892B0" />
-            <Text className="text-[#8892B0] text-sm ml-1">
-              {/* FIX: Correct property name */}
-              Next: {new Date(item.next_billing_date).toLocaleDateString()}
-            </Text>
-          </View>
+        <View className="flex-row items-center justify-between pt-3 mt-1 border-t border-white/5">
+          <Text className="text-[#8892B0] text-xs">
+             Frequency: {item.frequency}
+          </Text>
           <View className="flex-row items-center">
             <TrendingUp size={14} color="#F59E0B" />
             <Text className="text-[#F59E0B] font-bold text-sm ml-1">
@@ -97,67 +148,100 @@ export default function SubscriptionsScreen() {
             </Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
-      {/* Header */}
-      <View className="px-6 py-4 border-b border-white/5 bg-[#0A192F]">
-        <View className="flex-row items-center justify-between">
-          <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full active:bg-white/10">
-            <ArrowLeft size={24} color="#64FFDA" />
-          </TouchableOpacity>
-          <View>
-             <Text className="text-white font-bold text-xl">Subscriptions</Text>
-             <Text className="text-[#8892B0] text-xs">Recurring Bill Detector</Text>
-          </View>
-          <View className="w-10" />
+      {/* HEADER */}
+      <View className="px-6 py-4 border-b border-white/5 bg-[#0A192F] flex-row justify-between items-center">
+        <View className="flex-row items-center">
+            <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full">
+                <ArrowLeft size={24} color="#64FFDA" />
+            </TouchableOpacity>
+            <View className="ml-2">
+                <Text className="text-xl font-bold text-white">Subscriptions</Text>
+                <Text className="text-[#8892B0] text-xs">Recurring Bill Detector</Text>
+            </View>
         </View>
+        <TouchableOpacity onPress={() => setModalVisible(true)} className="bg-[#64FFDA] p-2 rounded-full shadow-lg shadow-teal-500/20">
+            <Plus size={24} color="#0A192F" />
+        </TouchableOpacity>
       </View>
 
-      {/* Summary Card */}
-      <View className="mx-6 mt-6 p-5 bg-[#112240] rounded-2xl border border-white/10 shadow-lg">
-        <View className="flex-row items-center justify-between">
-          <View>
+      {/* KPI CARD */}
+      <View className="mx-6 mt-6 p-5 bg-[#112240] rounded-2xl border border-white/10 shadow-lg mb-4 flex-row justify-between items-center">
+        <View>
             <Text className="text-[#8892B0] text-xs font-bold uppercase tracking-wider">Total Yearly Cost</Text>
-            <Text className="text-white font-extrabold text-3xl mt-1">${totalYearlyWaste.toFixed(0)}</Text>
-          </View>
-          <View className="bg-red-500/10 p-3 rounded-full border border-red-500/20">
-            <AlertTriangle size={24} color="#F87171" />
-          </View>
+            <Text className="mt-1 text-3xl font-extrabold text-white">${totalYearlyWaste.toFixed(0)}</Text>
+        </View>
+        <View className="items-center justify-center w-10 h-10 rounded-full bg-white/5">
+            <Calendar size={20} color="#8892B0" />
         </View>
       </View>
 
-      {/* List */}
-      <View className="flex-1 px-6 pt-6">
-        {loading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#64FFDA" />
-            <Text className="text-[#8892B0] mt-4">Scanning transaction history...</Text>
-          </View>
+      {/* LIST */}
+      <View className="flex-1 px-6">
+        {loading && !refreshing ? (
+            <ActivityIndicator size="large" color="#64FFDA" className="mt-10" />
         ) : (
-          <FlatList
-            data={subscriptions}
-            renderItem={renderSubscription}
-            keyExtractor={(item, index) => `${item.name}-${index}`}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#64FFDA" />
-            }
-            ListEmptyComponent={
-              <View className="items-center justify-center py-20 opacity-50">
-                <DollarSign size={48} color="#8892B0" />
-                <Text className="text-[#8892B0] mt-4 font-medium text-lg">No subscriptions found</Text>
-                <Text className="text-[#8892B0] text-sm mt-2 text-center px-10">
-                  We couldn't detect any recurring monthly payments in your recent history.
-                </Text>
-              </View>
-            }
-          />
+            <FlatList
+                data={subscriptions}
+                renderItem={renderSubscription}
+                keyExtractor={(item, i) => item.id || `auto-${i}`}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#64FFDA" />}
+                ListEmptyComponent={
+                    <View className="items-center justify-center py-20 opacity-50">
+                        <DollarSign size={48} color="#8892B0" />
+                        <Text className="text-[#8892B0] mt-4 font-medium text-lg">No subscriptions found</Text>
+                    </View>
+                }
+                contentContainerStyle={{ paddingBottom: 100 }}
+            />
         )}
       </View>
+
+      {/* ADD MODAL */}
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setModalVisible(false)} className="justify-end flex-1 bg-black/80">
+            <TouchableOpacity activeOpacity={1} className="bg-[#112240] p-6 rounded-t-3xl border-t border-white/10">
+                <View className="flex-row items-center justify-between mb-6">
+                    <Text className="text-xl font-bold text-white">Add Subscription</Text>
+                    <TouchableOpacity onPress={() => setModalVisible(false)} className="p-2 rounded-full bg-white/5">
+                        <X size={20} color="#8892B0" />
+                    </TouchableOpacity>
+                </View>
+                
+                <Text className="text-[#8892B0] mb-2 font-medium">Service Name</Text>
+                <TextInput 
+                    value={newName} onChangeText={setNewName}
+                    className="bg-[#0A192F] text-white p-4 rounded-xl mb-4 border border-white/10 text-lg"
+                    placeholder="Netflix, Spotify..." placeholderTextColor="#475569"
+                    autoFocus
+                />
+
+                <Text className="text-[#8892B0] mb-2 font-medium">Monthly Cost</Text>
+                <TextInput 
+                    value={newAmount} onChangeText={setNewAmount} keyboardType="numeric"
+                    className="bg-[#0A192F] text-white p-4 rounded-xl mb-8 border border-white/10 text-lg"
+                    placeholder="0.00" placeholderTextColor="#475569"
+                />
+
+                <TouchableOpacity 
+                    onPress={handleAdd} 
+                    disabled={saving}
+                    className={`p-4 rounded-xl items-center ${saving ? 'bg-gray-600' : 'bg-[#64FFDA]'}`}
+                >
+                    {saving ? (
+                        <ActivityIndicator color="white" />
+                    ) : (
+                        <Text className="text-[#0A192F] font-bold text-lg">Save Subscription</Text>
+                    )}
+                </TouchableOpacity>
+            </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }

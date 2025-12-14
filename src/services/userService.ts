@@ -1,3 +1,11 @@
+/**
+ * ============================================================================
+ * 👤 USER SERVICE
+ * ============================================================================
+ * Path: src/services/userService.ts
+ * Description: Handles user profiles, roles, and administrative actions.
+ */
+
 import { supabase } from '../lib/supabase';
 import { User, TablesUpdate, FinancialSummary, UserRole } from '../types';
 
@@ -15,7 +23,18 @@ export class UserService {
     if (error) throw error;
     return data;
   }
+   
+  static async getProfileByEmail(email: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', email)
+      .single();
 
+    if (error) throw error;
+    return data;
+  }
+  
   /**
    * Update user profile
    */
@@ -35,7 +54,6 @@ export class UserService {
    * Update user currency
    */
   static async updateCurrency(userId: string, currency: string) {
-    // You may want to fetch the current first and last name, or pass empty strings if not available
     return this.updateProfile(userId, '', '', { currency });
   }
 
@@ -48,7 +66,6 @@ export class UserService {
 
   /**
    * Get financial summary for dashboard
-   * FIX: Added 'date' to trend objects to match FinancialSummary type definition
    */
   static async getFinancialSummary(userId: string): Promise<FinancialSummary> {
     const { data: transactions, error } = await supabase
@@ -59,7 +76,6 @@ export class UserService {
 
     if (error) {
       console.error('Error fetching financial summary:', error);
-      // Return proper fallback structure matching interface
       return { 
         balance: 0, 
         income: 0, 
@@ -72,12 +88,11 @@ export class UserService {
     let expense = 0;
     let runningBalance = 0;
 
-    // FIX: Include 'date' in the map function
     const trend = transactions.map((t: any) => {
       runningBalance += parseFloat(t.amount);
       return { 
         value: runningBalance,
-        date: t.date // Required by FinancialSummary interface
+        date: t.date 
       };
     });
 
@@ -87,13 +102,10 @@ export class UserService {
       else expense += Math.abs(amt);
     });
 
-    const totalBalance = runningBalance;
-
     return {
-      balance: totalBalance,
+      balance: runningBalance,
       income,
       expense,
-      // Provide valid fallback if no transactions exist
       trend: trend.length > 0 ? trend : [{ date: new Date().toISOString(), value: 0 }]
     };
   }
@@ -113,7 +125,7 @@ export class UserService {
       id: p.id,
       email: p.email || 'No Email',
       name: p.first_name ? `${p.first_name} ${p.last_name}` : 'Unknown',
-      role: (p.role as UserRole) || UserRole.MEMBER,
+      role: (p.role as UserRole) || 'MEMBER',
       status: 'active', 
       avatar: p.avatar_url,
       currency: p.currency,
@@ -127,7 +139,6 @@ export class UserService {
   static async updateUserRole(userId: string, newRole: string) {
     const { error } = await supabase
       .from('profiles')
-      // Cast string to specific role enum if necessary, or let DB handle validation
       .update({ role: newRole as any, updated_at: new Date().toISOString() })
       .eq('id', userId);
 
@@ -177,13 +188,14 @@ export class UserService {
    * Get API key for user
    */
   static async getApiKey(userId: string, service: string): Promise<string | null> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_secrets')
       .select('api_key_encrypted')
       .eq('user_id', userId)
       .eq('service', service)
       .maybeSingle();
 
-    return data?.api_key_encrypted || null;
+    if (error) throw error;
+    return data && data.api_key_encrypted ? data.api_key_encrypted : null;
   }
 }

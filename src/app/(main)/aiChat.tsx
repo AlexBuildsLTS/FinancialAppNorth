@@ -1,249 +1,398 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, SafeAreaView, StatusBar, Alert 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  ScrollView, 
+  KeyboardAvoidingView, 
+  Platform, 
+  ActivityIndicator,
+  StatusBar,
+  Alert,
+  Keyboard
 } from 'react-native';
-import { Send, Bot, User, ArrowLeft, Sparkles, Mic, Key, AlignLeft } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { 
+  Send, 
+  Bot, 
+  User, 
+  Sparkles, 
+  TrendingUp, 
+  DollarSign, 
+  Key, 
+  ArrowLeft 
+} from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../shared/context/AuthContext';
-import { generateContent } from '../../services/aiService'; 
-// Ensure this path matches where you put the logic from dataService.ts
-import { processNaturalLanguageTransaction } from '../../services/dataService';
+import { generateContent } from '../../shared/services/geminiService';
+import { dataService } from '../../services/dataService';
 
 interface ChatMessage {
   id: string;
-  role: 'user' | 'model';
   text: string;
+  sender: 'user' | 'ai';
+  timestamp: Date;
 }
+
+const SUGGESTION_CHIPS = [
+  "Analyze my spending 📉",
+  "How is my budget? 💰",
+  "Predict next month 🔮",
+  "Suggest savings 🌱"
+];
 
 export default function AIChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  
-  // --- MODE SWITCHER STATE ---
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // --- STATE ---
   const [mode, setMode] = useState<'chat' | 'ledger'>('chat');
-
-  // --- CHAT STATE ---
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { 
-      id: '1', 
-      role: 'model', 
-      text: `Hello ${user?.name || 'there'}! I am NorthAI. You can chat with me here, or switch to "Smart Ledger" to log expenses.` 
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const flatListRef = useRef<FlatList>(null);
-
-  // --- LEDGER STATE ---
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Ledger State
   const [ledgerInput, setLedgerInput] = useState('');
   const [ledgerProcessing, setLedgerProcessing] = useState(false);
+  
+  // Data Context State (Titan 2)
+  const [financialContext, setFinancialContext] = useState<any>(null);
 
-  // --- CHAT LOGIC ---
-  const handleSendChat = async () => {
-    if (!input.trim() || isTyping) return;
+  // --- INITIALIZATION ---
+  useEffect(() => {
+    loadFinancialContext();
+    // Add welcome message
+    setMessages([{
+      id: 'welcome',
+      text: `Hello ${user?.name?.split(' ')[0]}! I am NorthAI. I can analyze your data or help you log expenses via the Smart Ledger.`,
+      sender: 'ai',
+      timestamp: new Date()
+    }]);
+  }, []);
 
-    const userText = input.trim();
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: userText };
-    
+  const loadFinancialContext = async () => {
+    if (!user) return;
+    try {
+      const [summary, txs, budgets] = await Promise.all([
+        dataService.getFinancialSummary(user.id),
+        dataService.getTransactions(user.id),
+        dataService.getBudgets(user.id)
+      ]);
+      
+      setFinancialContext({
+        balance: summary.balance,
+        income: summary.income,
+        expense: summary.expense,
+        recentTransactions: txs.slice(0, 5).map(t => ({ amount: t.amount, category: t.category, date: t.date })),
+        budgets: budgets.map(b => ({ category: b.category_name, remaining: b.remaining }))
+      });
+    } catch (e) {
+      console.error("Failed to load context for AI", e);
+    }
+  };
+
+  // --- MODE SWITCHING ---
+  const switchMode = (newMode: 'chat' | 'ledger') => {
+    Haptics.selectionAsync();
+    setMode(newMode);
+  };
+
+  // --- CHAT HANDLER ---
+  const handleSend = async (textOverride?: string) => {
+    const textToSend = textOverride || input;
+    if (!textToSend.trim() || !user) return;
+
+    // 1. Add User Message
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      text: textToSend,
+      sender: 'user',
+      timestamp: new Date()
+    };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
-    setIsTyping(true);
+    setIsLoading(true);
+    Keyboard.dismiss();
 
     try {
-      const responseText = await generateContent(userText, user?.id);
-      
-      const aiMsg: ChatMessage = { 
-        id: (Date.now() + 1).toString(), 
-        role: 'model', 
-        text: responseText 
+      // 2. Call AI Service with LIVE CONTEXT
+      const aiResponseText = await generateContent(textToSend, user.id, financialContext);
+
+      // 3. Add AI Message
+      const aiMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: aiResponseText,
+        sender: 'ai',
+        timestamp: new Date()
       };
       setMessages(prev => [...prev, aiMsg]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
-      const errorMsg: ChatMessage = { 
-        id: (Date.now() + 1).toString(), 
-        role: 'model', 
-        text: `⚠️ Error: ${error.message}` 
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm having trouble connecting to the financial brain. Please check your API Key in settings.",
+        sender: 'ai',
+        timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMsg]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
-      setIsTyping(false);
+      setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (mode === 'chat') {
-        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    }
-  }, [messages, mode]);
-
-  // --- LEDGER LOGIC ---
+  // --- LEDGER HANDLER ---
   const handleLedgerSubmit = async () => {
     if (!ledgerInput.trim() || !user) return;
-    setLedgerProcessing(true);
-    try {
-        await processNaturalLanguageTransaction(user.id, ledgerInput);
-        Alert.alert("Success", "Transaction processed and saved.", [
-            { text: "View Finances", onPress: () => router.push('/(main)/finances') },
-            { text: "Stay Here", style: "cancel", onPress: () => setLedgerInput('') }
-        ]);
-    } catch (error: any) {
-        Alert.alert("AI Error", "Could not understand. Try 'Spent $15 at Target'.");
-    } finally {
-        setLedgerProcessing(false);
-    }
-  };
 
-  const renderChatItem = ({ item }: { item: ChatMessage }) => {
-    const isUser = item.role === 'user';
-    return (
-      <View className={`flex-row mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
-        {!isUser && (
-          <View className="w-8 h-8 rounded-full bg-[#64FFDA]/10 items-center justify-center mr-2 border border-[#64FFDA]/20">
-            <Bot size={16} color="#64FFDA" />
-          </View>
-        )}
-        
-        <View 
-          className={`max-w-[80%] p-4 rounded-2xl ${
-            isUser 
-              ? 'bg-[#64FFDA] rounded-tr-sm' 
-              : 'bg-[#112240] rounded-tl-sm border border-white/5'
-          }`}
-        >
-          <Text className={`text-base ${isUser ? 'text-[#0A192F] font-bold' : 'text-white'}`}>
-            {item.text}
-          </Text>
-        </View>
-      </View>
-    );
+    Keyboard.dismiss();
+    setLedgerProcessing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      // Use the Unified Data Service
+      const result = await dataService.processNaturalLanguageTransaction(user.id, ledgerInput);
+      
+      if (result) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert(
+            "Transaction Recorded", 
+            `Successfully logged: ${result.description || 'Transaction'}`, 
+            [
+                { text: "View Finances", onPress: () => router.push('/(main)/finances') },
+                { text: "Add Another", style: "cancel", onPress: () => setLedgerInput('') }
+            ]
+        );
+        // Refresh context after adding
+        loadFinancialContext();
+      } else {
+        throw new Error("Could not parse transaction.");
+      }
+    } catch (error: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("AI Processing Failed", "I couldn't understand that. Try simpler format: 'Spent 100 SEK at Ica'.");
+    } finally {
+      setLedgerProcessing(false);
+    }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0A192F]">
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView className="flex-1 bg-[#0A192F]" edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0A192F" />
       
       {/* HEADER */}
-      <View className="flex-row items-center justify-between p-4 border-b border-white/5 bg-[#0A192F]">
-        <View className="flex-row items-center">
-            <TouchableOpacity onPress={() => router.back()} className="mr-3 p-2 -ml-2 rounded-full active:bg-white/10">
-            <ArrowLeft size={24} color="#8892B0" />
+      <View className="flex-row items-center justify-between px-4 pb-4 border-b border-white/5 bg-[#0A192F]">
+        <View className="flex-row items-center gap-3">
+            <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full active:bg-white/5">
+                <ArrowLeft size={24} color="#8892B0" />
             </TouchableOpacity>
             <View>
-            <Text className="text-white text-lg font-bold flex-row items-center">
-                North AI <Sparkles size={14} color="#64FFDA" />
-            </Text>
-            <Text className="text-[#8892B0] text-xs">Financial Intelligence</Text>
+                <Text className="flex-row items-center text-lg font-bold text-white">
+                    North AI <Sparkles size={14} color="#64FFDA" />
+                </Text>
+                <View className="flex-row items-center gap-2">
+                    <Text className="text-[#8892B0] text-xs font-medium">Financial Intelligence</Text>
+                    {financialContext && (
+                        <View className="bg-green-500/20 px-1.5 py-0.5 rounded">
+                            <Text className="text-[8px] text-green-400 font-bold">LIVE</Text>
+                        </View>
+                    )}
+                </View>
             </View>
         </View>
         
-        {/* API Key Shortcut */}
-        <TouchableOpacity onPress={() => router.push('/(main)/settings/ai-keys')} className="p-2 bg-[#112240] rounded-full border border-white/10">
+        <TouchableOpacity 
+            onPress={() => router.push('/(main)/settings/ai-keys')} 
+            className="p-2 bg-[#112240] rounded-full border border-white/10 active:bg-[#1d3557]"
+        >
             <Key size={18} color="#64FFDA" />
         </TouchableOpacity>
       </View>
 
-      {/* MODE TOGGLE TABS */}
-      <View className="flex-row p-1 mx-4 mt-4 bg-[#112240] rounded-xl border border-white/5">
+      {/* MODE TABS */}
+      <View className="mx-4 mt-4 mb-2 p-1 bg-[#112240] rounded-xl border border-white/5 flex-row">
         <TouchableOpacity 
-            onPress={() => setMode('chat')}
-            className={`flex-1 py-2 rounded-lg items-center ${mode === 'chat' ? 'bg-[#64FFDA]' : 'bg-transparent'}`}
+            onPress={() => switchMode('chat')}
+            className={`flex-1 py-2 rounded-lg items-center justify-center flex-row gap-2 ${mode === 'chat' ? 'bg-[#64FFDA]' : 'bg-transparent'}`}
         >
-            <Text className={`font-bold ${mode === 'chat' ? 'text-[#0A192F]' : 'text-[#8892B0]'}`}>Chat</Text>
+            <Bot size={16} color={mode === 'chat' ? '#0A192F' : '#8892B0'} />
+            <Text className={`font-bold text-sm ${mode === 'chat' ? 'text-[#0A192F]' : 'text-[#8892B0]'}`}>Chat</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-            onPress={() => setMode('ledger')}
-            className={`flex-1 py-2 rounded-lg items-center ${mode === 'ledger' ? 'bg-[#64FFDA]' : 'bg-transparent'}`}
+            onPress={() => switchMode('ledger')}
+            className={`flex-1 py-2 rounded-lg items-center justify-center flex-row gap-2 ${mode === 'ledger' ? 'bg-[#64FFDA]' : 'bg-transparent'}`}
         >
-            <Text className={`font-bold ${mode === 'ledger' ? 'text-[#0A192F]' : 'text-[#8892B0]'}`}>Smart Ledger</Text>
+            <DollarSign size={16} color={mode === 'ledger' ? '#0A192F' : '#8892B0'} />
+            <Text className={`font-bold text-sm ${mode === 'ledger' ? 'text-[#0A192F]' : 'text-[#8892B0]'}`}>Smart Ledger</Text>
         </TouchableOpacity>
       </View>
 
-      {/* === MODE 1: CHAT INTERFACE === */}
+      {/* === CHAT MODE === */}
       {mode === 'chat' && (
-        <>
-            <FlatList
-                ref={flatListRef}
-                data={messages}
-                renderItem={renderChatItem}
-                keyExtractor={item => item.id}
-                contentContainerStyle={{ padding: 16, paddingBottom: 20 }}
-                className="flex-1"
-            />
-
-            <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+            className="flex-1"
+        >
+            <ScrollView 
+                ref={scrollViewRef}
+                className="flex-1 px-4"
+                contentContainerStyle={{ paddingVertical: 20 }}
+                onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
             >
-                <View className="p-4 bg-[#112240] border-t border-white/5 flex-row items-end">
-                <TextInput
-                    className="flex-1 bg-[#0A192F] text-white p-4 rounded-2xl border border-white/10 text-base max-h-32"
-                    placeholder="Ask about your finances..."
-                    placeholderTextColor="#475569"
-                    value={input}
-                    onChangeText={setInput}
-                    multiline
-                    editable={!isTyping}
-                />
-                <TouchableOpacity 
-                    onPress={handleSendChat} 
-                    disabled={!input.trim() || isTyping}
-                    className={`ml-3 w-12 h-12 rounded-full items-center justify-center ${
-                    input.trim() ? 'bg-[#64FFDA]' : 'bg-white/10'
-                    }`}
-                >
-                    {isTyping ? (
-                    <ActivityIndicator color="#0A192F" />
-                    ) : (
-                    <Send size={20} color={input.trim() ? '#0A192F' : '#8892B0'} />
+                {messages.map((msg) => (
+                <View key={msg.id} className={`mb-6 flex-row ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {msg.sender === 'ai' && (
+                    <View className="w-8 h-8 rounded-full bg-[#112240] items-center justify-center mr-3 border border-[#233554] mt-1">
+                        <Bot size={16} color="#64FFDA" />
+                    </View>
                     )}
-                </TouchableOpacity>
+                    
+                    <View 
+                    className={`px-5 py-3.5 rounded-2xl max-w-[80%] ${
+                        msg.sender === 'user' 
+                        ? 'bg-[#64FFDA] rounded-tr-sm' 
+                        : 'bg-[#112240] border border-[#233554] rounded-tl-sm'
+                    }`}
+                    >
+                    <Text className={`text-base leading-6 ${msg.sender === 'user' ? 'text-[#0A192F] font-medium' : 'text-[#E2E8F0]'}`}>
+                        {msg.text}
+                    </Text>
+                    <Text className={`text-[10px] mt-1 text-right ${msg.sender === 'user' ? 'text-[#0A192F]/60' : 'text-[#8892B0]'}`}>
+                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    </View>
+
+                    {msg.sender === 'user' && (
+                    <View className="w-8 h-8 rounded-full bg-[#112240] items-center justify-center ml-3 border border-[#233554] mt-1">
+                        <User size={16} color="#8892B0" />
+                    </View>
+                    )}
                 </View>
-            </KeyboardAvoidingView>
-        </>
+                ))}
+
+                {isLoading && (
+                <View className="flex-row justify-start mb-6 ml-11">
+                    <View className="bg-[#112240] px-4 py-3 rounded-2xl rounded-tl-sm border border-[#233554] flex-row gap-2 items-center">
+                    <ActivityIndicator size="small" color="#64FFDA" />
+                    <Text className="text-[#8892B0] text-xs italic">Analyzing finances...</Text>
+                    </View>
+                </View>
+                )}
+            </ScrollView>
+
+            {/* Suggestion Chips */}
+            {messages.length < 3 && !isLoading && (
+                <View className="px-4 py-2">
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-2">
+                        {SUGGESTION_CHIPS.map((chip, i) => (
+                            <TouchableOpacity 
+                                key={i} 
+                                onPress={() => handleSend(chip)}
+                                className="mr-2 bg-[#112240] px-4 py-2 rounded-full border border-white/10 active:bg-[#64FFDA]/20"
+                            >
+                                <Text className="text-[#64FFDA] text-xs font-medium">{chip}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
+
+            <View className="p-4 bg-[#0A192F] border-t border-white/5 pb-8">
+                <View className="flex-row items-end bg-[#112240] rounded-2xl border border-white/10 p-1">
+                    <TextInput
+                        className="flex-1 text-white p-3 min-h-[50px] max-h-[120px] text-base"
+                        placeholder="Ask NorthAI..."
+                        placeholderTextColor="#475569"
+                        value={input}
+                        onChangeText={setInput}
+                        multiline
+                        textAlignVertical="center"
+                    />
+                    <TouchableOpacity 
+                        onPress={() => handleSend()} 
+                        disabled={!input.trim() || isLoading}
+                        className={`m-1 w-10 h-10 rounded-xl items-center justify-center ${
+                            input.trim() ? 'bg-[#64FFDA]' : 'bg-white/5'
+                        }`}
+                    >
+                        <Send size={18} color={input.trim() ? '#0A192F' : '#8892B0'} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </KeyboardAvoidingView>
       )}
 
-      {/* === MODE 2: SMART LEDGER (QUICK ADD) === */}
+      {/* === SMART LEDGER MODE === */}
       {mode === 'ledger' && (
-        <View className="flex-1 justify-center p-6">
-            <View className="items-center mb-10">
-                <View className="w-24 h-24 bg-[#64FFDA]/10 rounded-full items-center justify-center mb-6 border border-[#64FFDA]/20 shadow-lg">
-                    <Sparkles size={48} color="#64FFDA" />
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            className="flex-1"
+        >
+            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
+                <View className="items-center mb-12">
+                    <View className="w-24 h-24 bg-[#64FFDA]/5 rounded-full items-center justify-center mb-6 border border-[#64FFDA]/20 shadow-lg shadow-[#64FFDA]/10">
+                        <Sparkles size={40} color="#64FFDA" />
+                    </View>
+                    <Text className="mb-3 text-3xl font-bold text-center text-white">Smart Entry</Text>
+                    <Text className="text-[#8892B0] text-center px-6 leading-6 text-base">
+                        Describe your transaction naturally. I'll categorize and date it automatically.
+                    </Text>
                 </View>
-                <Text className="text-white text-3xl font-extrabold text-center mb-2">Just Say It</Text>
-                <Text className="text-[#8892B0] text-center px-4 leading-6 text-base">
-                   "-350 SEK I Lidl"{'\n'}
-                "+100 SEK Swish"{'\n'}
-                </Text>
-            </View>
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                <View className="bg-[#112240] p-3 rounded-3xl border border-white/10 flex-row items-end shadow-xl">
+                <View className="bg-[#112240] p-4 rounded-3xl border border-white/10 shadow-2xl">
                     <TextInput 
-                        className="flex-1 text-white text-lg p-4 font-medium max-h-32"
-                        placeholder="Type or dictate..."
+                        className="text-white text-xl font-medium min-h-[100px] mb-4"
+                        placeholder="E.g., Spent 350 SEK at Lidl for groceries today..."
                         placeholderTextColor="#475569"
                         value={ledgerInput}
                         onChangeText={setLedgerInput}
                         multiline
+                        autoFocus
                     />
-                    {ledgerProcessing ? (
-                        <View className="p-4 bg-[#64FFDA]/10 rounded-full m-1">
-                            <ActivityIndicator color="#64FFDA" />
-                        </View>
-                    ) : (
-                        <TouchableOpacity 
-                            onPress={handleLedgerSubmit}
-                            disabled={!ledgerInput.trim()}
-                            className={`p-4 rounded-full m-1 ${ledgerInput.trim() ? 'bg-[#64FFDA]' : 'bg-white/5'}`}
-                        >
-                            {ledgerInput.trim() ? <Send size={24} color="#0A192F" /> : <Mic size={24} color="#8892B0" />}
-                        </TouchableOpacity>
-                    )}
+                    <View className="flex-row items-center justify-end">
+                        <Text className="text-[#475569] text-xs mr-auto">
+                            {ledgerInput.length}/200
+                        </Text>
+                        
+                        {ledgerProcessing ? (
+                             <ActivityIndicator color="#64FFDA" className="mr-4" />
+                        ) : (
+                            <TouchableOpacity 
+                                onPress={handleLedgerSubmit}
+                                disabled={!ledgerInput.trim()}
+                                className={`flex-row items-center px-5 py-3 rounded-full ${
+                                    ledgerInput.trim() ? 'bg-[#64FFDA]' : 'bg-white/5'
+                                }`}
+                            >
+                                <Text className={`font-bold mr-2 ${ledgerInput.trim() ? 'text-[#0A192F]' : 'text-[#8892B0]'}`}>
+                                    Process
+                                </Text>
+                                <TrendingUp size={16} color={ledgerInput.trim() ? '#0A192F' : '#8892B0'} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 </View>
-            </KeyboardAvoidingView>
-        </View>
-      )}
 
+                <View className="flex-row justify-center gap-4 mt-8">
+                     <View className="items-center">
+                        <View className="w-10 h-10 rounded-full bg-[#112240] items-center justify-center mb-2 border border-white/5">
+                            <TrendingUp size={18} color="#8892B0" />
+                        </View>
+                        <Text className="text-[#8892B0] text-xs">Auto-Category</Text>
+                     </View>
+                     <View className="items-center">
+                        <View className="w-10 h-10 rounded-full bg-[#112240] items-center justify-center mb-2 border border-white/5">
+                            <Bot size={18} color="#8892B0" />
+                        </View>
+                        <Text className="text-[#8892B0] text-xs">AI Extraction</Text>
+                     </View>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 }

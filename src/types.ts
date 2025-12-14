@@ -8,13 +8,15 @@ export type TablesUpdate<T extends keyof Database['public']['Tables']> = Databas
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
 
 // --- Enums ---
-export enum UserRole {
+enum UserRoleEnum {
   ADMIN = 'admin',
   CPA = 'cpa',
   PREMIUM = 'premium',
   MEMBER = 'member',
   SUPPORT = 'support'
 }
+
+export type UserRole = UserRoleEnum | 'owner' | 'viewer'; // Merged from Organization types
 
 export type UserStatus = 'active' | 'banned' | 'suspended' | 'deactivated';
 
@@ -121,7 +123,7 @@ export interface DetectedSubscription {
   id: string;
   merchant: string;
   amount: number;
-  frequency: 'monthly' | 'weekly' | 'yearly';
+  frequency: 'weekly' | 'monthly' | 'yearly';
   next_due: string;
   yearly_waste: number;
   confidence: number; // 0-1
@@ -137,28 +139,21 @@ export interface CashFlowPoint {
   is_forecast: boolean;
 }
 
-// --- Feature: Tax Categories ---
-export enum TaxCategory {
-  MARKETING = 'Marketing',
-  TRAVEL = 'Travel',
-  EQUIPMENT = 'Equipment',
-  OFFICE_SUPPLIES = 'Office Supplies',
-  PROFESSIONAL_SERVICES = 'Professional Services',
-  MEALS = 'Meals',
-  OTHER = 'Other'
-}
 
 // --- Feature: Tax Report Summary ---
 export interface TaxReportSummary {
-  transactions: any;
   user_id: string;
   generated_at: string;
   total_deductible_amount: number;
   transaction_count: number;
   tax_categories_breakdown: Record<TaxCategory, number>;
   potential_savings: number;
-  evidence_files: string[]; // Array of Supabase storage paths
-}
+  evidence_files: string[];
+  transactions: any[]; // Loosely typed to avoid circular dep issues
+} 
+
+
+
 
 // --- Feature: Safe-to-Spend Metrics ---
 export interface SafeSpendMetrics {
@@ -178,4 +173,74 @@ export interface ParsedVoiceCommand {
   is_tax_deductible: boolean;
   confidence: number;
   raw_text: string;
+}
+
+// ==========================================
+// 🏢 ENTERPRISE & ORGANIZATION TYPES
+// ==========================================
+
+export interface Organization {
+  id: string;
+  name: string;
+  owner_id: string;
+  created_at: string;
+  logo_url?: string;
+}
+
+export interface OrgMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: 'owner' | 'admin' | 'member' | 'viewer';
+  joined_at: string;
+}
+
+export interface ExpenseRequest {
+  id: string;
+  organization_id: string;
+  requester_id: string;
+  amount: number;
+  merchant: string;
+  reason?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  receipt_url?: string;
+}
+
+// ==========================================
+// 🦅 INTELLIGENCE & TAX TYPES
+// ==========================================
+
+export interface DetectedSubscription {
+  id: string;
+  merchant: string;
+  amount: number;
+  frequency: 'weekly' | 'monthly' | 'yearly'; // Corrected type
+  status: 'stable' | 'price_hike' | 'cancelled'; // Corrected type
+  next_due: string;
+  yearly_waste: number;
+  confidence: number;
+  previous_amount?: number;
+  anomaly_detected_at?: string;
+}
+
+export enum TaxCategory {
+  MARKETING = 'Marketing',
+  TRAVEL = 'Travel',
+  EQUIPMENT = 'Equipment',
+  OFFICE_SUPPLIES = 'Office Supplies',
+  PROFESSIONAL_SERVICES = 'Professional Services',
+  MEALS = 'Meals',
+  OTHER = 'Other'
+}
+
+export interface TaxReportSummary {
+  user_id: string;
+  generated_at: string;
+  total_deductible_amount: number;
+  transaction_count: number;
+  tax_categories_breakdown: Record<TaxCategory, number>;
+  potential_savings: number;
+  evidence_files: string[];
+  transactions: any[]; // Loosely typed to avoid circular dep issues
 }

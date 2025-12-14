@@ -1,102 +1,86 @@
 import { createClient } from '@supabase/supabase-js';
 import { corsHeaders } from '../_shared/cors.ts';
+import { decryptMessage } from '../_shared/crypto.ts';
 
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+
+interface OcrRequest {
+  imageBase64: string;
+  userId?: string;
+}
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS')
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { documentPath, userId } = await req.json(); // Accept userId to look up custom keys
-    if (!documentPath) throw new Error('No document path provided');
+    const { imageBase64, userId }: OcrRequest = await req.json();
+    if (!imageBase64) throw new Error("No image data provided.");
 
-    // 1. Init Admin Client
+    // 1. Setup Client
     const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
-
-    // 2. Get API Key (Robust logic)
-    let apiKey = Deno.env.get('GEMINI_API_KEY');
+    
+    // 2. Resolve Key (System or User Custom)
+    let apiKey = Deno.env.get("GEMINI_API_KEY");
     if (userId) {
-      const { data: secret } = await supabaseAdmin
-        .from('user_secrets')
-        .select('api_key_encrypted')
-        .eq('user_id', userId)
-        .eq('service', 'gemini')
-        .maybeSingle();
-      if (secret?.api_key_encrypted) apiKey = secret.api_key_encrypted;
+       const { data: secret } = await supabaseAdmin
+         .from("user_secrets")
+         .select("api_key_encrypted")
+         .eq("user_id", userId)
+         .eq("service", "gemini")
+         .maybeSingle();
+       if (secret?.api_key_encrypted) {
+           apiKey = decryptMessage(secret.api_key_encrypted);
+       }
     }
-    if (!apiKey) throw new Error('Server configuration error: No AI Key.');
 
-    // 3. Download File
-    const { data: fileData, error: dlError } = await supabaseAdmin.storage
-      .from('documents')
-      .download(documentPath);
-    if (dlError) throw new Error(`Download failed: ${dlError.message}`);
+    if (!apiKey) throw new Error("AI Configuration Missing");
 
-    // 4. Encode Image
-    const arrayBuffer = await fileData.arrayBuffer();
-    const base64Image = btoa(
-      String.fromCharCode(...new Uint8Array(arrayBuffer))
-    );
-
-    // 5. Call AI
+    // 3. Prompt
     const prompt = `
-      Analyze this receipt/invoice. Return ONLY valid JSON:
+      Analyze this receipt. Return ONLY valid JSON (no markdown):
       {
-        "merchant_name": string,
+        "merchant": "string",
         "date": "YYYY-MM-DD",
-        "total_amount": number,
-        "category": string (Food, Transport, Utilities, Business, Shopping, Other)
+        "total": number,
+        "currency": "USD" | "EUR" | "SEK",
+        "category": "string",
+        "items": [{ "name": "string", "price": number }]
       }
-      If fields are missing, set to null.
     `;
 
+    // 4. Call Gemini with Image
     const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: fileData.type || 'image/jpeg',
-                  data: base64Image,
-                },
-              },
-            ],
-          },
-        ],
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }
+          ]
+        }]
       }),
     });
 
     const data = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!rawText) throw new Error("OCR failed");
 
-    // 6. Parse & Clean
-    const cleanJson = rawText
-      .replace(/```json/g, '')
-      .replace(/```/g, '')
-      .trim();
-    const extractedData = JSON.parse(cleanJson);
+    // Clean markdown from JSON
+    const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    return new Response(cleanJson, {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
-    return new Response(
-      JSON.stringify({ success: true, data: extractedData }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(errorMessage);
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

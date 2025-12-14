@@ -26,28 +26,33 @@ import {
   ChevronDown, 
   Trash2, 
   Search, 
-  MessageSquare 
+  MessageSquare,
+  Clock,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react-native';
 import { useAuth } from '../../shared/context/AuthContext';
 import { 
   createTicket, 
   getTickets, 
   getAllTickets, 
-  updateTicketStatus, 
-  addInternalNote, 
+  updateTicketStatus,
   addTicketReply, 
+  addInternalNote, 
   getTicketDetails, 
   deleteTicket 
 } from '../../services/dataService';
 import { UserRole } from '../../types';
 
-const STAFF_ROLES = [UserRole.ADMIN, UserRole.SUPPORT, UserRole.CPA];
+// FIXED: Defined as string literal array to prevent Type vs Value errors
+const STAFF_ROLES: string[] = ['admin', 'support', 'cpa'];
 
 interface TicketUI {
   id: string;
   subject: string;
   category: string;
   status: 'open' | 'in_progress' | 'pending' | 'resolved' | 'closed';
+  priority?: 'low' | 'medium' | 'high';
   created_at: string;
   updated_at: string;
   user?: {
@@ -60,17 +65,26 @@ interface TicketUI {
 
 export default function SupportScreen() {
   const { user } = useAuth();
-  const isStaff = user?.role && STAFF_ROLES.includes(user.role);
+  
+  // FIXED: Role check uses safe string casting
+  const isStaff = user?.role && STAFF_ROLES.includes(user.role as string);
+  
   const [activeTab, setActiveTab] = useState<'my_tickets' | 'queue' | 'faq'>(isStaff ? 'queue' : 'my_tickets');
   const [tickets, setTickets] = useState<TicketUI[]>([]);
   const [filteredTickets, setFilteredTickets] = useState<TicketUI[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Modals
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [statusModalVisible, setStatusModalVisible] = useState(false);
+  
+  // Selection
   const [selectedTicket, setSelectedTicket] = useState<TicketUI | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  
+  // Forms
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [internalNote, setInternalNote] = useState('');
@@ -82,11 +96,14 @@ export default function SupportScreen() {
     setLoading(true);
     try {
       let data: any[] = [];
+      
+      // Admin sees queue, User sees own tickets
       if (activeTab === 'queue' && isStaff) {
           data = await getAllTickets();
       } else if (activeTab === 'my_tickets') {
           data = await getTickets(user.id);
       }
+      
       setTickets(data || []);
       setFilteredTickets(data || []);
     } catch (e) {
@@ -98,6 +115,7 @@ export default function SupportScreen() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [user, activeTab]));
 
+  // Search Filtering
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredTickets(tickets);
@@ -165,7 +183,7 @@ export default function SupportScreen() {
   const handleStatusChange = async (newStatus: string) => {
       if (!selectedTicket) return;
       try {
-        await updateTicketStatus(selectedTicket.id, newStatus);
+        await updateTicketStatus(selectedTicket.id, newStatus as any);
         const updated = await getTicketDetails(selectedTicket.id);
         setSelectedTicket(updated);
         setStatusModalVisible(false);
@@ -182,6 +200,7 @@ export default function SupportScreen() {
       setIsSubmitting(true);
       try {
         if (isInternal) {
+          // Robust call to service
           await addInternalNote(selectedTicket.id, user.id, text);
           setInternalNote('');
         } else {
@@ -197,12 +216,14 @@ export default function SupportScreen() {
       }
   };
 
+  // UI Components
   const renderTicketItem = ({ item }: { item: TicketUI }) => {
     const isQueue = activeTab === 'queue';
     const title = isQueue && item.user 
       ? `${item.user.first_name} ${item.user.last_name || ''}`.trim() || item.user.email
       : item.subject;
     const subTitle = isQueue ? item.subject : `ID: #${item.id.substring(0, 8)}`;
+    
     const statusColors: any = {
       open: 'bg-green-500/20 text-green-400 border-green-500/30',
       in_progress: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -214,15 +235,23 @@ export default function SupportScreen() {
     const [bg, textColor, border] = statusStyle.split(' ');
 
     return (
-      <TouchableOpacity onPress={() => handleViewDetails(item.id)} className="bg-[#112240] p-4 rounded-xl mb-3 border border-white/5 flex-row justify-between items-center active:bg-[#162C52]">
+      <TouchableOpacity 
+        onPress={() => handleViewDetails(item.id)} 
+        className="bg-[#112240] p-4 rounded-xl mb-3 border border-white/5 flex-row justify-between items-center active:bg-[#162C52]"
+      >
           <View className="flex-1 mr-4">
               <View className="flex-row items-center mb-1">
-                 <Text className="text-white font-bold text-base mr-2" numberOfLines={1}>{title}</Text>
+                 <Text className="mr-2 text-base font-bold text-white" numberOfLines={1}>{title}</Text>
+                 {item.priority === 'high' && <AlertTriangle size={14} color="#F87171" />}
               </View>
-              <Text className="text-[#8892B0] text-xs" numberOfLines={1}>{subTitle} • {new Date(item.created_at).toLocaleDateString()}</Text>
+              <Text className="text-[#8892B0] text-xs" numberOfLines={1}>
+                {subTitle} • {new Date(item.created_at).toLocaleDateString()}
+              </Text>
           </View>
           <View className={`px-2.5 py-1 rounded-lg border ${bg} ${border}`}>
-              <Text className={`text-[10px] font-bold uppercase ${textColor}`}>{item.status.replace('_', ' ')}</Text>
+              <Text className={`text-[10px] font-bold uppercase ${textColor}`}>
+                {item.status.replace('_', ' ')}
+              </Text>
           </View>
       </TouchableOpacity>
     );
@@ -231,31 +260,47 @@ export default function SupportScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
       <StatusBar barStyle="light-content" />
+      
+      {/* Header */}
       <View className="px-6 pt-4 pb-4 bg-[#0A192F] border-b border-white/5">
-          <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-white text-3xl font-extrabold tracking-tight">Support</Text>
-              {isStaff && <View className="bg-blue-500/10 p-2 rounded-full border border-blue-500/30"><ShieldAlert size={20} color="#60A5FA" /></View>}
+          <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-3xl font-extrabold tracking-tight text-white">Support</Text>
+              {isStaff && (
+                <View className="flex-row items-center px-3 py-1 border rounded-full bg-blue-500/10 border-blue-500/20">
+                  <ShieldAlert size={16} color="#60A5FA" />
+                  <Text className="ml-2 text-xs font-bold text-blue-400 uppercase">Staff Mode</Text>
+                </View>
+              )}
           </View>
+          
+          {/* Enhanced Tabs */}
           <View className="flex-row gap-3">
               {isStaff && (
-                  <TouchableOpacity onPress={() => setActiveTab('queue')} className={`px-5 py-2 rounded-full border ${activeTab === 'queue' ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#112240] border-white/10'}`}>
+                  <TouchableOpacity onPress={() => setActiveTab('queue')} className={`flex-1 items-center py-2.5 rounded-xl border ${activeTab === 'queue' ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#112240] border-white/10'}`}>
                       <Text className={`font-bold text-sm ${activeTab === 'queue' ? 'text-[#0A192F]' : 'text-white'}`}>Queue</Text>
                   </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={() => setActiveTab('my_tickets')} className={`px-5 py-2 rounded-full border ${activeTab === 'my_tickets' ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#112240] border-white/10'}`}>
+              <TouchableOpacity onPress={() => setActiveTab('my_tickets')} className={`flex-1 items-center py-2.5 rounded-xl border ${activeTab === 'my_tickets' ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#112240] border-white/10'}`}>
                   <Text className={`font-bold text-sm ${activeTab === 'my_tickets' ? 'text-[#0A192F]' : 'text-white'}`}>My Tickets</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setActiveTab('faq')} className={`px-5 py-2 rounded-full border ${activeTab === 'faq' ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#112240] border-white/10'}`}>
+              <TouchableOpacity onPress={() => setActiveTab('faq')} className={`flex-1 items-center py-2.5 rounded-xl border ${activeTab === 'faq' ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#112240] border-white/10'}`}>
                   <Text className={`font-bold text-sm ${activeTab === 'faq' ? 'text-[#0A192F]' : 'text-white'}`}>FAQ</Text>
               </TouchableOpacity>
           </View>
       </View>
 
+      {/* Content Area */}
       <View className="flex-1 px-6 pt-4">
           {(tickets.length > 0 || searchQuery !== '') && activeTab !== 'faq' && (
              <View className="bg-[#112240] rounded-xl px-4 py-3 mb-4 flex-row items-center border border-white/10">
                 <Search size={18} color="#8892B0" />
-                <TextInput className="flex-1 ml-3 text-white" placeholder="Search tickets..." placeholderTextColor="#475569" value={searchQuery} onChangeText={setSearchQuery}/>
+                <TextInput 
+                  className="flex-1 ml-3 text-white" 
+                  placeholder="Search tickets..." 
+                  placeholderTextColor="#475569" 
+                  value={searchQuery} 
+                  onChangeText={setSearchQuery}
+                />
              </View>
           )}
 
@@ -263,17 +308,17 @@ export default function SupportScreen() {
               <ScrollView className="flex-1">
                   <View className="bg-[#112240] p-6 rounded-2xl border border-white/5 mb-4">
                       <HelpCircle size={32} color="#64FFDA" className="mb-4"/>
-                      <Text className="text-white font-bold text-lg mb-2">How do I verify my account?</Text>
+                      <Text className="mb-2 text-lg font-bold text-white">How do I verify my account?</Text>
                       <Text className="text-[#8892B0] leading-5">Go to Settings &gt; Profile and upload your ID document. Our team usually reviews within 24 hours.</Text>
                   </View>
                   <View className="bg-[#112240] p-6 rounded-2xl border border-white/5">
                       <Lock size={32} color="#A78BFA" className="mb-4"/>
-                      <Text className="text-white font-bold text-lg mb-2">Is my data safe?</Text>
+                      <Text className="mb-2 text-lg font-bold text-white">Is my data safe?</Text>
                       <Text className="text-[#8892B0] leading-5">Yes, all sensitive data is encrypted using AES-256 before being stored in our database.</Text>
                   </View>
               </ScrollView>
           ) : loading ? (
-              <View className="flex-1 justify-center items-center"><ActivityIndicator size="large" color="#64FFDA" /></View>
+              <View className="items-center justify-center flex-1"><ActivityIndicator size="large" color="#64FFDA" /></View>
           ) : (
               <FlatList 
                   data={filteredTickets}
@@ -301,11 +346,11 @@ export default function SupportScreen() {
       {/* CREATE MODAL */}
       <Modal visible={createModalVisible} transparent animationType="slide" onRequestClose={() => setCreateModalVisible(false)}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-              <View className="flex-1 bg-black/80 justify-end">
+              <View className="justify-end flex-1 bg-black/80">
                   <View className="bg-[#112240] p-6 rounded-t-3xl h-[85%] border-t border-white/10">
-                      <View className="flex-row justify-between items-center mb-8">
-                          <Text className="text-white text-2xl font-bold">New Ticket</Text>
-                          <TouchableOpacity onPress={() => setCreateModalVisible(false)} className="p-2 bg-white/5 rounded-full"><X size={24} color="#8892B0" /></TouchableOpacity>
+                      <View className="flex-row items-center justify-between mb-8">
+                          <Text className="text-2xl font-bold text-white">New Ticket</Text>
+                          <TouchableOpacity onPress={() => setCreateModalVisible(false)} className="p-2 rounded-full bg-white/5"><X size={24} color="#8892B0" /></TouchableOpacity>
                       </View>
                       <ScrollView>
                         <Text className="text-[#8892B0] font-bold text-xs uppercase mb-2 ml-1">Subject</Text>
@@ -327,54 +372,83 @@ export default function SupportScreen() {
               <View className="px-4 py-3 border-b border-white/10 flex-row justify-between items-center bg-[#112240]">
                   <TouchableOpacity onPress={() => setDetailModalVisible(false)} className="p-2"><X size={24} color="white" /></TouchableOpacity>
                   <View className="flex-row items-center">
-                    <Text className="text-white font-bold mr-2">Status:</Text>
+                    <Text className="mr-2 font-bold text-white">Status:</Text>
                     {isStaff ? (
-                        <TouchableOpacity onPress={() => setStatusModalVisible(true)} className="bg-white/10 px-3 py-1 rounded-lg flex-row items-center">
+                        <TouchableOpacity onPress={() => setStatusModalVisible(true)} className="flex-row items-center px-3 py-1 rounded-lg bg-white/10">
                             <Text className="text-[#64FFDA] font-bold uppercase text-xs mr-1">{selectedTicket?.status?.replace('_', ' ')}</Text>
                             <ChevronDown size={12} color="#64FFDA" />
                         </TouchableOpacity>
                     ) : (
-                        <View className="bg-white/5 px-3 py-1 rounded-lg"><Text className="text-[#8892B0] font-bold uppercase text-xs">{selectedTicket?.status?.replace('_', ' ')}</Text></View>
+                        <View className="px-3 py-1 rounded-lg bg-white/5"><Text className="text-[#8892B0] font-bold uppercase text-xs">{selectedTicket?.status?.replace('_', ' ')}</Text></View>
                     )}
                   </View>
                   {isStaff ? <TouchableOpacity onPress={handleDelete} className="p-2"><Trash2 size={20} color="#F87171" /></TouchableOpacity> : <View className="w-8" />}
               </View>
               {loadingDetails || !selectedTicket ? (
-                  <View className="flex-1 justify-center items-center"><ActivityIndicator color="#64FFDA"/></View>
+                  <View className="items-center justify-center flex-1"><ActivityIndicator color="#64FFDA"/></View>
               ) : (
                   <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
                       <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 20 }}>
                           <View className="bg-[#112240] p-5 rounded-2xl mb-6 border border-white/5">
-                              <Text className="text-white font-bold text-xl mb-2">{selectedTicket.subject}</Text>
+                              <Text className="mb-2 text-xl font-bold text-white">{selectedTicket.subject}</Text>
                               <View className="flex-row gap-3 mt-2">
                                   <View className="bg-[#0A192F] px-2 py-1 rounded border border-white/5"><Text className="text-[#8892B0] text-xs">{selectedTicket.category}</Text></View>
-                                  <Text className="text-[#8892B0] text-xs self-center">{new Date(selectedTicket.created_at).toLocaleString()}</Text>
+                                  <View className="flex-row items-center bg-[#0A192F] px-2 py-1 rounded border border-white/5">
+                                    <Clock size={10} color="#8892B0" className="mr-1" />
+                                    <Text className="text-[#8892B0] text-xs">{new Date(selectedTicket.created_at).toLocaleString()}</Text>
+                                  </View>
                               </View>
                           </View>
+                          
                           <Text className="text-[#8892B0] font-bold mb-4 uppercase text-xs tracking-widest pl-1">Discussion</Text>
+                          
                           <View className="gap-4 pb-4">
-                            {selectedTicket.messages?.filter((msg: any) => isStaff || !msg.is_internal)?.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())?.map((msg: any) => (
+                            {selectedTicket.messages
+                                ?.filter((msg: any) => isStaff || !msg.is_internal)
+                                ?.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                                ?.map((msg: any) => (
                                 <View key={msg.id} className={`p-4 rounded-2xl border ${msg.is_internal ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-[#112240] border-white/5'}`}>
-                                    {msg.is_internal && (<View className="flex-row items-center mb-2 pb-2 border-b border-yellow-500/10"><Lock size={12} color="#EAB308" /><Text className="text-yellow-500 text-[10px] ml-2 font-bold uppercase tracking-wider">Internal Note</Text></View>)}
+                                    {msg.is_internal && (
+                                        <View className="flex-row items-center pb-2 mb-2 border-b border-yellow-500/10">
+                                            <Lock size={12} color="#EAB308" />
+                                            <Text className="text-yellow-500 text-[10px] ml-2 font-bold uppercase tracking-wider">Internal Staff Note</Text>
+                                        </View>
+                                    )}
                                     <Text className={`${msg.is_internal ? 'text-yellow-100' : 'text-white'} text-base leading-6`}>{msg.message}</Text>
-                                    <Text className="text-[#8892B0] text-[10px] mt-2 text-right opacity-60">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                                    <Text className="text-[#8892B0] text-[10px] mt-2 text-right opacity-60">
+                                        {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </Text>
                                 </View>
                             ))}
                           </View>
                       </ScrollView>
+                      
                       <View className="border-t border-white/10 bg-[#0D1F3A]">
                           {isStaff && (
                               <View className="px-4 pt-3 pb-1 border-b border-white/5">
                                   <View className="flex-row gap-2">
-                                      <TextInput className="flex-1 bg-[#0A192F] text-yellow-100 p-3 rounded-lg border border-yellow-500/20 text-sm" placeholder="Add internal note..." placeholderTextColor="#64748B" value={internalNote} onChangeText={setInternalNote}/>
-                                      <TouchableOpacity onPress={() => handleReply(true)} disabled={!internalNote.trim() || isSubmitting} className="bg-yellow-600/20 border border-yellow-600/50 w-12 rounded-lg items-center justify-center">
+                                      <TextInput 
+                                        className="flex-1 bg-[#0A192F] text-yellow-100 p-3 rounded-lg border border-yellow-500/20 text-sm" 
+                                        placeholder="Add internal note..." 
+                                        placeholderTextColor="#64748B" 
+                                        value={internalNote} 
+                                        onChangeText={setInternalNote}
+                                      />
+                                      <TouchableOpacity onPress={() => handleReply(true)} disabled={!internalNote.trim() || isSubmitting} className="items-center justify-center w-12 border rounded-lg bg-yellow-600/20 border-yellow-600/50">
                                           {isSubmitting ? <ActivityIndicator size="small" color="#EAB308"/> : <Lock size={18} color="#EAB308" />}
                                       </TouchableOpacity>
                                   </View>
                               </View>
                           )}
-                          <View className="p-4 flex-row gap-3 items-end">
-                              <TextInput className="flex-1 bg-[#0A192F] text-white p-4 rounded-xl border border-white/10 max-h-32 text-base" placeholder="Type a reply..." placeholderTextColor="#475569" value={reply} onChangeText={setReply} multiline/>
+                          <View className="flex-row items-end gap-3 p-4">
+                              <TextInput 
+                                className="flex-1 bg-[#0A192F] text-white p-4 rounded-xl border border-white/10 max-h-32 text-base" 
+                                placeholder="Type a reply..." 
+                                placeholderTextColor="#475569" 
+                                value={reply} 
+                                onChangeText={setReply} 
+                                multiline
+                              />
                               <TouchableOpacity onPress={() => handleReply(false)} disabled={!reply.trim() || isSubmitting} className={`w-12 h-12 rounded-xl items-center justify-center shadow-lg ${reply.trim() ? 'bg-[#64FFDA]' : 'bg-white/10'}`}>
                                   {isSubmitting ? <ActivityIndicator color="#0A192F"/> : <Send size={20} color={reply.trim() ? '#0A192F' : '#8892B0'} />}
                               </TouchableOpacity>
@@ -386,12 +460,21 @@ export default function SupportScreen() {
       </Modal>
 
       <Modal visible={statusModalVisible} transparent animationType="fade" onRequestClose={() => setStatusModalVisible(false)}>
-          <View className="flex-1 bg-black/60 justify-center items-center p-6">
+          <View className="items-center justify-center flex-1 p-6 bg-black/60">
               <View className="bg-[#112240] rounded-3xl border border-white/10 p-6 w-full max-w-xs shadow-2xl">
-                  <Text className="text-white text-xl font-bold mb-6 text-center">Update Ticket Status</Text>
+                  <Text className="mb-6 text-xl font-bold text-center text-white">Update Ticket Status</Text>
                   <View className="gap-3">
-                      {[{ key: 'open', label: 'Open', color: 'text-green-400', bg: 'bg-green-500/10' }, { key: 'in_progress', label: 'In Progress', color: 'text-blue-400', bg: 'bg-blue-500/10' }, { key: 'pending', label: 'Pending', color: 'text-yellow-400', bg: 'bg-yellow-500/10' }, { key: 'resolved', label: 'Resolved', color: 'text-purple-400', bg: 'bg-purple-500/10' }, { key: 'closed', label: 'Closed', color: 'text-gray-400', bg: 'bg-gray-500/10' }].map((s) => (
-                          <TouchableOpacity key={s.key} onPress={() => handleStatusChange(s.key)} className={`p-4 rounded-xl border border-white/5 ${s.bg} flex-row justify-center`}><Text className={`font-bold ${s.color}`}>{s.label}</Text></TouchableOpacity>
+                      {[
+                          { key: 'open', label: 'Open', color: 'text-green-400', bg: 'bg-green-500/10' }, 
+                          { key: 'in_progress', label: 'In Progress', color: 'text-blue-400', bg: 'bg-blue-500/10' }, 
+                          { key: 'pending', label: 'Pending', color: 'text-yellow-400', bg: 'bg-yellow-500/10' }, 
+                          { key: 'resolved', label: 'Resolved', color: 'text-purple-400', bg: 'bg-purple-500/10' }, 
+                          { key: 'closed', label: 'Closed', color: 'text-gray-400', bg: 'bg-gray-500/10' }
+                      ].map((s) => (
+                          <TouchableOpacity key={s.key} onPress={() => handleStatusChange(s.key)} className={`p-4 rounded-xl border border-white/5 ${s.bg} flex-row justify-center items-center`}>
+                              <Text className={`font-bold ${s.color} mr-2`}>{s.label}</Text>
+                              {selectedTicket?.status === s.key && <CheckCircle size={16} color={s.color.split('-')[1]} />}
+                          </TouchableOpacity>
                       ))}
                   </View>
                   <TouchableOpacity onPress={() => setStatusModalVisible(false)} className="mt-6"><Text className="text-[#8892B0] text-center font-medium">Cancel</Text></TouchableOpacity>
