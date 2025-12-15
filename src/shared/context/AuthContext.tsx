@@ -39,87 +39,91 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Robust Fallback if profile missing (Self-Healing)
       const profile = data || {
-         first_name: 'Member',
-         role: UserRole.MEMBER,
-         avatar_url: null,
-         currency: 'USD',
-         country: 'US'
+        first_name: 'Member',
+        role: 'member' as UserRole,
+        avatar_url: null,
+        currency: 'USD',
+        country: 'US',
       };
 
       setUser({
         id: currentSession.user.id,
         email: currentSession.user.email!,
-        name: profile.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : currentSession.user.email!.split('@')[0],
-        role: profile.role || UserRole.MEMBER,
+        name: profile.first_name
+          ? `${profile.first_name} ${profile.last_name || ''}`.trim()
+          : currentSession.user.email!.split('@')[0],
+        role: (profile.role || 'member') as UserRole,
         status: 'active',
         avatar: profile.avatar_url,
         currency: profile.currency || 'USD',
-        country: profile.country || 'US'
+        country: profile.country || 'US',
       });
     } catch (e) {
-      console.warn("[Auth] Profile Load Warning:", e);
+      console.warn('[Auth] Profile Load Warning:', e);
       // Ensure we still set a user so the app doesn't hang
       setUser({
-         id: currentSession.user.id,
-         email: currentSession.user.email!,
-         name: 'User',
-         role: UserRole.MEMBER,
-         status: 'active',
-         currency: 'USD',
-         country: 'US'
+        id: currentSession.user.id,
+        email: currentSession.user.email!,
+        name: 'User',
+        role: 'member' as UserRole,
+        status: 'active',
+        currency: 'USD',
+        country: 'US',
       });
     }
   };
 
-  // --- 2. Initialization Logic ---
+  // --- 2. Init session + listen for changes ---
   useEffect(() => {
     let mounted = true;
-    setIsMounted(true);
 
     const initializeAuth = async () => {
       try {
-        // A. Get Session
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
-        if (mounted) {
-          setSession(initialSession);
-          if (initialSession) {
-             await fetchProfile(initialSession);
-          }
+        const {
+          data: { session: initialSession },
+        } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
+        setSession(initialSession);
+        if (initialSession) {
+          await fetchProfile(initialSession);
         }
       } catch (error) {
-        console.error("[Auth] Init Error:", error);
+        console.error('[Auth] Init Error:', error);
       } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+          setIsMounted(true);
+        }
       }
     };
 
     initializeAuth();
 
-    // B. Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (!mounted) return;
-      
+
       setSession(newSession);
-      
+
       if (newSession) {
-        // Only fetch profile if user ID changed or we don't have a user yet
         if (!user || user.id !== newSession.user.id) {
-           await fetchProfile(newSession);
+          await fetchProfile(newSession);
         }
       } else {
         setUser(null);
       }
-      
+
       setIsLoading(false);
     });
 
-    // C. Failsafe Timeout (Prevents infinite loading screen)
     const timeout = setTimeout(() => {
-        if (mounted && isLoading) {
-            console.warn("[Auth] Failsafe triggered - forcing load completion");
-            setIsLoading(false);
-        }
+      if (mounted && isLoading) {
+        console.warn('[Auth] Failsafe triggered - forcing load completion');
+        setIsLoading(false);
+      }
     }, 4000);
 
     return () => {
@@ -128,6 +132,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
       clearTimeout(timeout);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- 3. Protection & Redirects ---

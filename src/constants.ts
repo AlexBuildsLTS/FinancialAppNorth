@@ -1,81 +1,108 @@
 import { UserRole } from './types';
 
-// The list below defines which top-level navigation items are visible to each user role.
-// NOTE: 'Transactions' maps to the /finances hub route in the layout.
-export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
-  // Members see core financial tools
-  'member': [
-    'Dashboard',
-    'Transactions',
-    'Hub',
-    'AI Chat',
-    'Documents',
-    'Scan',
-    'Settings',
-    'Support'
-  ],
+// Define navigation item constants for consistency and to avoid typos
+export const NAV_ITEMS = {
+  DASHBOARD: 'Dashboard',
+  TRANSACTIONS: 'Transactions',
+  HUB: 'Hub',
+  AI_CHAT: 'AI Chat',
+  DOCUMENTS: 'Documents',
+  SCAN: 'Scan',
+  SETTINGS: 'Settings',
+  SUPPORT: 'Support',
+  MESSAGES: 'Messages',
+  FIND_CPA: 'Find CPA',
+  CPA_PORTAL: 'CPA Portal',
+  ADMIN: 'Admin',
+} as const;
 
-  // Premium users get all member features + Messages + CPA Portal
-  'premium_member': [
-    'Dashboard',
-    'Transactions',
-     'Hub',
-    'Documents',
-    'Scan',
-    'AI Chat',
-    'Messages',
-    'Find CPA',
-    'CPA Portal',
-    'Settings',
-    'Support'
-  ],
+// Type for navigation items
+export type NavItem = typeof NAV_ITEMS[keyof typeof NAV_ITEMS];
 
-  // CPA sees all Premium features (minus general Support) + CPA Portal
-  'cpa': [
-    'Dashboard', 
-    'Transactions', 
-     'Hub',
-    'Documents', 
-    'Scan', 
-    'AI Chat', 
-    'Messages', 
-    'Settings', 
-    'CPA Portal'
-  ],
+// Base navigation items for member role
+const BASE_MEMBER_NAV: NavItem[] = [
+  NAV_ITEMS.DASHBOARD,
+  NAV_ITEMS.TRANSACTIONS,
+  NAV_ITEMS.HUB,
+  NAV_ITEMS.AI_CHAT,
+  NAV_ITEMS.SCAN,
+  NAV_ITEMS.SETTINGS,
+  NAV_ITEMS.SUPPORT,
+];
 
-  // Support sees ALL Premium features + Admin for user/ticket management
-  'support': [
-    'Dashboard',
-    'Transactions',
-    'Documents',
-     'Hub',
-    'Scan',
-    'AI Chat',
-    'Messages',
-    'CPA Portal',
-    'Settings',
-    'Support', // For viewing/responding to tickets
-    'Admin'    // For limited admin/user lookup/logs
-  ],
+// Function to get navigation items for a role, with inheritance to reduce duplication
+export function getRoleNavItems(role: UserRole | string): NavItem[] {
+  switch (role) {
+    case 'member':
+      return [...BASE_MEMBER_NAV];
 
-  // Admins see every possible feature in the system.
-  'admin': [
-    'Dashboard', 
-    'Transactions', 
-    'Documents', 
-     'Hub',
-    'Scan', 
-    'CPA Portal',
-    'Support', 
-    'AI Chat',
-    'Messages', 
-    'Settings', 
-    'Admin'
-  ]
-};
+    case 'premium_member':
+      return [
+        ...BASE_MEMBER_NAV,
+        NAV_ITEMS.MESSAGES,
+        NAV_ITEMS.FIND_CPA,
+        NAV_ITEMS.CPA_PORTAL,
+      ];
 
-// You may also export other constants here if needed
-export const APP_CONFIG = {
+    case 'cpa':
+      // CPA gets premium features minus general Support
+      return [
+        NAV_ITEMS.DASHBOARD,
+        NAV_ITEMS.TRANSACTIONS,
+        NAV_ITEMS.HUB,
+        NAV_ITEMS.SCAN,
+        NAV_ITEMS.AI_CHAT,
+        NAV_ITEMS.MESSAGES,
+        NAV_ITEMS.SETTINGS,
+        NAV_ITEMS.CPA_PORTAL,
+      ];
+
+    case 'support':
+      // Support gets all premium features plus Admin
+      return [
+        ...getRoleNavItems('premium_member'),
+        NAV_ITEMS.ADMIN,
+      ];
+
+    case 'admin':
+      // Admins get all features (Documents is accessed via Workspace/Hub)
+      return [
+        NAV_ITEMS.DASHBOARD,
+        NAV_ITEMS.TRANSACTIONS,
+        NAV_ITEMS.HUB,
+        NAV_ITEMS.SCAN,
+        NAV_ITEMS.CPA_PORTAL,
+        NAV_ITEMS.SUPPORT,
+        NAV_ITEMS.AI_CHAT,
+        NAV_ITEMS.MESSAGES,
+        NAV_ITEMS.SETTINGS,
+        NAV_ITEMS.ADMIN,
+      ];
+
+    default:
+      // For unknown roles, return empty array or basic items
+      return [];
+  }
+}
+
+// Legacy export for backward compatibility, but frozen for immutability
+export const ROLE_NAV_ITEMS: Record<UserRole | string, NavItem[]> = Object.freeze({
+  member: getRoleNavItems('member'),
+  premium_member: getRoleNavItems('premium_member'),
+  cpa: getRoleNavItems('cpa'),
+  support: getRoleNavItems('support'),
+  admin: getRoleNavItems('admin'),
+});
+
+// Define interface for app config for type safety
+export interface AppConfig {
+  MAX_FILE_SIZE_MB: number;
+  SUPPORTED_MIME_TYPES: string[];
+  PAGINATION_LIMIT: number;
+}
+
+// App configuration constants, frozen for immutability
+export const APP_CONFIG: AppConfig = Object.freeze({
   MAX_FILE_SIZE_MB: 10,
   SUPPORTED_MIME_TYPES: [
     'image/jpeg',
@@ -83,7 +110,7 @@ export const APP_CONFIG = {
     'application/pdf',
     'text/csv',
     'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   ],
   PAGINATION_LIMIT: 20,
-};
+});

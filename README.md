@@ -1,7 +1,5 @@
 # NorthFinance: Enterprise-Grade Financial Platform
 
-
-
 ![Status](https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge)
 
 ![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
@@ -16,23 +14,13 @@
 
 ![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android%20%7C%20Web-lightgrey?style=for-the-badge)
 
-
-
 **NorthFinance** is a comprehensive, cross-platform financial management application built for scale. It bridges the gap between personal finance tracking and professional accounting services using a secure, role-based architecture.
-
-
 
 This application is **fully functional** and implements complex workflows including AI-powered OCR, real-time budgeting, and secure Client-CPA collaboration.
 
-
-
 ---
 
-
-
 ## 🚀 Key Features
-
-
 
 ### 🏦 Core Banking & Finance
 
@@ -44,8 +32,6 @@ This application is **fully functional** and implements complex workflows includ
 
 * **Quick Actions:** Instant fund transfers and peer-to-peer payments.
 
-
-
 ### 💼 Professional CPA Portal
 
 * **Client Connection:** Dedicated workflows for users to request CPAs and for CPAs to accept clients (`find-cpa.tsx`).
@@ -54,15 +40,11 @@ This application is **fully functional** and implements complex workflows includ
 
 * **Role-Based Dashboards:** Distinct UI experiences for **Members**, **Premium Members**, **CPAs**, and **Admins**.
 
-
-
 ### 🤖 AI & Automation
 
 * **Gemini-Powered OCR:** Integrated camera workflow to scan receipts. The AI extracts merchant, date, and amount data to automatically create transactions.
 
 * **AI Chat Assistance:** Context-aware financial assistant for user queries.
-
-
 
 ### 🔐 Enterprise Security
 
@@ -72,15 +54,9 @@ This application is **fully functional** and implements complex workflows includ
 
 * **Session Hardening:** Automatic token refresh, deep-linking for password resets, and session expiry monitoring.
 
-
-
 ---
 
-
-
 ## 🛠️ Tech Stack
-
-
 
 * **Framework:** React Native with Expo SDK 53 (Managed Workflow)
 
@@ -102,18 +78,11 @@ This application is **fully functional** and implements complex workflows includ
 
 Core engineering and operational best practices are collected in `docs/BEST_PRACTICES.md`. Review it for guidance on security, RLS policies, AI/OCR usage, testing, CI/CD, and production readiness.
 
-
 ---
-
-
 
 ## 🏗️ Architecture
 
-
-
 The project follows a **Feature-First** and **Service-Layer** architecture. Business logic is abstracted into `services/` to keep UI components clean.
-
-
 
 ´´´
 
@@ -175,10 +144,7 @@ The project follows a **Feature-First** and **Service-Layer** architecture. Busi
 
 ´´´
 
-
-
 ---
-
 
 ```
 In an enterprise-grade financial platform like NorthFinance, AI is the bridge between raw data and actionable wealth. Without AI, this is just a calculator that stores numbers. With AI (Gemini/OCR), the app becomes an Active Financial CFO:
@@ -192,5 +158,3 @@ Scalability: For the CPA portal, AI can pre-categorize thousands of transactions
 ```
 
 ---
-
-

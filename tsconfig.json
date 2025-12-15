@@ -1,4 +1,4 @@
- {
+{
   "compilerOptions": {
     "strict": true,
     "skipLibCheck": true,
@@ -7,15 +7,14 @@
     "lib": [
       "es2021"
     ],
-    "moduleResolution": "nodenext",
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
     "noEmit": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "nodenext",
     "target": "es2020",
     "allowJs": true,
-    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": [

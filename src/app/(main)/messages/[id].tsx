@@ -354,8 +354,19 @@ export default function ChatScreen() {
           activeConvId = paramId;
           setConversationId(paramId);
           const other = participants.find((p: any) => p.user_id !== user.id);
-          if (other?.profiles) {
-            partner = Array.isArray(other.profiles) ? other.profiles[0] : other.profiles;
+          if (other && other.profiles) {
+            const foundProfile = Array.isArray(other.profiles) ? other.profiles[0] : other.profiles;
+            if (foundProfile) {
+              partner = {
+                id: foundProfile.id,
+                first_name: foundProfile.first_name,
+                last_name: foundProfile.last_name,
+                email: foundProfile.email,
+                avatar_url: foundProfile.avatar_url,
+              };
+            } else {
+              partner = null; // Assign null if no valid profile is found (e.g., empty array)
+            }
           }
         } else {
           // It's likely a User ID (Direct Chat)
@@ -546,12 +557,17 @@ export default function ChatScreen() {
 
   const pickImage = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
-    if (!res.canceled) await uploadMedia(res.assets[0].uri, res.assets[0].fileName || 'image.jpg', 'image/jpeg', 'image');
+    if (!res.canceled && res.assets && res.assets.length > 0) {
+      const selectedAsset = res.assets[0]!;
+      await uploadMedia(selectedAsset.uri, selectedAsset.fileName || 'image.jpg', 'image/jpeg', 'image');
+    }
   };
 
   const pickDoc = async () => {
     const res = await DocumentPicker.getDocumentAsync({ type: '*/*' });
-    if (!res.canceled) await uploadMedia(res.assets[0].uri, res.assets[0].name, res.assets[0].mimeType || 'application/octet-stream', 'file');
+    if (!res.canceled && res.assets && res.assets.length > 0 && res.assets[0]) {
+      await uploadMedia(res.assets[0].uri, res.assets[0].name, res.assets[0].mimeType || 'application/octet-stream', 'file');
+    }
   };
 
   // ============================================================================
@@ -602,10 +618,7 @@ export default function ChatScreen() {
               borderWidth: isMe ? 0 : 1,
               borderColor: isMe ? 'transparent' : 'rgba(255,255,255,0.1)',
               opacity: item.isOptimistic ? 0.7 : 1,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 3.84,
+              boxShadow: '0px 2px 3.84px rgba(0,0,0,0.1)',
               elevation: 2,
             }}
           >
@@ -703,7 +716,7 @@ export default function ChatScreen() {
         </TouchableOpacity>
 
         <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#0A192F', borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden' }}>
-          {targetUser?.avatar_url ? (
+          {targetUser && targetUser.avatar_url ? (
             <Image source={{ uri: targetUser.avatar_url }} style={{ width: '100%', height: '100%' }} />
           ) : (
             <Text style={{ color: COLORS.primary, fontWeight: 'bold', fontSize: 18 }}>{targetUser?.first_name?.[0] || '?'}</Text>
@@ -712,7 +725,7 @@ export default function ChatScreen() {
 
         <View style={{ flex: 1 }}>
           <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }} numberOfLines={1}>
-            {targetUser?.first_name ? `${targetUser.first_name} ${targetUser.last_name || ''}` : targetUser?.email || 'Unknown'}
+            {targetUser ? `${targetUser.first_name} ${targetUser.last_name || ''}` : 'Unknown User'}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Lock size={12} color={COLORS.primary} />

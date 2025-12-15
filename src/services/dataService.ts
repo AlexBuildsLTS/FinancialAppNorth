@@ -78,8 +78,8 @@ const getDefaultAccountId = async (userId: string): Promise<string> => {
     .select('id')
     .eq('user_id', userId)
     .limit(1);
-  
-  if (accounts && accounts.length > 0) {
+
+  if (accounts && accounts.length > 0 && accounts[0]) {
     return accounts[0].id;
   }
 
@@ -237,9 +237,9 @@ export const scanForSubscriptions = async (userId: string): Promise<DetectedSubs
   });
 
   Object.keys(groups).forEach(key => {
-    const history = groups[key];
-    if (history.length >= 2) {
-        const latest = history[0];
+    const transactions = groups[key];
+    if (transactions && transactions.length >= 2) {
+        const latest = transactions[0];
         const nextDate = new Date(latest.date);
         nextDate.setDate(nextDate.getDate() + 30);
 
@@ -248,6 +248,7 @@ export const scanForSubscriptions = async (userId: string): Promise<DetectedSubs
           merchant: latest.description || 'Unknown',
           amount: Math.abs(latest.amount),
           frequency: 'monthly',
+          // FIX: Changed from 'active' to 'stable' to match Type Definition
           status: 'stable',
           next_due: nextDate.toISOString(),
           yearly_waste: Math.abs(latest.amount) * 12,
@@ -267,17 +268,17 @@ export const getSubscriptions = async (userId: string): Promise<DetectedSubscrip
         .select('*')
         .eq('user_id', userId);
 
-    const manualSubs: DetectedSubscription[] = (dbSubs || []).map((s: any) => ({ 
+    const manualSubs: DetectedSubscription[] = (dbSubs || []).map((s: any) => ({
         id: s.id,
-        name: s.merchant, // Assuming merchant is used as name
         merchant: s.merchant,
+        name: s.merchant, // Added 'name' property
         amount: parseFloat(s.amount),
         frequency: (s.frequency || 'monthly').toLowerCase() as any,
         status: s.status,
         next_due: s.next_billing_date || new Date().toISOString(),
         yearly_waste: parseFloat(s.amount) * 12,
         confidence: 1.0,
-        next_billing_date: s.next_billing_date || new Date().toISOString(), // Add next_billing_date
+        next_billing_date: s.next_billing_date // Added 'next_billing_date' property
     }));
 
     const detectedSubs = await scanForSubscriptions(userId);
@@ -421,13 +422,13 @@ export const getSpendingForecast = async (userId: string): Promise<{ predictedAm
     const yValues = months.map(m => monthlySpend[m]);
     const n = xValues.length;
     
-    const sumX = xValues.reduce((a, b) => a + b, 0);
-    const sumY = yValues.reduce((a, b) => a + b, 0);
-    const sumXY = xValues.reduce((sum, x, i) => sum + x * yValues[i], 0);
+    const sumX = xValues.reduce((a = 0, b = 0) => a + b, 0);
+    const sumY = yValues.reduce((a = 0, b = 0) => a + b, 0);
+    const sumXY = xValues.reduce((sum, x, i) => sum + x * (yValues[i] || 0), 0);
     const sumXX = xValues.reduce((sum, x) => sum + x * x, 0);
 
-    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-    const intercept = (sumY - slope * sumX) / n;
+    const slope = (n * sumXY - sumX * sumY!) / (n * sumXX - sumX * sumX);
+    const intercept = (sumY! - slope * sumX) / n;
     const predicted = slope * n + intercept;
 
     return {
@@ -813,42 +814,22 @@ export const getConversations = async (userId: string) => {
  * ==============================================================================
  */
 
-// FIX: Removed unused p0 parameter
-export const getDocuments = async (userId: string, _p0: string): Promise<DocumentItem[]> => {
-  const { data: documents, error: docError } = await supabase
+export const getDocuments = async (userId: string): Promise<DocumentItem[]> => {
+  const { data, error } = await supabase
     .from('documents')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (docError) return [];
-
-  return documents.map((d: any) => ({
-    ...d,
-    name: d.file_name,
-    formattedSize: d.size_bytes ? `${(d.size_bytes / 1024).toFixed(1)} KB` : 'Unknown',
-    date: d.created_at,
-    type: d.mime_type?.includes('pdf') ? 'contract' : 'receipt'
-  }));
-};
-
-export const getDocumentById = async (documentId: string): Promise<DocumentItem | null> => {
-  const { data, error } = await supabase
-    .from('documents')
-    .select('*') // Assuming documentId is used to fetch a single document
- .eq('id', documentId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
+  if (error) return [];
   
-  const document = data[0]; // Assuming getDocumentById returns a single document
-  return {
-    ...document,
-    name: document.file_name,
-    formattedSize: document.size_bytes ? `${(document.size_bytes / 1024).toFixed(1)} KB` : 'Unknown',
-    date: document.created_at,
-    type: document.mime_type?.includes('pdf') ? 'contract' : 'receipt'
-  };
+  return data.map((d: any) => ({
+      ...d,
+      name: d.file_name,
+      formattedSize: d.size_bytes ? `${(d.size_bytes / 1024).toFixed(1)} KB` : 'Unknown',
+      date: d.created_at,
+      type: d.mime_type?.includes('pdf') ? 'contract' : 'receipt'
+  }));
 };
 
 export const uploadDocument = async (
@@ -934,9 +915,10 @@ export const pickAndUploadFile = async (userId: string) => {
       type: APP_CONFIG.SUPPORTED_MIME_TYPES,
       copyToCacheDirectory: true
     });
-    if (result.canceled) return null;
+    if (result.canceled || !result.assets || result.assets.length === 0) return null;
 
     const asset = result.assets[0];
+    if (!asset) return null;
     if (asset.size && asset.size > APP_CONFIG.MAX_FILE_SIZE_MB * 1024 * 1024) {
       throw new Error(`File size exceeds ${APP_CONFIG.MAX_FILE_SIZE_MB}MB limit`);
     }
@@ -1291,7 +1273,7 @@ export const exportUserData = async (userId: string) => {
     const [profile, transactions, documents] = await Promise.all([
         getUserDetails(userId),
         getTransactions(userId),
-        getDocuments(userId, '')
+        getDocuments(userId)
     ]);
     
     return {

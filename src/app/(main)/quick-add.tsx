@@ -21,7 +21,7 @@ export default function QuickAddScreen() {
   const [success, setSuccess] = useState(false);
 
   // Voice State
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [recording, setRecording] = useState<InstanceType<typeof Audio.Recording> | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [permissionResponse, requestPermission] = Audio.usePermissions();
   

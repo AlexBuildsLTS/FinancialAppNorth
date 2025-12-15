@@ -39,7 +39,7 @@ export default function DocumentsScreen() {
     try {
       // The second argument to getDocuments is for client ID (CPA mode), not role.
       // For a user's own documents, it should be null or omitted.
-      const data = await getDocuments(user.id, ''); 
+      const data = await getDocuments(user.id);
       setDocs(data || []);
       filterData(data || [], searchQuery, activeFilter);
     } catch (e) {
