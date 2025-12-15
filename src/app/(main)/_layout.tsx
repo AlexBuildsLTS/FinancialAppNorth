@@ -2,44 +2,42 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, useWindowDimensions, Image, Platform } from 'react-native';
 import { Tabs, Redirect, useRouter, usePathname, Slot } from 'expo-router';
 import { useAuth } from '../../shared/context/AuthContext';
-import { ROLE_NAV_ITEMS } from '../../constants';
-import { UserRole } from '../../types';
+// FIX: We need ROLE_NAV_ITEMS to determine what the sidebar shows
+import { ROLE_NAV_ITEMS } from '../../constants'; 
 import { MainHeader } from '../../shared/components/MainHeader'; 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   LayoutDashboard,
   CreditCard,
-  FileText,
+  Briefcase, // The Hub Icon
   Users,
-  LifeBuoy,
   ShieldAlert,
   MessageSquare,
   Settings,
   LogOut,
   Bot,
-  Search,
+  ArrowRight
 } from 'lucide-react-native';
 
-// --- 1. NAVIGATION CONFIGURATION ---
+// --- 1. NAVIGATION CONFIGURATION (Source of Truth) ---
 const NAV_CONFIG: Record<string, { name: string, icon: any, path: string, label: string }> = {
   'Dashboard':    { name: 'index',          icon: LayoutDashboard, path: '/(main)/',             label: 'Home' },
   'Transactions': { name: 'finances',       icon: CreditCard,      path: '/(main)/finances',     label: 'Finances' },
-  'Documents':    { name: 'documents',      icon: FileText,        path: '/(main)/documents',    label: 'Docs' },
-  'Find CPA':     { name: 'find-cpa',       icon: Search,          path: '/(main)/find-cpa',     label: 'Find CPA' },
+  'Approvals':    { name: 'approvals',      icon: Briefcase,       path: '/(main)/approvals',    label: 'Approvals' },
+  // HUB ITEM: Placed after Transactions/Finances (Order is determined by ROLE_NAV_ITEMS array)
+  'Hub':          { name: 'hub',            icon: Briefcase,       path: '/(main)/hub',          label: 'Hub' }, 
   'CPA Portal':   { name: 'cpa',            icon: Users,           path: '/(main)/cpa',          label: 'CPA Portal' },
-  'Support':      { name: 'support',        icon: LifeBuoy,        path: '/(main)/support',      label: 'Support' },
   'Admin':        { name: 'admin',          icon: ShieldAlert,     path: '/(main)/admin',        label: 'Admin' },
   'AI Chat':      { name: 'aiChat',         icon: Bot,             path: '/(main)/aiChat',       label: 'AI Chat' },
   'Settings':     { name: 'settings',       icon: Settings,        path: '/(main)/settings',     label: 'Settings' },
   'Messages':     { name: 'messages/index', icon: MessageSquare,   path: '/(main)/messages',     label: 'Messages' },
 };
 
-// --- 2. DESKTOP SIDEBAR COMPONENT ---
+// --- 2. DESKTOP SIDEBAR COMPONENT (GENERATED NAVIGATION) ---
 const RoleBadge = ({ role }: { role: string }) => {
-  let bg = 'bg-[#112240]';
+  let bg = 'bg-white/5';
   let text = 'text-[#8892B0]';
   
-  // Robust check using string literals to prevent Enum crashes
   switch (role) {
     case 'admin': bg = 'bg-red-500/10'; text = 'text-red-500'; break;
     case 'cpa':   bg = 'bg-purple-500/10'; text = 'text-purple-400'; break;
@@ -59,13 +57,16 @@ const SidebarContent = ({ user, logout }: any) => {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Safe role access
+  // Determine allowed navigation items based on user role
   const userRole = user.role || 'member';
-  const allowedItems = ROLE_NAV_ITEMS[userRole] || ROLE_NAV_ITEMS['member'];
-  const navItems = allowedItems.map((key: string) => NAV_CONFIG[key]).filter(Boolean);
+  // Fallback to member if role is missing or invalid
+  const allowedKeys = ROLE_NAV_ITEMS[userRole] || ROLE_NAV_ITEMS['member']; 
+  const navItems = allowedKeys.map((key: string) => NAV_CONFIG[key]).filter(Boolean);
 
   return (
     <View className="flex-col flex-1">
+      
+      {/* App Logo/Branding */}
       <View className="items-center p-6 mb-6">
         <View className="w-12 h-12 bg-[#112240] rounded-xl items-center justify-center mb-3 border border-[#233554]">
           <Text className="text-[#64FFDA] font-bold text-2xl">N</Text>
@@ -73,9 +74,11 @@ const SidebarContent = ({ user, logout }: any) => {
         <Text className="text-lg font-bold text-white">NorthFinance</Text>
       </View>
 
+      {/* Navigation List */}
       <ScrollView className="flex-1 px-3">
         {navItems.map((config: any) => {
-          const isActive = pathname.startsWith(config.path);
+          // Check if current path starts with the navigation path (e.g., /finances/reports)
+          const isActive = pathname.startsWith(config.path); 
           return (
             <TouchableOpacity
               key={config.name}
@@ -93,6 +96,7 @@ const SidebarContent = ({ user, logout }: any) => {
         })}
       </ScrollView>
 
+      {/* User Profile Footer */}
       <View className="p-4 border-t border-[#233554]">
         <View className="flex-row items-center gap-3 px-2 mb-4">
           <TouchableOpacity 
@@ -124,7 +128,7 @@ const SidebarContent = ({ user, logout }: any) => {
 export default function MainLayout() {
   const { user, isLoading, logout } = useAuth();
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const isMobile = width < 768; // Desktop sidebar breakpoint
 
   if (isLoading) return <View className="flex-1 bg-[#0A192F] items-center justify-center"><Text className="text-[#64FFDA]">Loading...</Text></View>;
   if (!user) return <Redirect href="/(auth)/login" />;
@@ -134,7 +138,7 @@ export default function MainLayout() {
     return (
       <View style={{ flex: 1, backgroundColor: '#0A192F' }}>
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-          <MainHeader />
+          {/* We only render MainHeader inside the individual screens to save space on mobile */}
           
           <Tabs
             screenOptions={{
@@ -154,7 +158,7 @@ export default function MainLayout() {
           >
             {/* 1. Dashboard */}
             <Tabs.Screen name="index" options={{
-                href: '/(main)/',
+                href: NAV_CONFIG.Dashboard.path,
                 tabBarIcon: ({ color }: { color: string }) => (
                     <View className="items-center justify-center w-16 gap-1">
                         <LayoutDashboard size={24} color={color} />
@@ -165,7 +169,7 @@ export default function MainLayout() {
 
             {/* 2. Finances */}
             <Tabs.Screen name="finances" options={{
-                href: '/(main)/finances',
+                href: NAV_CONFIG.Transactions.path,
                 tabBarIcon: ({ color }: { color: string }) => (
                     <View className="items-center justify-center w-16 gap-1">
                         <CreditCard size={24} color={color} />
@@ -174,9 +178,24 @@ export default function MainLayout() {
                 )
             }} />
 
-            {/* 3. AI Chat */}
+            {/* 3. Hub (Briefcase) */}
+            <Tabs.Screen
+                name="hub" 
+                options={{
+                    title: NAV_CONFIG.Hub.label,
+                    href: NAV_CONFIG.Hub.path,
+                    tabBarIcon: ({ color }: { color: string }) => (
+                        <View className="items-center justify-center w-16 gap-1">
+                            <Briefcase size={24} color={color} />
+                            <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
+                        </View>
+                    )
+                }}
+            />
+
+            {/* 4. AI Chat */}
             <Tabs.Screen name="aiChat" options={{
-                href: '/(main)/aiChat',
+                href: NAV_CONFIG['AI Chat'].path,
                 tabBarIcon: ({ color }: { color: string }) => (
                     <View className="items-center justify-center w-16 gap-1">
                         <Bot size={24} color={color} />
@@ -185,9 +204,9 @@ export default function MainLayout() {
                 )
             }} />
 
-            {/* 4. Settings */}
+            {/* 5. Settings */}
             <Tabs.Screen name="settings" options={{
-                href: '/(main)/settings', 
+                href: NAV_CONFIG.Settings.path, 
                 tabBarIcon: ({ color }: { color: string }) => (
                     <View className="items-center justify-center w-16 gap-1">
                         <Settings size={24} color={color} />
@@ -196,37 +215,22 @@ export default function MainLayout() {
                 )
             }} />
 
-            {/* Conditional Admin Tab */}
-            <Tabs.Screen name="admin" options={{
-                href: user.role === 'admin' ? '/(main)/admin' : null,
-                tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center w-16 gap-1">
-                        <ShieldAlert size={24} color={color} />
-                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
-                    </View>
-                )
-            }} />
+            {/* Conditional and Hidden Tabs (Must remain listed for routing but set href: null if unauthorized) */}
+            <Tabs.Screen name="admin" options={{ href: user.role === 'admin' ? NAV_CONFIG.Admin.path : null }} />
+            <Tabs.Screen name="cpa" options={{ href: user.role === 'cpa' ? NAV_CONFIG['CPA Portal'].path : null }} />
             
-            {/* Conditional CPA Tab */}
-            <Tabs.Screen name="cpa" options={{
-                href: user.role === 'cpa' ? '/(main)/cpa' : null, 
-                tabBarIcon: ({ color }: { color: string }) => (
-                    <View className="items-center justify-center w-16 gap-1">
-                        <Users size={24} color={color} />
-                        <View className={`w-1 h-1 rounded-full ${color === '#64FFDA' ? 'bg-[#64FFDA]' : 'bg-transparent'} mt-1`} />
-                    </View>
-                )
-            }} />
-
-            {/* Hidden Screens */}
-            <Tabs.Screen name="messages/index" options={{ href: null }} />
-            <Tabs.Screen name="messages/[id]" options={{ href: null }} />
+            {/* HIDE ALL SUB-ROUTES that are managed by Stacks */}
             <Tabs.Screen name="documents" options={{ href: null }} />
-            <Tabs.Screen name="scan" options={{ href: null }} />
             <Tabs.Screen name="find-cpa" options={{ href: null }} />
             <Tabs.Screen name="support" options={{ href: null }} />
+            <Tabs.Screen name="messages/index" options={{ href: null }} />
+            <Tabs.Screen name="messages/[id]" options={{ href: null }} />
+            <Tabs.Screen name="scan" options={{ href: null }} />
             <Tabs.Screen name="quick-add" options={{ href: null }} />
-
+            <Tabs.Screen name="organization" options={{ href: null }} />
+            <Tabs.Screen name="approvals" options={{ href: null }} />
+            <Tabs.Screen name="invoices" options={{ href: null }} />
+            
           </Tabs>
         </SafeAreaView>
       </View>
@@ -238,6 +242,7 @@ export default function MainLayout() {
     <SafeAreaView className="flex-1 bg-[#0A192F]">
       <View className="flex-row flex-1">
         <View className="w-64 bg-[#0A192F] border-r border-[#233554] h-full">
+          {/* SidebarContent handles the dynamic generation of navigation items */}
           <SidebarContent user={user} logout={logout} />
         </View>
         <View className="flex-1 bg-[#0A192F]">

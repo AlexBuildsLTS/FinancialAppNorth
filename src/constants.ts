@@ -7,10 +7,10 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
   'member': [
     'Dashboard',
     'Transactions',
+    'Hub',
+    'AI Chat',
     'Documents',
     'Scan',
-    'AI Chat',
-    'Find CPA',
     'Settings',
     'Support'
   ],
@@ -19,6 +19,7 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
   'premium_member': [
     'Dashboard',
     'Transactions',
+     'Hub',
     'Documents',
     'Scan',
     'AI Chat',
@@ -33,6 +34,7 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
   'cpa': [
     'Dashboard', 
     'Transactions', 
+     'Hub',
     'Documents', 
     'Scan', 
     'AI Chat', 
@@ -46,6 +48,7 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
     'Dashboard',
     'Transactions',
     'Documents',
+     'Hub',
     'Scan',
     'AI Chat',
     'Messages',
@@ -60,6 +63,7 @@ export const ROLE_NAV_ITEMS: Record<UserRole | string, string[]> = {
     'Dashboard', 
     'Transactions', 
     'Documents', 
+     'Hub',
     'Scan', 
     'CPA Portal',
     'Support', 

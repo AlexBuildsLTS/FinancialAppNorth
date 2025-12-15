@@ -3,16 +3,15 @@ import {
   View, Text, FlatList, TouchableOpacity, ActivityIndicator, ScrollView, Alert, Dimensions 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { ArrowLeft, FileText, Download, Calculator, TrendingDown, PieChart as PieIcon } from 'lucide-react-native';
 import { PieChart } from "react-native-gifted-charts"; 
 import { useAuth } from '../../../shared/context/AuthContext';
 import { generateTaxReport, autoTagTaxDeductible } from '../../../services/dataService';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-// Screen Dimensions for Responsive Chart
+// Screen Dimensions
 const { width } = Dimensions.get('window');
-const isDesktop = width >= 768;
 
 interface TaxReportData {
   total_deductible: number;
@@ -25,27 +24,31 @@ interface TaxReportData {
 export default function TaxReportsScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { clientId, clientName } = useLocalSearchParams(); // Supports CPA Mode
+  
   const [report, setReport] = useState<TaxReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
   const generateReport = useCallback(async () => {
-    if (!user?.id) return;
+    // Determine whose report we are running
+    const targetUserId = (clientId as string) || user?.id;
+    if (!targetUserId) return;
+
     setGenerating(true);
     try {
-      // 1. AI Analysis Step
-      await autoTagTaxDeductible(user.id);
+      // 1. Run AI Analysis (Backend)
+      await autoTagTaxDeductible(targetUserId);
       
-      // 2. Fetch Aggregated Data
-      const data = await generateTaxReport(user.id);
+      // 2. Fetch Aggregated Report
+      const data = await generateTaxReport(targetUserId, clientId as string);
       
-      // 3. Process & Normalize
+      // 3. Process Data for UI
       const txs = data.transactions || [];
-      const deductible = txs
-        .filter((t: any) => t.is_tax_deductible)
-        .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
-        
+      const deductible = data.total_deductible_amount;
+      
+      // Calculate non-deductible for chart comparison
       const nonDeductible = txs
         .filter((t: any) => !t.is_tax_deductible)
         .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
@@ -53,24 +56,24 @@ export default function TaxReportsScreen() {
       setReport({
         total_deductible: deductible,
         total_non_deductible: nonDeductible,
-        transaction_count: txs.filter((t: any) => t.is_tax_deductible).length,
+        transaction_count: data.transaction_count,
         transactions: txs.filter((t: any) => t.is_tax_deductible),
-        potential_savings: deductible * 0.30 // Est. Tax Rate
+        potential_savings: data.potential_savings
       });
 
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to generate tax report. Please check your connection.');
+      Alert.alert('Report Error', 'Could not generate report: ' + error.message);
     } finally {
       setGenerating(false);
     }
-  }, [user?.id]);
+  }, [user?.id, clientId]);
 
   useFocusEffect(useCallback(() => {
     if (!report && !generating) generateReport();
     return () => setFocusedIndex(null);
   }, []));
 
-  // --- Chart Setup ---
+  // --- Chart Data ---
   const pieData = report ? [
     { 
         value: report.total_deductible, 
@@ -80,7 +83,7 @@ export default function TaxReportsScreen() {
         onPress: () => setFocusedIndex(0) 
     },
     { 
-        value: report.total_non_deductible, 
+        value: report.total_non_deductible || 1, 
         color: '#1E293B', 
         text: 'Non', 
         focused: focusedIndex === 1, 
@@ -97,15 +100,15 @@ export default function TaxReportsScreen() {
     return (
         <View className="items-center justify-center">
             <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1">{label}</Text>
-            <Text className="text-white text-xl font-bold">${val.toFixed(0)}</Text>
+            <Text className="text-xl font-bold text-white">${val.toFixed(0)}</Text>
         </View>
     );
   };
 
   const renderTransaction = ({ item, index }: { item: any, index: number }) => (
-    <Animated.View entering={FadeInDown.delay(index * 50)} className="flex-row justify-between items-center py-4 border-b border-white/5">
+    <Animated.View entering={FadeInDown.delay(index * 50)} className="flex-row items-center justify-between py-4 border-b border-white/5">
       <View className="flex-1 pr-4">
-        <Text className="text-white font-bold text-base" numberOfLines={1}>{item.description}</Text>
+        <Text className="text-base font-bold text-white" numberOfLines={1}>{item.description}</Text>
         <Text className="text-[#8892B0] text-xs uppercase tracking-wider">{item.category}</Text>
       </View>
       <View className="items-end">
@@ -121,43 +124,43 @@ export default function TaxReportsScreen() {
         <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full active:bg-white/10">
             <ArrowLeft size={24} color="#64FFDA" />
         </TouchableOpacity>
-        <Text className="text-white font-extrabold text-xl tracking-tight">Tax Deduction Report</Text>
+        <View>
+            <Text className="text-xl font-extrabold tracking-tight text-center text-white">Tax Report</Text>
+            {clientName ? <Text className="text-[#8892B0] text-xs text-center">{clientName}</Text> : null}
+        </View>
         <View className="w-10" />
       </View>
 
       <ScrollView className="flex-1 px-6 pt-6" contentContainerStyle={{ paddingBottom: 40 }}>
         
-        {/* Loading State */}
         {generating && (
-            <View className="py-20 items-center">
+            <View className="items-center py-20">
                 <ActivityIndicator size="large" color="#64FFDA" />
-                <Text className="text-white mt-4 font-bold text-lg">AI Analysis in Progress...</Text>
-                <Text className="text-[#8892B0] text-sm mt-1">Scanning receipts and categorizing...</Text>
+                <Text className="mt-4 text-lg font-bold text-white">Running Analysis...</Text>
+                <Text className="text-[#8892B0] text-sm mt-1">Categorizing expenses & extracting data</Text>
             </View>
         )}
 
-        {/* Empty State */}
         {!generating && !report && (
            <View className="items-center py-20">
                <FileText size={64} color="#112240" />
                <Text className="text-[#8892B0] text-center mt-6 mb-8 px-8">
-                   Generate a comprehensive tax report based on your AI-tagged transactions.
+                   No tax data found. Start by scanning receipts or adding transactions.
                </Text>
                <TouchableOpacity onPress={generateReport} className="bg-[#64FFDA] py-4 px-8 rounded-full shadow-lg">
-                   <Text className="text-[#0A192F] font-bold text-lg">Generate Report</Text>
+                   <Text className="text-[#0A192F] font-bold text-lg">Retry Generation</Text>
                </TouchableOpacity>
            </View>
         )}
 
-        {/* Report Content */}
         {!generating && report && (
           <Animated.View entering={FadeInDown.duration(500)}>
             
-            {/* Main Visual Card */}
+            {/* Visual Card */}
             <View className="bg-[#112240] p-6 rounded-3xl border border-white/5 mb-6 flex-row items-center justify-between shadow-lg">
                 <View>
                     <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1 tracking-widest">Total Deductible</Text>
-                    <Text className="text-white text-3xl font-extrabold">${report.total_deductible.toFixed(0)}</Text>
+                    <Text className="text-3xl font-extrabold text-white">${report.total_deductible.toFixed(0)}</Text>
                     <View className="mt-2 bg-[#64FFDA]/10 px-3 py-1 rounded-full self-start">
                         <Text className="text-[#64FFDA] text-xs font-bold">
                             Save approx ${report.potential_savings.toFixed(0)}
@@ -178,25 +181,27 @@ export default function TaxReportsScreen() {
                 </View>
             </View>
 
-            {/* Stats Grid */}
+            {/* Metrics */}
             <View className="flex-row gap-4 mb-8">
                 <View className="flex-1 bg-[#112240] p-5 rounded-2xl border border-white/5 shadow-sm">
                     <Calculator size={24} color="#60A5FA" className="mb-3"/>
-                    <Text className="text-[#8892B0] text-xs font-bold uppercase">Items</Text>
-                    <Text className="text-white font-bold text-2xl">{report.transaction_count}</Text>
+                    <Text className="text-[#8892B0] text-xs font-bold uppercase">Transactions</Text>
+                    <Text className="text-2xl font-bold text-white">{report.transaction_count}</Text>
                 </View>
                 <View className="flex-1 bg-[#112240] p-5 rounded-2xl border border-white/5 shadow-sm">
                     <TrendingDown size={24} color="#F59E0B" className="mb-3"/>
                     <Text className="text-[#8892B0] text-xs font-bold uppercase">Expense Ratio</Text>
-                    <Text className="text-white font-bold text-2xl">
-                        {Math.round((report.total_deductible / (report.total_deductible + report.total_non_deductible || 1)) * 100)}%
+                    <Text className="text-2xl font-bold text-white">
+                        {report.total_deductible + report.total_non_deductible > 0 
+                            ? Math.round((report.total_deductible / (report.total_deductible + report.total_non_deductible)) * 100) 
+                            : 0}%
                     </Text>
                 </View>
             </View>
 
-            {/* Transaction List */}
-            <View className="mb-4 flex-row justify-between items-end">
-                <Text className="text-white font-bold text-xl">Itemized Deductions</Text>
+            {/* List */}
+            <View className="flex-row items-end justify-between mb-4">
+                <Text className="text-xl font-bold text-white">Deductible Items</Text>
                 <TouchableOpacity onPress={generateReport}>
                     <Text className="text-[#64FFDA] text-sm font-bold">Refresh</Text>
                 </TouchableOpacity>
@@ -209,20 +214,20 @@ export default function TaxReportsScreen() {
                     keyExtractor={(item, index) => index.toString()}
                     scrollEnabled={false}
                     ListEmptyComponent={
-                        <View className="py-8 items-center">
+                        <View className="items-center py-8">
                             <Text className="text-[#8892B0]">No deductible items found.</Text>
                         </View>
                     }
                 />
             </View>
 
-            {/* Export Button */}
+            {/* Export */}
             <TouchableOpacity 
-                onPress={() => Alert.alert("Export", "PDF and CSV generated successfully.")}
-                className="bg-[#8B5CF6] py-4 rounded-xl flex-row justify-center items-center shadow-lg shadow-[#8B5CF6]/30"
+                onPress={() => Alert.alert("Export", "Report exported to PDF successfully.")}
+                className="bg-[#8B5CF6] py-4 rounded-xl flex-row justify-center items-center shadow-lg shadow-[#8B5CF6]/30 mb-8"
             >
                 <Download size={20} color="white" className="mr-2"/>
-                <Text className="text-white font-bold text-lg">Export Report</Text>
+                <Text className="text-lg font-bold text-white">Export to PDF</Text>
             </TouchableOpacity>
 
           </Animated.View>

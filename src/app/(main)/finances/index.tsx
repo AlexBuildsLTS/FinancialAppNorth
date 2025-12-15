@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar 
 } from 'react-native';
 import {
-  TrendingUp, TrendingDown, DollarSign, Sparkles, ArrowRight, Wallet, Receipt, CreditCard, BarChart3
+  TrendingUp, TrendingDown, DollarSign, Sparkles, ArrowRight, Wallet, Receipt, CreditCard, BarChart3, Activity
 } from 'lucide-react-native'; 
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../../shared/context/AuthContext';
@@ -70,7 +70,7 @@ export default function FinanceOverviewScreen() {
                 <Icon size={20} color={color} />
             </View>
             <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1">{title}</Text>
-            <Text className="text-white text-xl font-bold" numberOfLines={1}>{value}</Text>
+            <Text className="text-xl font-bold text-white" numberOfLines={1}>{value}</Text>
         </View>
     );
 
@@ -85,7 +85,7 @@ export default function FinanceOverviewScreen() {
                 {/* Header */}
                 <View className="mb-8">
                     <Text className="text-[#8892B0] text-sm font-medium">Financial Overview</Text>
-                    <Text className="text-white text-3xl font-extrabold">Your Wealth</Text>
+                    <Text className="text-3xl font-extrabold text-white">Your Wealth</Text>
                 </View>
 
                 {/* AI Insight Card */}
@@ -99,7 +99,7 @@ export default function FinanceOverviewScreen() {
                         <Sparkles size={18} color="#64FFDA" />
                         <Text className="text-[#64FFDA] font-bold text-sm uppercase tracking-widest">AI Insight</Text>
                     </View>
-                    <Text className="text-white text-base leading-6 font-medium">
+                    <Text className="text-base font-medium leading-6 text-white">
                         "{insight.replace(/"/g, '')}"
                     </Text>
                 </LinearGradient>
@@ -134,7 +134,7 @@ export default function FinanceOverviewScreen() {
                     <View className="mb-8">
                         <View className="flex-row items-center mb-4">
                             <BarChart3 size={20} color="#64FFDA" />
-                            <Text className="text-white text-lg font-bold ml-2">30-Day Cash Flow</Text>
+                            <Text className="ml-2 text-lg font-bold text-white">30-Day Cash Flow</Text>
                         </View>
                         <View className="bg-[#112240] p-4 rounded-2xl border border-white/5">
                             <View className="flex-row items-center justify-between mb-3">
@@ -156,10 +156,10 @@ export default function FinanceOverviewScreen() {
                                 </View>
                             </View>
 
-                            <View className="flex-row justify-between items-center">
+                            <View className="flex-row items-center justify-between">
                                 <View>
                                     <Text className="text-[#8892B0] text-sm">Current Balance</Text>
-                                    <Text className="text-white font-bold text-lg">
+                                    <Text className="text-lg font-bold text-white">
                                         ${metrics.balance.toFixed(2)}
                                     </Text>
                                 </View>
@@ -181,18 +181,36 @@ export default function FinanceOverviewScreen() {
                 )}
 
                 {/* Actions */}
-                <Text className="text-white text-lg font-bold mb-4">Quick Actions</Text>
+                <Text className="mb-4 text-lg font-bold text-white">Quick Actions</Text>
                 <View className="gap-3">
+                    
+                    {/* NEW: Financial Scorecard Button */}
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(main)/finances/scorecard')} 
+                        className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
+                    >
+                        <View className="flex-row items-center gap-4">
+                            <View className="items-center justify-center w-10 h-10 rounded-full bg-emerald-500/10">
+                                <Activity size={20} color="#10B981" />
+                            </View>
+                            <View>
+                                <Text className="text-base font-bold text-white">Health Scorecard</Text>
+                                <Text className="text-[#8892B0] text-xs">Burn Rate, Runway & Profit</Text>
+                            </View>
+                        </View>
+                        <ArrowRight size={20} color="#8892B0" />
+                    </TouchableOpacity>
+
                     <TouchableOpacity 
                         onPress={() => router.push('/(main)/finances/transactions')} 
                         className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
                     >
                         <View className="flex-row items-center gap-4">
-                            <View className="w-10 h-10 rounded-full bg-blue-500/10 items-center justify-center">
+                            <View className="items-center justify-center w-10 h-10 rounded-full bg-blue-500/10">
                                 <Wallet size={20} color="#60A5FA" />
                             </View>
                             <View>
-                                <Text className="text-white font-bold text-base">Add Transaction</Text>
+                                <Text className="text-base font-bold text-white">Add Transaction</Text>
                                 <Text className="text-[#8892B0] text-xs">Log income or expense</Text>
                             </View>
                         </View>
@@ -204,11 +222,11 @@ export default function FinanceOverviewScreen() {
                         className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
                     >
                         <View className="flex-row items-center gap-4">
-                            <View className="w-10 h-10 rounded-full bg-purple-500/10 items-center justify-center">
+                            <View className="items-center justify-center w-10 h-10 rounded-full bg-purple-500/10">
                                 <Receipt size={20} color="#A78BFA" />
                             </View>
                             <View>
-                                <Text className="text-white font-bold text-base">Scan Receipt</Text>
+                                <Text className="text-base font-bold text-white">Scan Receipt</Text>
                                 <Text className="text-[#8892B0] text-xs">AI-powered extraction</Text>
                             </View>
                         </View>
@@ -220,11 +238,11 @@ export default function FinanceOverviewScreen() {
                         className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
                     >
                         <View className="flex-row items-center gap-4">
-                            <View className="w-10 h-10 rounded-full bg-orange-500/10 items-center justify-center">
+                            <View className="items-center justify-center w-10 h-10 rounded-full bg-orange-500/10">
                                 <CreditCard size={20} color="#F59E0B" />
                             </View>
                             <View>
-                                <Text className="text-white font-bold text-base">Track Subscriptions</Text>
+                                <Text className="text-base font-bold text-white">Track Subscriptions</Text>
                                 <Text className="text-[#8892B0] text-xs">Detect recurring bills</Text>
                             </View>
                         </View>

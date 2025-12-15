@@ -244,15 +244,16 @@ export const scanForSubscriptions = async (userId: string): Promise<DetectedSubs
         nextDate.setDate(nextDate.getDate() + 30);
 
         detected.push({
-            id: `detected_${key}`,
-            merchant: latest.description || 'Unknown',
-            amount: Math.abs(latest.amount),
-            frequency: 'monthly',
-            // FIX: Changed from 'active' to 'stable' to match Type Definition
-            status: 'stable', 
-            next_due: nextDate.toISOString(),
-            yearly_waste: Math.abs(latest.amount) * 12,
-            confidence: 0.8
+          id: `detected_${key}`,
+          merchant: latest.description || 'Unknown',
+          amount: Math.abs(latest.amount),
+          frequency: 'monthly',
+          status: 'stable',
+          next_due: nextDate.toISOString(),
+          yearly_waste: Math.abs(latest.amount) * 12,
+          confidence: 0.8,
+          name: undefined,
+          next_billing_date: ''
         });
     }
   });
@@ -266,15 +267,17 @@ export const getSubscriptions = async (userId: string): Promise<DetectedSubscrip
         .select('*')
         .eq('user_id', userId);
 
-    const manualSubs: DetectedSubscription[] = (dbSubs || []).map((s: any) => ({
+    const manualSubs: DetectedSubscription[] = (dbSubs || []).map((s: any) => ({ 
         id: s.id,
+        name: s.merchant, // Assuming merchant is used as name
         merchant: s.merchant,
         amount: parseFloat(s.amount),
         frequency: (s.frequency || 'monthly').toLowerCase() as any,
         status: s.status,
         next_due: s.next_billing_date || new Date().toISOString(),
         yearly_waste: parseFloat(s.amount) * 12,
-        confidence: 1.0
+        confidence: 1.0,
+        next_billing_date: s.next_billing_date || new Date().toISOString(), // Add next_billing_date
     }));
 
     const detectedSubs = await scanForSubscriptions(userId);
@@ -810,22 +813,42 @@ export const getConversations = async (userId: string) => {
  * ==============================================================================
  */
 
-export const getDocuments = async (userId: string): Promise<DocumentItem[]> => {
-  const { data, error } = await supabase
+// FIX: Removed unused p0 parameter
+export const getDocuments = async (userId: string, _p0: string): Promise<DocumentItem[]> => {
+  const { data: documents, error: docError } = await supabase
     .from('documents')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error) return [];
-  
-  return data.map((d: any) => ({
-      ...d,
-      name: d.file_name,
-      formattedSize: d.size_bytes ? `${(d.size_bytes / 1024).toFixed(1)} KB` : 'Unknown',
-      date: d.created_at,
-      type: d.mime_type?.includes('pdf') ? 'contract' : 'receipt'
+  if (docError) return [];
+
+  return documents.map((d: any) => ({
+    ...d,
+    name: d.file_name,
+    formattedSize: d.size_bytes ? `${(d.size_bytes / 1024).toFixed(1)} KB` : 'Unknown',
+    date: d.created_at,
+    type: d.mime_type?.includes('pdf') ? 'contract' : 'receipt'
   }));
+};
+
+export const getDocumentById = async (documentId: string): Promise<DocumentItem | null> => {
+  const { data, error } = await supabase
+    .from('documents')
+    .select('*') // Assuming documentId is used to fetch a single document
+ .eq('id', documentId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  
+  const document = data[0]; // Assuming getDocumentById returns a single document
+  return {
+    ...document,
+    name: document.file_name,
+    formattedSize: document.size_bytes ? `${(document.size_bytes / 1024).toFixed(1)} KB` : 'Unknown',
+    date: document.created_at,
+    type: document.mime_type?.includes('pdf') ? 'contract' : 'receipt'
+  };
 };
 
 export const uploadDocument = async (
@@ -1268,7 +1291,7 @@ export const exportUserData = async (userId: string) => {
     const [profile, transactions, documents] = await Promise.all([
         getUserDetails(userId),
         getTransactions(userId),
-        getDocuments(userId)
+        getDocuments(userId, '')
     ]);
     
     return {

@@ -1,275 +1,260 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, SafeAreaView, StatusBar, Linking, Platform } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { Camera, Image as ImageIcon, Check, X, RotateCcw, Zap } from 'lucide-react-native';
-import { useAuth } from '../../shared/context/AuthContext';
-import { createTransaction } from '../../services/dataService'; // Unified data service
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  View, Text, TouchableOpacity, Alert, ActivityIndicator, Image, TextInput 
+} from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera'; 
 import { useRouter } from 'expo-router';
-import { generateContent } from '../../services/aiService';
-
-// --- Types for AI Output ---
-interface ParsedReceipt {
-    total: number;
-    merchant: string;
-    category: string;
-    date: string; // YYYY-MM-DD
-}
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ArrowLeft, Flashlight, Check, Repeat, FileText, ScanLine } from 'lucide-react-native';
+import { supabase } from '../../lib/supabase'; 
+import { dataService } from '../../services/dataService'; 
+import { useAuth } from '../../shared/context/AuthContext';
 
 export default function ScanReceiptScreen() {
-  const { user } = useAuth();
   const router = useRouter();
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [base64Image, setBase64Image] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<ParsedReceipt | null>(null);
+  const { user } = useAuth();
+  
+  // Camera State
+  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
+  const [facing, setFacing] = useState<'back' | 'front'>('back');
+  const [flash, setFlash] = useState<'off' | 'on'>('off');
+  
+  // Processing State
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+  
+  // Result State (The AI's best guess)
+  const [scanResult, setScanResult] = useState<any>(null);
 
-  // --- 1. Permission and Image Picker Logic (Stabilized) ---
-  const requestPermissions = async (useCamera: boolean) => {
-    let permissionStatus: ImagePicker.PermissionResponse;
-    
-    if (useCamera) {
-      permissionStatus = await ImagePicker.requestCameraPermissionsAsync();
-    } else {
-      permissionStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  // Editable Form State (User corrections)
+  const [merchant, setMerchant] = useState('');
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState('');
+  const [category, setCategory] = useState('');
+
+  // Auto-fill form when AI result arrives
+  useEffect(() => {
+    if (scanResult) {
+        setMerchant(scanResult.merchant || 'Unknown Merchant');
+        setAmount(scanResult.amount ? String(scanResult.amount) : '');
+        setDate(scanResult.date || new Date().toISOString().split('T')[0]);
+        setCategory(scanResult.category || 'Uncategorized');
     }
+  }, [scanResult]);
 
-    if (permissionStatus.status === 'granted') {
-      return true;
-    }
+  if (!permission) return <View className="flex-1 bg-black" />;
+  
+  if (!permission.granted) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#0A192F] items-center justify-center p-6">
+        <ScanLine size={64} color="#64FFDA" />
+        <Text className="mt-6 text-xl font-bold text-center text-white">Camera Access Required</Text>
+        <Text className="text-[#8892B0] text-center mt-2 mb-8 px-4 leading-6">
+          NorthFinance uses advanced computer vision to extract data from your receipts instantly.
+        </Text>
+        <TouchableOpacity onPress={requestPermission} className="bg-[#64FFDA] px-8 py-4 rounded-full shadow-lg shadow-[#64FFDA]/20">
+          <Text className="text-[#0A192F] font-bold text-lg">Grant Access</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
-    if (permissionStatus.canAskAgain) {
-        Alert.alert(
-            "Permission Required",
-            `Please grant ${useCamera ? 'Camera' : 'Gallery'} access to proceed.`,
-            [{ text: "OK" }]
-        );
-    } else {
-        Alert.alert(
-            "Permission Denied",
-            "Access is permanently restricted. Please go to your device settings to enable access.",
-            [{ text: "Go to Settings", onPress: () => Linking.openSettings() }]
-        );
-    }
-    return false;
-  };
-
-  const pickImage = async (useCamera = false) => {
-    setResult(null);
-    setImageUri(null);
-    setBase64Image(null);
-
-    const hasPermission = await requestPermissions(useCamera);
-    if (!hasPermission) return;
-
-    try {
-      const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.6, // Optimal balance for speed and quality
-        base64: true,
-        allowsEditing: Platform.OS === 'web' ? false : true, // Editing can interfere on web
-        aspect: [4, 3],
-      };
-
-      let pickerResult: ImagePicker.ImagePickerResult;
-      if (useCamera) {
-        pickerResult = await ImagePicker.launchCameraAsync(options);
-      } else {
-        pickerResult = await ImagePicker.launchImageLibraryAsync(options);
-      }
-
-      if (!pickerResult.canceled && pickerResult.assets[0].base64) {
-        const { uri, base64 } = pickerResult.assets[0];
+  const takePicture = async () => {
+    if (cameraRef.current) {
+      try {
+        const photoData = await cameraRef.current.takePictureAsync({
+          quality: 0.5,
+          base64: true,
+          skipProcessing: true 
+        });
         
-        setImageUri(uri);
-        setBase64Image(base64);
-        
-        // Auto-start analysis immediately upon selecting/taking photo
-        analyzeReceipt(base64);
-      }
-    } catch (e) {
-      console.error("Image Picker/Camera Error:", e);
-      Alert.alert("Error", "Failed to access image source.");
-    }
-  };
-
-  // --- 2. AI Analysis Logic (Stricter JSON Parsing) ---
-  const analyzeReceipt = async (imgBase64: string) => {
-    if (!user) return;
-    setAnalyzing(true);
-
-    try {
-        const prompt = `
-            Analyze this receipt image. Extract Total, Merchant Name, Primary Category (e.g., Food, Travel, Office Supplies, Utilities), and Date (YYYY-MM-DD). 
-            If the date is missing, use today's date (${new Date().toISOString().split('T')[0]}). 
-            Return ONLY a JSON object. Strictly adhere to the format, ensuring all values are present.
-            
-            Format:
-            {
-                "total": number (e.g., 45.99),
-                "merchant": string,
-                "category": string,
-                "date": "YYYY-MM-DD"
-            }
-        `;
-        
-        const responseText = await generateContent(prompt, user.id, imgBase64);
-        
-        // Clean markdown, quotes, and newlines from AI response
-        const cleanJson = responseText.replace(/```json|```/g, '').trim().replace(/(\r\n|\n|\r)/gm, "");
-        const data = JSON.parse(cleanJson);
-        
-        // Stricter validation
-        if (!data.total || !data.merchant || isNaN(Number(data.total))) {
-             throw new Error("Missing or invalid core data fields.");
+        if (photoData?.base64) {
+            setPhoto(photoData.uri);
+            analyzeReceipt(photoData.base64);
         }
+      } catch (e) {
+        Alert.alert("Camera Error", "Failed to capture image.");
+      }
+    }
+  };
 
-        setResult({
-            total: Number(data.total),
-            merchant: data.merchant,
-            category: data.category || "Uncategorized",
-            date: data.date || new Date().toISOString().split('T')[0]
+  const analyzeReceipt = async (base64: string) => {
+    setProcessing(true);
+    try {
+        // 1. Call Titan 2 AI (Edge Function)
+        const { data, error } = await supabase.functions.invoke('ocr-scan', {
+            body: { imageBase64: base64, userId: user?.id }
         });
 
-    } catch (error: any) {
-        console.error("AI Analysis failed:", error);
-        Alert.alert("Analysis Failed", "Could not extract data. Retake the photo, ensuring it is clear.");
-        // Clear image on hard failure to force retry
-        setImageUri(null);
-    } finally {
-        setAnalyzing(false);
-    }
-  };
-
-  // --- 3. Save Logic ---
-  const handleSave = async () => {
-    if (!result || !user) return;
-    try {
-        // Convert the string category to the expected object shape for Transactions
-        const sanitizedCategoryId = (result.category ?? "Uncategorized")
-            .toLowerCase()
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9\-]/g, "") || "uncategorized";
-
-        // Use the validated/parsed result data
-        await createTransaction({
-            amount: -Math.abs(result.total), // Always negative for expense
-            description: result.merchant,
-            category: {
-                id: sanitizedCategoryId,
-                name: result.category ?? "Uncategorized",
-            },
-            date: result.date,
-            type: 'expense',
-            // OPTIONAL: You might save the base64 image here if your createTransaction supports it
-        }, user.id);
+        if (error) throw error;
         
-        Alert.alert("Success", `Expense of $${result.total.toFixed(2)} saved for ${result.merchant}.`);
-        router.back();
+        // 2. Set Result (The Edge Function already returns clean JSON)
+        setScanResult(data);
+
     } catch (e: any) {
-        Alert.alert("Save Failed", "Could not save transaction. Check data connection.");
+        console.error("OCR Error:", e);
+        Alert.alert(
+            "Scan Failed", 
+            "Could not read receipt. Please enter details manually.",
+            [{ text: "OK", onPress: () => setScanResult({ merchant: '', amount: 0 }) }]
+        );
+    } finally {
+        setProcessing(false);
     }
   };
 
-  const handleRetake = () => {
-      setImageUri(null);
-      setBase64Image(null);
-      setResult(null);
+  const handleSave = async () => {
+    if (!user) return;
+    if (!amount || isNaN(parseFloat(amount))) {
+        Alert.alert("Invalid Amount", "Please enter a valid number.");
+        return;
+    }
+    
+    try {
+        await dataService.createTransaction({
+            amount: -Math.abs(parseFloat(amount)), // Expenses are negative
+            description: merchant,
+            category: category,
+            date: date,
+            type: 'expense'
+        }, user.id);
+
+        Alert.alert("Success", "Receipt saved to ledger.", [
+            { text: "Done", onPress: () => router.back() }
+        ]);
+    } catch (e) {
+        Alert.alert("Save Error", "Could not save transaction to database.");
+    }
   };
 
-  // --- 4. Render UI ---
-  const renderInputControls = () => (
-    <View className="flex-1 justify-center items-center gap-6 p-6">
-        <TouchableOpacity onPress={() => pickImage(true)} className="bg-[#112240] w-full p-8 rounded-3xl border border-white/10 items-center active:bg-[#162C52] shadow-xl">
-            <Camera size={64} color="#64FFDA" />
-            <Text className="text-white font-bold text-xl mt-4">Take Photo</Text>
-        </TouchableOpacity>
-        
-        <View className="flex-row items-center w-full gap-4">
-            <View className="h-[1px] bg-white/10 flex-1" />
-            <Text className="text-[#8892B0]">OR</Text>
-            <View className="h-[1px] bg-white/10 flex-1" />
-        </View>
-
-        <TouchableOpacity onPress={() => pickImage(false)} className="bg-[#112240] w-full p-8 rounded-3xl border border-white/10 items-center active:bg-[#162C52] shadow-xl">
-            <ImageIcon size={64} color="#A78BFA" />
-            <Text className="text-white font-bold text-xl mt-4">Upload from Gallery</Text>
-        </TouchableOpacity>
-    </View>
-  );
-
-  const renderAnalysisView = () => (
-    <ScrollView className="flex-1 p-6">
-        <Image source={{ uri: imageUri! }} className="w-full h-80 rounded-3xl mb-6 bg-black/20 border border-white/10 shadow-xl" resizeMode="contain" />
-        
-        {/* State: Analyzing */}
-        {analyzing && (
-            <View className="items-center py-10 bg-[#112240] rounded-3xl border border-white/5 shadow-lg">
-                <ActivityIndicator size="large" color="#64FFDA" />
-                <Text className="text-white font-bold text-lg mt-4">AI Analyzing Receipt...</Text>
-                <Text className="text-[#8892B0] text-sm mt-1">Extracting ${Math.floor(Math.random() * 50) + 1} data points</Text>
-            </View>
-        )}
-        
-        {/* State: Result Ready */}
-        {result && !analyzing && (
-            <View className="bg-[#112240] p-6 rounded-3xl border border-white/5 mb-20 shadow-lg">
-                <View className="flex-row items-center mb-4">
-                    <Zap size={20} color="#64FFDA" />
-                    <Text className="text-[#64FFDA] font-bold ml-2 uppercase text-xs tracking-widest">Data Extracted</Text>
+  // --- REVIEW UI ---
+  if (photo) {
+      return (
+        <SafeAreaView className="flex-1 bg-[#0A192F]">
+            <View className="flex-1 p-6">
+                <Text className="mb-6 text-2xl font-bold text-center text-white">Review Scan</Text>
+                
+                <View className="items-center mb-8">
+                    <Image source={{ uri: photo }} className="w-32 h-48 border rounded-xl border-white/10" resizeMode="contain" />
+                    {processing && (
+                        <View className="absolute inset-0 items-center justify-center bg-black/60 rounded-xl">
+                            <ActivityIndicator size="large" color="#64FFDA" />
+                            <Text className="text-[#64FFDA] text-xs font-bold mt-2">ANALYZING...</Text>
+                        </View>
+                    )}
                 </View>
 
-                <View className="space-y-4 mb-6">
-                    <View className="flex-row justify-between border-b border-white/5 pb-2">
-                        <Text className="text-[#8892B0]">Merchant</Text>
-                        <Text className="text-white font-bold text-lg">{result.merchant}</Text>
+                {/* Form */}
+                <View className="bg-[#112240] p-6 rounded-3xl border border-white/5 gap-5 shadow-xl">
+                    <View>
+                        <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1 tracking-wider">Merchant</Text>
+                        <TextInput 
+                            value={merchant} 
+                            onChangeText={setMerchant}
+                            placeholder="Store Name"
+                            placeholderTextColor="#475569"
+                            className="pb-2 text-xl font-bold text-white border-b border-white/10" 
+                        />
                     </View>
-                    <View className="flex-row justify-between border-b border-white/5 pb-2">
-                        <Text className="text-[#8892B0]">Total</Text>
-                        <Text className="text-[#64FFDA] font-bold text-2xl">${result.total.toFixed(2)}</Text>
+                    
+                    <View>
+                        <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1 tracking-wider">Total Amount</Text>
+                        <View className="flex-row items-center pb-2 border-b border-white/10">
+                            <Text className="text-[#64FFDA] text-2xl font-bold mr-1">$</Text>
+                            <TextInput 
+                                value={amount} 
+                                onChangeText={setAmount}
+                                keyboardType="numeric"
+                                placeholder="0.00"
+                                placeholderTextColor="#475569"
+                                className="text-[#64FFDA] text-3xl font-bold flex-1" 
+                            />
+                        </View>
                     </View>
-                    <View className="flex-row justify-between border-b border-white/5 pb-2">
-                        <Text className="text-[#8892B0]">Date</Text>
-                        <Text className="text-white">{result.date}</Text>
-                    </View>
-                    <View className="flex-row justify-between pb-2">
-                        <Text className="text-[#8892B0]">Category</Text>
-                        <View className="bg-[#0A192F] px-3 py-1 rounded-full border border-white/10">
-                            <Text className="text-white text-xs font-medium">{result.category}</Text>
+
+                    <View className="flex-row justify-between gap-4">
+                        <View className="flex-1">
+                            <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1 tracking-wider">Date</Text>
+                            <TextInput 
+                                value={date} 
+                                onChangeText={setDate}
+                                className="pb-1 font-medium text-white border-b border-white/10" 
+                            />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1 tracking-wider">Category</Text>
+                            <TextInput 
+                                value={category} 
+                                onChangeText={setCategory}
+                                className="pb-1 font-medium text-white border-b border-white/10" 
+                            />
                         </View>
                     </View>
                 </View>
-                
-                <View className="flex-row gap-3">
-                    <TouchableOpacity onPress={handleRetake} className="flex-1 bg-white/5 p-4 rounded-xl items-center flex-row justify-center border border-white/10">
-                        <RotateCcw size={18} color="#8892B0" className="mr-2" />
-                        <Text className="text-[#8892B0] font-bold">Retake</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={handleSave} className="flex-1 bg-[#64FFDA] p-4 rounded-xl items-center flex-row justify-center shadow-lg shadow-[#64FFDA]/30">
-                        <Check size={18} color="#0A192F" className="mr-2" />
-                        <Text className="text-[#0A192F] font-bold">Save Transaction</Text>
-                    </TouchableOpacity>
-                </View>
+
+                {/* Actions */}
+                {!processing && (
+                    <View className="justify-end flex-1 gap-3 mt-6">
+                        <TouchableOpacity 
+                            onPress={handleSave} 
+                            className="bg-[#64FFDA] p-4 rounded-xl flex-row items-center justify-center shadow-lg shadow-[#64FFDA]/20"
+                        >
+                            <Check size={20} color="#0A192F" />
+                            <Text className="text-[#0A192F] font-bold text-lg ml-2">Confirm & Save</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                            onPress={() => { setPhoto(null); setScanResult(null); }} 
+                            className="bg-[#112240] p-4 rounded-xl flex-row items-center justify-center border border-white/10"
+                        >
+                            <Repeat size={20} color="#8892B0" />
+                            <Text className="ml-2 text-lg font-bold text-white">Retake Photo</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
-        )}
+        </SafeAreaView>
+      );
+  }
 
-        {/* State: Failed Analysis (If result is null but image exists) */}
-        {!analyzing && !result && imageUri && (
-            <TouchableOpacity onPress={handleRetake} className="bg-red-500/10 p-4 rounded-xl items-center border border-red-500/30">
-                <Text className="text-red-400 font-bold">Analysis failed. Tap to try again or retake.</Text>
-            </TouchableOpacity>
-        )}
-    </ScrollView>
-  );
-
+  // --- CAMERA UI ---
   return (
-    <SafeAreaView className="flex-1 bg-[#0A192F]">
-      <StatusBar barStyle="light-content" />
-      <View className="p-6 pb-4">
-        <Text className="text-white text-3xl font-bold">Scan Receipt</Text>
-        <Text className="text-[#8892B0]">AI Automatic Extraction</Text>
+    <SafeAreaView className="flex-1 bg-black">
+      <View className="absolute z-10 top-12 left-6">
+        <TouchableOpacity onPress={() => router.back()} className="p-2.5 bg-black/40 rounded-full backdrop-blur-md">
+            <ArrowLeft size={24} color="white" />
+        </TouchableOpacity>
       </View>
-      
-      {imageUri ? renderAnalysisView() : renderInputControls()}
+
+      <View className="absolute z-10 top-12 right-6">
+        <TouchableOpacity onPress={() => setFlash(f => f === 'off' ? 'on' : 'off')} className="p-2.5 bg-black/40 rounded-full backdrop-blur-md">
+            <Flashlight size={24} color={flash === 'on' ? '#64FFDA' : 'white'} />
+        </TouchableOpacity>
+      </View>
+
+      <CameraView 
+        ref={cameraRef} 
+        style={{ flex: 1 }} 
+        facing={facing}
+        enableTorch={flash === 'on'}
+      />
+
+      {/* Capture Controls */}
+      <View className="absolute bottom-0 flex-row items-center justify-center w-full gap-10 p-8 pt-20 pb-12 bg-gradient-to-t from-black/80 to-transparent">
+         <TouchableOpacity onPress={() => router.push('/(main)/quick-add')} className="items-center justify-center w-12 h-12 border rounded-full bg-white/10 backdrop-blur-md border-white/20">
+            <FileText size={20} color="white" />
+         </TouchableOpacity>
+         
+         <TouchableOpacity 
+            onPress={takePicture}
+            className="items-center justify-center w-20 h-20 border-4 border-white rounded-full shadow-2xl"
+         >
+            <View className="w-16 h-16 bg-white rounded-full" />
+         </TouchableOpacity>
+
+         <View className="w-12" /> {/* Spacer for balance */}
+      </View>
     </SafeAreaView>
   );
 }

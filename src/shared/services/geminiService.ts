@@ -1,30 +1,29 @@
+// File: src/shared/services/geminiService.ts
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { dataService } from '../../services/dataService';
 
-// Fallback is dangerous in production, but okay for dev if you don't have DB keys yet.
-// Ideally, always rely on dataService.getGeminiKey
 const DEFAULT_API_KEY = ""; 
 
 export const generateContent = async (prompt: string, userId: string, financialContext?: any) => {
   try {
-    // 1. Retrieve the User's API Key securely from the database
     let apiKey = await dataService.getGeminiKey(userId);
     
-    // Fallback logic (optional, remove if you want strict security)
     if (!apiKey) {
       if (DEFAULT_API_KEY) {
-        console.warn("[Gemini] Using hardcoded fallback key.");
         apiKey = DEFAULT_API_KEY;
       } else {
-        console.warn("[Gemini] No API key found.");
         throw new Error("Please save your Gemini API Key in Settings > AI Keys first.");
       }
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    
+    // FIX: Switched to 'gemini-1.5-flash' to resolve the 404 Not Found error.
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // 2. Construct a System Prompt with Financial Context (if provided)
+    // ... (rest of function remains the same) ...
     let finalPrompt = prompt;
     
     if (financialContext) {
@@ -57,9 +56,6 @@ export const generateContent = async (prompt: string, userId: string, financialC
   }
 };
 
-/**
- * Auto-generates a monthly financial report/insight summary
- */
 export const generateFinancialInsights = async (userId: string) => {
     const summary = await dataService.getFinancialSummary(userId);
     const prompt = `Analyze this financial summary: Income ${summary.income}, Expense ${summary.expense}. Give me 3 bullet points on how to save money next month.`;

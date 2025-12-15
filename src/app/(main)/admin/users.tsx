@@ -109,7 +109,7 @@ export default function AdminUsersScreen() {
 
     return (
       <View className={`mb-3 rounded-2xl overflow-hidden border ${isBanned ? 'bg-red-500/5 border-red-500/20' : 'bg-[#112240] border-white/10'}`}>
-        <View className="p-4 flex-row items-center">
+        <View className="flex-row items-center p-4">
           <Image source={{ uri: item.avatar }} className="w-12 h-12 rounded-full bg-white/10" />
           
           <View className="flex-1 ml-4 mr-2">
@@ -125,7 +125,7 @@ export default function AdminUsersScreen() {
 
           <View className="flex-row items-center gap-2">
             {/* Message */}
-            <TouchableOpacity onPress={() => handleMessage(item.id)} className="w-10 h-10 rounded-full items-center justify-center bg-white/5 border border-white/10">
+            <TouchableOpacity onPress={() => handleMessage(item.id)} className="items-center justify-center w-10 h-10 border rounded-full bg-white/5 border-white/10">
               <MessageSquare size={18} color="#64FFDA" />
             </TouchableOpacity>
 
@@ -153,7 +153,7 @@ export default function AdminUsersScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
       <View className="px-6 pt-6 pb-4 border-b border-white/5 bg-[#0A192F]/90">
-        <Text className="text-white text-3xl font-bold">Users</Text>
+        <Text className="text-3xl font-bold text-white">Users</Text>
         <Text className="text-[#8892B0] text-sm">Long press Ban icon to Suspend</Text>
       </View>
 
@@ -174,9 +174,9 @@ export default function AdminUsersScreen() {
 
       {/* SUSPEND MODAL */}
       <Modal visible={suspendModalVisible} transparent animationType="fade" onRequestClose={() => setSuspendModalVisible(false)}>
-        <View className="flex-1 bg-black/80 justify-center items-center p-6">
+        <View className="items-center justify-center flex-1 p-6 bg-black/80">
             <View className="bg-[#112240] w-full rounded-3xl border border-white/10 p-6">
-                <Text className="text-white text-xl font-bold mb-2">Suspend User</Text>
+                <Text className="mb-2 text-xl font-bold text-white">Suspend User</Text>
                 <Text className="text-[#8892B0] mb-6">Select date to auto-reactivate account.</Text>
                 
                 {Platform.OS === 'ios' && (
@@ -193,7 +193,7 @@ export default function AdminUsersScreen() {
                 <TouchableOpacity onPress={handleSuspend} className="bg-[#F59E0B] p-4 rounded-xl items-center mt-4">
                     <Text className="text-[#0A192F] font-bold">Confirm Suspension</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setSuspendModalVisible(false)} className="mt-4 items-center"><Text className="text-[#8892B0]">Cancel</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => setSuspendModalVisible(false)} className="items-center mt-4"><Text className="text-[#8892B0]">Cancel</Text></TouchableOpacity>
             </View>
         </View>
       </Modal>
@@ -201,14 +201,14 @@ export default function AdminUsersScreen() {
       {/* ROLE MODAL */}
       <Modal visible={roleModalVisible} transparent animationType="fade" onRequestClose={() => setRoleModalVisible(false)}>
          {/* ... (Keep existing Role Modal code here) ... */}
-         <View className="flex-1 bg-black/80 justify-center items-center px-6">
+         <View className="items-center justify-center flex-1 px-6 bg-black/80">
           <View className="w-full bg-[#112240] border border-white/10 rounded-3xl p-6 shadow-2xl">
-             <Text className="text-white text-xl font-bold mb-6">Change Role</Text>
+             <Text className="mb-6 text-xl font-bold text-white">Change Role</Text>
              {/* ... Render Role Options ... */}
-             <TouchableOpacity onPress={() => handleRoleUpdate(UserRole.MEMBER)} className="p-4 border-b border-white/5"><Text className="text-white">Member</Text></TouchableOpacity>
-             <TouchableOpacity onPress={() => handleRoleUpdate(UserRole.CPA)} className="p-4 border-b border-white/5"><Text className="text-white">CPA</Text></TouchableOpacity>
-             <TouchableOpacity onPress={() => handleRoleUpdate(UserRole.ADMIN)} className="p-4 border-b border-white/5"><Text className="text-white">Admin</Text></TouchableOpacity>
-             <TouchableOpacity onPress={() => setRoleModalVisible(false)} className="mt-4 items-center"><Text className="text-[#8892B0]">Cancel</Text></TouchableOpacity>
+             <TouchableOpacity onPress={() => handleRoleUpdate('member' as UserRole)} className="p-4 border-b border-white/5"><Text className="text-white">Member</Text></TouchableOpacity>
+             <TouchableOpacity onPress={() => handleRoleUpdate('cpa' as UserRole)} className="p-4 border-b border-white/5"><Text className="text-white">CPA</Text></TouchableOpacity>
+             <TouchableOpacity onPress={() => handleRoleUpdate('admin' as UserRole)} className="p-4 border-b border-white/5"><Text className="text-white">Admin</Text></TouchableOpacity>
+             <TouchableOpacity onPress={() => setRoleModalVisible(false)} className="items-center mt-4"><Text className="text-[#8892B0]">Cancel</Text></TouchableOpacity>
           </View>
          </View>
       </Modal>

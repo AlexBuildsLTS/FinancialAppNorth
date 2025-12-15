@@ -3,8 +3,8 @@ import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Alert, TextI
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Search, UserCheck, Star, Shield, Lock } from 'lucide-react-native';
-import { dataService } from '../../services/dataService';
-import { useAuth } from '../../shared/context/AuthContext';
+import { dataService } from '../../../services/dataService';
+import { useAuth } from '../../../shared/context/AuthContext';
 
 export default function FindCPAScreen() {
   const router = useRouter();

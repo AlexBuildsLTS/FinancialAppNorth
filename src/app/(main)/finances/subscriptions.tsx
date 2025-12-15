@@ -7,15 +7,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, AlertTriangle, DollarSign, Calendar, TrendingUp, Plus, X, Trash2 } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { getSubscriptions, addSubscription, deleteSubscription, Subscription } from '../../../services/dataService';
+import { getSubscriptions, deleteSubscription, addSubscription } from '../../../services/dataService';
+import { DetectedSubscription } from '@/types';
+import { GestureResponderEvent } from 'react-native/Libraries/Types/CoreEventTypes';
+
 
 export default function SubscriptionsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   
   // Data State
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [subscriptions, setSubscriptions] = useState<DetectedSubscription[]>([]); // Changed from `Subscription[]` to `DetectedSubscription[]`
+  const [loading, setLoading] = useState(true); // Changed from `Subscription[]` to `DetectedSubscription[]`
   const [refreshing, setRefreshing] = useState(false);
   
   // UI State
@@ -46,33 +49,25 @@ export default function SubscriptionsScreen() {
     setRefreshing(true);
     loadSubscriptions();
   }, [loadSubscriptions]);
+  // --- ANIMATIONS ---
+  const fadeAnim = useState(new Animated.Value(0))[0];
 
-  // --- ACTIONS ---
-  const handleAdd = async () => {
-    if (!newName.trim() || !newAmount || !user) {
-        Alert.alert("Invalid Input", "Please enter a name and amount.");
-        return;
-    }
-    setSaving(true);
-    try {
-        await addSubscription(user.id, {
-            name: newName,
-            amount: parseFloat(newAmount),
-            frequency: 'Monthly',
-            next_billing_date: new Date().toISOString()
-        });
-        setModalVisible(false);
-        setNewName('');
-        setNewAmount('');
-        loadSubscriptions();
-    } catch (e) {
-        Alert.alert("Error", "Failed to add subscription. Check your connection.");
-    } finally {
-        setSaving(false);
-    }
-  };
+  // Fade in animation for the list items
+  useFocusEffect(useCallback(() => {
+    Animated.timing(
+      fadeAnim,
+      {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }
+    ).start();
+    return () => fadeAnim.setValue(0); // Reset fadeAnim when screen blurs
+  }, [fadeAnim]));
 
-  const handleDelete = async (sub: Subscription) => {
+
+
+  const handleDelete = async (sub: DetectedSubscription) => {
       if (!sub.id) {
           Alert.alert("Cannot Delete", "This is an AI-detected subscription. It will disappear if you stop paying it.");
           return;
@@ -98,7 +93,7 @@ export default function SubscriptionsScreen() {
   const totalYearlyWaste = subscriptions.reduce((sum, sub) => sum + (sub.amount * 12), 0);
 
   // --- RENDER ITEM ---
-  const renderSubscription = ({ item }: { item: Subscription }) => {
+  const renderSubscription = ({ item }: { item: DetectedSubscription }) => {
     const yearlyCost = item.amount * 12;
     const isManual = item.confidence === 1.0;
 
@@ -151,6 +146,10 @@ export default function SubscriptionsScreen() {
       </TouchableOpacity>
     );
   };
+
+  function handleAdd(event: GestureResponderEvent): void {
+    throw new Error('Function not implemented.');
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">

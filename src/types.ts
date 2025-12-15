@@ -120,6 +120,8 @@ export interface NotificationItem {
 
 // --- Feature: Subscription Detection ---
 export interface DetectedSubscription {
+  name: any;
+  next_billing_date: string | number | Date;
   id: string;
   merchant: string;
   amount: number;

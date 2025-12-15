@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } fr
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FileText, ArrowLeft, Download, ShieldAlert, Lock } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { isCpaForClient, getSharedDocuments, getCpaClients } from '../../../services/dataService'; 
+import { isCpaForClient, getDocuments, getCpaClients } from '../../../services/dataService'; 
 
 interface ClientDocument {
   id: string;
@@ -45,7 +45,7 @@ export default function ClientDocumentsScreen() {
       if (client) setClientName(client.name);
 
       // 3. Fetch Documents
-      const docs = await getSharedDocuments(user.id, clientId as string);
+      const docs: ClientDocument[] = (await getDocuments(user.id, clientId as string)).map(doc => ({ ...doc, mime_type: doc.mime_type || undefined, size_bytes: doc.size_bytes || undefined, created_at: doc.created_at || new Date().toISOString(), status: doc.status || undefined, file_name: doc.name, file_path: doc.url }));
       setDocuments(docs || []);
       
     } catch (error: any) {
@@ -79,7 +79,7 @@ export default function ClientDocumentsScreen() {
           <ArrowLeft size={24} color="#64FFDA" />
         </TouchableOpacity>
         <View className="flex-1">
-          <Text className="text-white font-bold text-2xl" numberOfLines={1}>{clientName}'s Vault</Text>
+          <Text className="text-2xl font-bold text-white" numberOfLines={1}>{clientName}'s Vault</Text>
           <View className="flex-row items-center mt-1">
              <Lock size={12} color="#64FFDA" className="mr-1" />
              <Text className="text-[#64FFDA] text-xs font-bold uppercase">End-to-End Encrypted</Text>
@@ -96,7 +96,7 @@ export default function ClientDocumentsScreen() {
           <View className="bg-[#0A192F] p-6 rounded-full mb-4">
              <Lock size={40} color="#8892B0" />
           </View>
-          <Text className="text-white font-bold text-lg">Vault Empty</Text>
+          <Text className="text-lg font-bold text-white">Vault Empty</Text>
           <Text className="text-[#8892B0] text-center mt-2 px-4 leading-6">
             This client hasn't uploaded any documents yet.
           </Text>
@@ -110,7 +110,7 @@ export default function ClientDocumentsScreen() {
                     {getFileIcon(doc.mime_type)}
                 </View>
                 <View className="flex-1">
-                  <Text className="text-white font-bold text-base" numberOfLines={1}>{doc.file_name}</Text>
+                  <Text className="text-base font-bold text-white" numberOfLines={1}>{doc.file_name}</Text>
                   <Text className="text-[#8892B0] text-xs mt-1 font-medium">
                     {(doc.size_bytes ? doc.size_bytes / 1024 : 0).toFixed(1)} KB • {new Date(doc.created_at).toLocaleDateString()}
                   </Text>
