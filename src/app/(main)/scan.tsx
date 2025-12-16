@@ -53,7 +53,11 @@ export default function ScanReceiptScreen() {
         <Text className="text-[#8892B0] text-center mt-2 mb-8 px-4 leading-6">
           NorthFinance uses advanced computer vision to extract data from your receipts instantly.
         </Text>
-        <TouchableOpacity onPress={requestPermission} className="bg-[#64FFDA] px-8 py-4 rounded-full shadow-lg shadow-[#64FFDA]/20">
+        <TouchableOpacity 
+          onPress={requestPermission} 
+          className="bg-[#64FFDA] px-8 py-4 rounded-full"
+          style={{ elevation: 4, shadowColor: '#64FFDA', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 }}
+        >
           <Text className="text-[#0A192F] font-bold text-lg">Grant Access</Text>
         </TouchableOpacity>
       </SafeAreaView>

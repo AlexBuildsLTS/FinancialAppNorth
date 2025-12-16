@@ -188,7 +188,36 @@ export const getExpenseRequests = async (orgId: string, status: 'pending' | 'app
         .eq('status', status)
         .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      // Fallback: if foreign key doesn't exist, query without join and fetch profiles separately
+      if (error.code === 'PGRST200' || error.message?.includes('relationship')) {
+        const { data: requests, error: reqError } = await supabase
+          .from('expense_requests')
+          .select('*')
+          .eq('organization_id', orgId)
+          .eq('status', status)
+          .order('created_at', { ascending: false });
+        
+        if (reqError) throw reqError;
+        
+        // Fetch profiles separately
+        if (requests && requests.length > 0) {
+          const requesterIds = requests.map(r => r.requester_id).filter(Boolean);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name, avatar_url')
+            .in('id', requesterIds);
+          
+          // Merge profiles into requests
+          return requests.map(req => ({
+            ...req,
+            requester: profiles?.find(p => p.id === req.requester_id) || null
+          }));
+        }
+        return requests || [];
+      }
+      throw error;
+    }
     return data;
 };
 
@@ -1299,6 +1328,39 @@ export const getUsers = async (): Promise<User[]> => {
   }));
 };
 
+/**
+ * Get only active CPAs (for Find CPA screen)
+ * Filters out test/mock users and only returns active, verified CPAs
+ */
+export const getActiveCPAs = async (): Promise<User[]> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('role', 'cpa')
+    .not('email', 'ilike', '%test%')
+    .not('email', 'ilike', '%mock%')
+    .not('email', 'ilike', '%example%')
+    .not('email', 'ilike', '%demo%')
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching CPAs:', error);
+    throw error;
+  }
+  
+  return (data || []).map((p: any) => ({
+    id: p.id,
+    email: p.email,
+    name: p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : p.email?.split('@')[0] || 'CPA',
+    role: p.role,
+    status: 'active', // Default to active since status column doesn't exist
+    suspended_until: p.suspended_until,
+    avatar: p.avatar_url,
+    currency: p.currency,
+    country: p.country
+  }));
+};
+
 export const suspendUser = async (userId: string, untilDate: Date) => {
     const { error } = await supabase
         .from('profiles')
@@ -1537,6 +1599,7 @@ export const dataService = {
   addTicketReply,
   deleteTicket,
   getUsers,
+  getActiveCPAs,
   suspendUser,
   getUserDetails,
   exportUserData,

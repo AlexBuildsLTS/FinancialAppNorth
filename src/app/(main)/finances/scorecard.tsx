@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, PiggyBank } from 'lucide-react-native';
+import { AlertTriangle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/shared/context/AuthContext';
 import { getFinancialSummary, getFinancialHealthScore } from '@/services/dataService';
 import { FinancialBrain } from '@/services/financialBrain';
-import { GlassCard } from '@/shared/components/GlassCard';
 
 // --- Types ---
 interface KPI {
@@ -27,10 +26,19 @@ export default function FinancialScorecard() {
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [healthScore, setHealthScore] = useState(0);
   const [aiInsight, setAiInsight] = useState<string>('');
+  const isCalculatingRef = useRef(false);
 
   const calculateFinancialHealth = useCallback(async () => {
     if (!user?.id) return;
+    
+    // Prevent multiple simultaneous calls
+    if (isCalculatingRef.current) {
+      console.log('Already calculating, skipping...');
+      return;
+    }
+    
     try {
+      isCalculatingRef.current = true;
       setLoading(true);
       
       // Use unified data service
@@ -96,11 +104,18 @@ export default function FinancialScorecard() {
       setHealthScore(score);
 
       // Get AI-powered insight (Titan 2 - Active Intelligence)
+      // Use timeout to prevent hanging
       try {
-        const insight = await FinancialBrain.askFinancialAdvisor(
+        const insightPromise = FinancialBrain.askFinancialAdvisor(
           user.id,
           `Analyze my financial health. My score is ${score}/100. Income: $${income.toFixed(2)}, Expenses: $${expense.toFixed(2)}, Balance: $${balance.toFixed(2)}. Provide actionable advice.`
         );
+        
+        const timeoutPromise = new Promise<string>((_, reject) => 
+          setTimeout(() => reject(new Error('AI timeout')), 10000)
+        );
+        
+        const insight = await Promise.race([insightPromise, timeoutPromise]);
         setAiInsight(insight);
       } catch (aiError) {
         console.error('AI Insight Error:', aiError);
@@ -112,6 +127,7 @@ export default function FinancialScorecard() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      isCalculatingRef.current = false;
     }
   }, [user?.id]);
 
@@ -120,8 +136,11 @@ export default function FinancialScorecard() {
   }, [calculateFinancialHealth]);
 
   useFocusEffect(useCallback(() => {
-    if (!loading) calculateFinancialHealth();
-  }, [calculateFinancialHealth, loading]));
+    // Only refresh if not currently loading/calculating
+    if (!isCalculatingRef.current && !loading) {
+      calculateFinancialHealth();
+    }
+  }, [calculateFinancialHealth]));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -145,7 +164,8 @@ export default function FinancialScorecard() {
       {/* Hero Section: The Score */}
       <LinearGradient
         colors={['#112240', '#0A192F']}
-        className="px-6 pt-8 pb-10 shadow-lg"
+        className="px-6 pt-8 pb-10"
+        style={{ elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
       >
         <View className="items-center">
           <Text className="text-xs font-bold tracking-widest uppercase text-[#8892B0]">

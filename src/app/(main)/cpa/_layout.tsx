@@ -61,15 +61,6 @@ export default function CpaLayout() {
         }}
       />
 
-      {/* Requests - Keep hidden if managed on main screen */}
-      <Tabs.Screen
-        name="requests"
-        options={{
-          href: null, 
-          title: 'Requests',
-          tabBarIcon: ({ color }: { color?: string }) => <ClipboardList size={22} color={color} />,
-        }}
-      />
     </Tabs>
   );
 }

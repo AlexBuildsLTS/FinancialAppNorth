@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   FileText, 
   Search, 
-  LifeBuoy, 
   LayoutGrid 
 } from 'lucide-react-native';
 
@@ -72,19 +71,8 @@ export default function HubLayout() {
         }}
       />
 
-      {/* 3. Support */}
-      <Tabs.Screen
-        name="support"
-        options={{
-          title: 'Support',
-          headerShown: true,
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-            <View className={`items-center justify-center ${focused ? 'opacity-100' : 'opacity-70'}`}>
-              <LifeBuoy size={22} color={color} />
-            </View>
-          ),
-        }}
-      />
+      {/* 3. Support - Hidden (accessible from main navigation) */}
+      <Tabs.Screen name="support" options={{ href: null }} />
     </Tabs>
   );
 }

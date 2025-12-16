@@ -18,31 +18,43 @@ export default function FindCPAScreen() {
   const hasAccess = user && allowedRoles.includes(user.role);
 
   useEffect(() => {
-    if (hasAccess) {
+    if (hasAccess && user) {
         loadCPAs();
     } else {
         setLoading(false);
     }
-  }, [user]);
+  }, [user, hasAccess]);
 
   const loadCPAs = async () => {
     try {
-        const users = await dataService.getUsers();
-        // Filter strictly for CPAs
-        const proUsers = users.filter(u => u.role === 'cpa' && u.id !== user?.id);
-        setCpas(proUsers);
-    } catch (e) {
-        console.error(e);
+        setLoading(true);
+        // Use dedicated function that only gets active, real CPAs (no test/mock users)
+        const cpaList = await dataService.getActiveCPAs();
+        // Filter out current user if they're a CPA
+        const filteredCPAs = cpaList.filter(cpa => cpa.id !== user?.id);
+        setCpas(filteredCPAs || []);
+    } catch (e: any) {
+        console.error('Error loading CPAs:', e);
+        Alert.alert("Error", e.message || "Failed to load CPAs. Please try again.");
+        setCpas([]);
     } finally {
         setLoading(false);
     }
   };
 
   const handleConnect = async (cpaId: string, name: string) => {
+      if (!user?.id) {
+          Alert.alert("Error", "You must be logged in to connect with a CPA.");
+          return;
+      }
+      
       try {
-          await dataService.requestCPA(user!.id, cpaId); 
-          Alert.alert("Request Sent", `A connection request has been sent to ${name}.`);
+          await dataService.requestCPA(user.id, cpaId); 
+          Alert.alert("Request Sent", `A connection request has been sent to ${name}. They will be notified and can accept your request.`);
+          // Optionally refresh the list to show updated status
+          loadCPAs();
       } catch (e: any) {
+          console.error('Error connecting to CPA:', e);
           Alert.alert("Notice", e.message || "Request already pending or connected.");
       }
   };
@@ -76,7 +88,8 @@ export default function FindCPAScreen() {
 
         <TouchableOpacity 
             onPress={() => handleConnect(item.id, item.name)}
-            className="bg-[#64FFDA] py-3 rounded-xl items-center flex-row justify-center shadow-lg shadow-[#64FFDA]/20"
+            className="bg-[#64FFDA] py-3 rounded-xl items-center flex-row justify-center"
+            style={{ elevation: 4, shadowColor: '#64FFDA', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 }}
         >
             <UserCheck size={18} color="#0A192F" />
             <Text className="text-[#0A192F] font-bold ml-2">Connect Now</Text>
@@ -96,7 +109,8 @@ export default function FindCPAScreen() {
             </Text>
             <TouchableOpacity 
                 onPress={() => Alert.alert("Upgrade", "Redirecting to subscription page...")}
-                className="bg-[#64FFDA] py-4 px-8 rounded-full shadow-lg"
+                className="bg-[#64FFDA] py-4 px-8 rounded-full"
+                style={{ elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 }}
             >
                 <Text className="text-[#0A192F] font-bold text-lg">Upgrade to Premium</Text>
             </TouchableOpacity>

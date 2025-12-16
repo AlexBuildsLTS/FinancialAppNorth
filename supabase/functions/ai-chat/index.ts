@@ -26,25 +26,59 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { prompt, userId, image }: ChatRequest = await req.json();
-    if (!prompt) throw new Error('No prompt provided.');
+    // Parse request body with better error handling
+    let requestBody: ChatRequest;
+    try {
+      requestBody = await req.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const { prompt, userId, image } = requestBody;
+    
+    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Prompt is required and must be a non-empty string' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     // 1. Init Admin Client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase configuration');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error: Missing Supabase credentials' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
+      );
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
       }
-    );
+    });
 
     // 2. Get API Key (check user's custom key first, fallback to system key)
     let apiKey = Deno.env.get('GEMINI_API_KEY');
     
-    if (userId) {
+    if (userId && typeof userId === 'string') {
       try {
         const { data: secret, error: secretError } = await supabaseAdmin
           .from('user_secrets')
@@ -68,26 +102,38 @@ Deno.serve(async (req) => {
       }
     }
     
-    if (!apiKey) {
-      throw new Error('Server configuration error: No AI Key available.');
+    if (!apiKey || apiKey.trim().length === 0) {
+      console.error('No API key available');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error: No AI Key available. Please configure GEMINI_API_KEY or provide a user API key.' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // 3. Build request parts
     const parts: Array<
       { text: string } | { inline_data: { mime_type: string; data: string } }
-    > = [{ text: prompt }];
+    > = [{ text: prompt.trim() }];
 
-    if (image) {
+    if (image && typeof image === 'string' && image.length > 0) {
+      // Remove data URL prefix if present
+      const base64Data = image.includes(',') ? image.split(',')[1] : image;
       parts.push({
         inline_data: {
           mime_type: 'image/jpeg',
-          data: image,
+          data: base64Data,
         },
       });
     }
 
     // 4. Call Gemini AI
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    const apiUrl = `${GEMINI_API_URL}?key=${apiKey}`;
+    console.log('Calling Gemini API:', { url: GEMINI_API_URL, hasImage: !!image, promptLength: prompt.length });
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -97,27 +143,56 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Gemini API Error:', errorText);
-      throw new Error(`AI API failed: ${response.status} ${response.statusText}`);
+      console.error('Gemini API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+      return new Response(
+        JSON.stringify({ 
+          error: `AI API failed: ${response.status} ${response.statusText}`,
+          details: errorText.substring(0, 200) // Limit error details length
+        }),
+        {
+          status: response.status >= 400 && response.status < 500 ? response.status : 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const data: GeminiResponse = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    if (!text) {
-      throw new Error('AI returned empty response');
+    if (!text || text.trim().length === 0) {
+      console.error('AI returned empty response:', JSON.stringify(data));
+      return new Response(
+        JSON.stringify({ error: 'AI returned empty response' }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     return new Response(JSON.stringify({ text }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
-    console.error('AI Chat Error:', errorMessage);
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('AI Chat Error:', {
+      message: errorMessage,
+      stack: errorStack
     });
+    return new Response(
+      JSON.stringify({ 
+        error: errorMessage,
+        type: error instanceof Error ? error.constructor.name : 'Unknown'
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });

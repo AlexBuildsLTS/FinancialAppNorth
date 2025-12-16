@@ -190,9 +190,10 @@ export default function AIChatScreen() {
                 <ArrowLeft size={24} color="#8892B0" />
             </TouchableOpacity>
             <View>
-                <Text className="flex-row items-center text-lg font-bold text-white">
-                    North AI <Sparkles size={14} color="#64FFDA" />
-                </Text>
+                <View className="flex-row items-center gap-2">
+                    <Text className="text-lg font-bold text-white">North AI</Text>
+                    <Sparkles size={14} color="#64FFDA" />
+                </View>
                 <View className="flex-row items-center gap-2">
                     <Text className="text-[#8892B0] text-xs font-medium">Financial Intelligence</Text>
                     {financialContext && (
