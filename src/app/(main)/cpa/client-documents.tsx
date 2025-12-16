@@ -3,7 +3,8 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } fr
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FileText, ArrowLeft, Download, ShieldAlert, Lock } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { isCpaForClient, getDocuments, getCpaClients } from '../../../services/dataService'; 
+import { getCpaClients } from '../../../services/dataService';
+import { CpaService } from '../../../services/cpaService'; 
 
 interface ClientDocument {
   id: string;
@@ -32,7 +33,7 @@ export default function ClientDocumentsScreen() {
 
     try {
       // 1. Verify Authorization
-      const isAuthorized = await isCpaForClient(user.id, clientId as string);
+      const isAuthorized = await CpaService.isCpaForClient(user.id, clientId as string);
       if (!isAuthorized) {
         Alert.alert('Access Denied', 'You do not have permission to view this vault.');
         router.back();
@@ -44,8 +45,17 @@ export default function ClientDocumentsScreen() {
       const client = clients.find(c => c.id === clientId);
       if (client) setClientName(client.name);
 
-      // 3. Fetch Documents
-      const docs: ClientDocument[] = (await getDocuments(user.id, clientId as string)).map(doc => ({ ...doc, mime_type: doc.mime_type || undefined, size_bytes: doc.size_bytes || undefined, created_at: doc.created_at || new Date().toISOString(), status: doc.status || undefined, file_name: doc.name, file_path: doc.url }));
+      // 3. Fetch Documents (Using CPA Service for authorized access)
+      const docsData = await CpaService.getSharedDocuments(user.id, clientId as string);
+      const docs: ClientDocument[] = docsData.map((doc: any) => ({
+        id: doc.id,
+        file_name: doc.file_name,
+        file_path: doc.file_path,
+        mime_type: doc.mime_type,
+        size_bytes: doc.size_bytes,
+        created_at: doc.created_at,
+        status: doc.status
+      }));
       setDocuments(docs || []);
       
     } catch (error: any) {

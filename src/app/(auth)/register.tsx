@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -81,7 +81,9 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { register, isLoading } = useAuth();
   const { width, height } = useWindowDimensions();
-  const isDesktop = width >= 1024; // Desktop breakpoint
+  
+  // Memoize isDesktop to prevent re-renders when keyboard appears
+  const isDesktop = useMemo(() => width >= 1024, [width]);
   
   const [form, setForm] = useState({
     firstName: '', 
@@ -92,7 +94,12 @@ export default function RegisterScreen() {
     agreed: false
   });
 
-  const handleRegister = async () => {
+  // Memoize form update handlers to prevent re-renders
+  const updateForm = useCallback((field: keyof typeof form, value: string | boolean) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleRegister = useCallback(async () => {
     // 1. Strict Validation
     if (!form.agreed) {
         return Alert.alert('Terms Required', 'You must agree to the Terms of Service and Privacy Policy to continue.');
@@ -120,11 +127,11 @@ export default function RegisterScreen() {
       console.error(error);
       Alert.alert('Registration Failed', error.message || 'An unexpected error occurred.');
     }
-  };
+  }, [form, register]);
 
-  // --- Layout Renderers ---
+  // --- Layout Renderers (Memoized to prevent re-renders) ---
 
-  const RegisterForm = () => (
+  const RegisterForm = useCallback(() => (
     <View className='w-full max-w-md mx-auto'>
         <Animated.View entering={FadeInDown.duration(600)} className='items-center mb-8'>
             <View className='w-16 h-16 bg-[#64FFDA] rounded-2xl items-center justify-center mb-4 shadow-lg shadow-[#64FFDA]/20'>
@@ -148,7 +155,9 @@ export default function RegisterScreen() {
                         placeholder='Jane' 
                         placeholderTextColor='#475569'
                         value={form.firstName} 
-                        onChangeText={t => setForm({...form, firstName: t})}
+                        onChangeText={t => updateForm('firstName', t)}
+                        editable={!isLoading}
+                        autoComplete='given-name'
                     />
                 </View>
                 </View>
@@ -161,7 +170,9 @@ export default function RegisterScreen() {
                         placeholder='Doe' 
                         placeholderTextColor='#475569'
                         value={form.lastName} 
-                        onChangeText={t => setForm({...form, lastName: t})}
+                        onChangeText={t => updateForm('lastName', t)}
+                        editable={!isLoading}
+                        autoComplete='family-name'
                     />
                 </View>
                 </View>
@@ -179,7 +190,9 @@ export default function RegisterScreen() {
                     autoCapitalize='none' 
                     keyboardType='email-address'
                     value={form.email} 
-                    onChangeText={t => setForm({...form, email: t})}
+                    onChangeText={t => updateForm('email', t)}
+                    editable={!isLoading}
+                    autoComplete='email'
                     />
                 </View>
             </View>
@@ -195,7 +208,9 @@ export default function RegisterScreen() {
                     placeholderTextColor='#475569'
                     secureTextEntry
                     value={form.password} 
-                    onChangeText={t => setForm({...form, password: t})}
+                    onChangeText={t => updateForm('password', t)}
+                    editable={!isLoading}
+                    autoComplete='password-new'
                     />
                 </View>
                 {/* Strength Indicator */}
@@ -215,7 +230,9 @@ export default function RegisterScreen() {
                     placeholderTextColor='#475569'
                     secureTextEntry
                     value={form.confirmPassword} 
-                    onChangeText={t => setForm({...form, confirmPassword: t})}
+                    onChangeText={t => updateForm('confirmPassword', t)}
+                    editable={!isLoading}
+                    autoComplete='password-new'
                     />
                 </View>
             </View>
@@ -223,8 +240,9 @@ export default function RegisterScreen() {
             {/* Terms Checkbox */}
             <TouchableOpacity 
                 className='flex-row items-start gap-3 mt-1' 
-                onPress={() => setForm(prev => ({...prev, agreed: !prev.agreed}))}
+                onPress={() => updateForm('agreed', !form.agreed)}
                 activeOpacity={0.8}
+                disabled={isLoading}
             >
                 <View className={`w-5 h-5 rounded border mt-0.5 items-center justify-center ${form.agreed ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#0A192F] border-[#233554]'}`}>
                 {form.agreed && <Check size={12} color='#0A192F' strokeWidth={4} />}
@@ -266,9 +284,9 @@ export default function RegisterScreen() {
             <Text className='text-[#8892B0] text-xs ml-2'>Encrypted & Secure</Text>
         </View>
     </View>
-  );
+  ), [form, isLoading, updateForm, handleRegister, router]);
 
-  const MarketingContent = () => (
+  const MarketingContent = useCallback(() => (
     <View className='w-full'>
         {/* About */}
         <View className='mb-16'>
@@ -332,7 +350,7 @@ export default function RegisterScreen() {
             </View>
         </View>
     </View>
-  );
+  ), [isDesktop]);
 
   return (
     <View className='flex-1 bg-[#0A192F]'>

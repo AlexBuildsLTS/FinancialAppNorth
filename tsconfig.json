@@ -7,8 +7,8 @@
     "lib": [
       "es2021"
     ],
-    "moduleResolution": "NodeNext",
-    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "module": "nodenext",
     "noEmit": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,

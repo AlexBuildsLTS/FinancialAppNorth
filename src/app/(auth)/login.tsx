@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -79,14 +79,29 @@ export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
   const { width, height } = useWindowDimensions();
-  const isDesktop = width >= 1024; // Desktop Breakpoint
+  
+  // Memoize isDesktop to prevent re-renders when keyboard appears
+  const isDesktop = useMemo(() => width >= 1024, [width]);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async () => {
+  // Memoize handlers to prevent re-renders
+  const handleEmailChange = useCallback((text: string) => {
+    setEmail(text);
+  }, []);
+
+  const handlePasswordChange = useCallback((text: string) => {
+    setPassword(text);
+  }, []);
+
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
+
+  const handleLogin = useCallback(async () => {
     // 1. Strict Input Validation
     if (!email.trim() || !password) {
       Alert.alert('Missing Credentials', 'Please enter both your email and password.');
@@ -105,11 +120,11 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [email, password, login]);
 
-  // --- Layout Renderers ---
+  // --- Layout Renderers (Memoized to prevent re-renders) ---
 
-  const LoginForm = () => (
+  const LoginForm = useCallback(() => (
     <View className='w-full max-w-md mx-auto'>
       <Animated.View entering={FadeInDown.duration(600)} className='items-center mb-10'>
         <View className='w-20 h-20 bg-[#112240] rounded-2xl items-center justify-center mb-6 border border-[#64FFDA]/20 shadow-xl shadow-[#64FFDA]/10'>
@@ -133,7 +148,9 @@ export default function LoginScreen() {
                   autoCapitalize='none' 
                   keyboardType='email-address' 
                   value={email} 
-                  onChangeText={setEmail} 
+                  onChangeText={handleEmailChange}
+                  editable={!loading}
+                  autoComplete='email'
                 />
             </View>
           </View>
@@ -148,11 +165,14 @@ export default function LoginScreen() {
                   placeholderTextColor='#475569' 
                   secureTextEntry={!showPassword} 
                   value={password} 
-                  onChangeText={setPassword} 
+                  onChangeText={handlePasswordChange}
+                  editable={!loading}
+                  autoComplete='password'
                 />
                 <TouchableOpacity 
-                  onPress={() => setShowPassword(!showPassword)}
+                  onPress={togglePasswordVisibility}
                   hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+                  disabled={loading}
                 >
                   {showPassword ? <EyeOff size={20} color='#8892B0' /> : <Eye size={20} color='#8892B0' />}
                 </TouchableOpacity>
@@ -184,9 +204,9 @@ export default function LoginScreen() {
         </GlassCard>
       </Animated.View>
     </View>
-  );
+  ), [email, password, loading, showPassword, handleEmailChange, handlePasswordChange, togglePasswordVisibility, handleLogin, router]);
 
-  const MarketingContent = () => (
+  const MarketingContent = useCallback(() => (
     <View className='w-full'>
         {/* About Section */}
         <View className='mb-16'>
@@ -237,7 +257,7 @@ export default function LoginScreen() {
             </View>
         </View>
     </View>
-  );
+  ), [isDesktop]);
 
   return (
     <View className='flex-1 bg-[#0A192F]'>

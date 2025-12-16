@@ -135,7 +135,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- 3. Protection & Redirects ---
+  // --- 3. Protection & Redirects (Optimized to prevent form interference) ---
   useEffect(() => {
     // Only redirect if:
     // 1. Loading is done
@@ -144,15 +144,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (isLoading || !navigationState?.key || !isMounted) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const currentPath = segments.join('/');
+    
+    // Prevent redirects when user is actively on auth pages (typing in forms)
+    const isOnAuthPage = currentPath === '(auth)/login' || currentPath === '(auth)/register';
+    
+    // Use a longer delay and only redirect if not actively on auth page
+    const redirectTimer = setTimeout(() => {
+      // Double-check that we're still in the same state (user hasn't changed)
+      if (!user && !inAuthGroup && !isOnAuthPage) {
+        // User not logged in, trying to access protected area
+        router.replace('/(auth)/login');
+      } else if (user && inAuthGroup && !isOnAuthPage) {
+        // User logged in, trying to access login screen - redirect to main
+        router.replace('/(main)');
+      }
+    }, 300); // Longer delay to prevent interference with typing
 
-    if (!user && !inAuthGroup) {
-      // User not logged in, trying to access protected area
-      router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      // User logged in, trying to access login screen
-      router.replace('/(main)');
-    }
-  }, [user, isLoading, segments, navigationState, isMounted]);
+    return () => clearTimeout(redirectTimer);
+  }, [user, isLoading, segments, navigationState, isMounted, router]);
 
   // --- Actions ---
   const login = async (email: string, p: string) => {
@@ -189,9 +199,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Memoize callbacks to prevent re-renders
+  const loginMemo = useMemo(() => login, []);
+  const registerMemo = useMemo(() => register, []);
+  const logoutMemo = useMemo(() => logout, []);
+  const refreshProfileMemo = useMemo(() => refreshProfile, [session]);
+
   const value = useMemo(() => ({
-    user, session, isLoading, login, register, logout, refreshProfile
-  }), [user, session, isLoading]);
+    user, session, isLoading, 
+    login: loginMemo, 
+    register: registerMemo, 
+    logout: logoutMemo, 
+    refreshProfile: refreshProfileMemo
+  }), [user, session, isLoading, loginMemo, registerMemo, logoutMemo, refreshProfileMemo]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -147,9 +147,37 @@ export default function SubscriptionsScreen() {
     );
   };
 
-  function handleAdd(event: GestureResponderEvent): void {
-    throw new Error('Function not implemented.');
-  }
+  const handleAdd = async () => {
+    if (!newName.trim() || !newAmount.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    const amount = parseFloat(newAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await addSubscription(user!.id, {
+        merchant: newName.trim(),
+        amount,
+        frequency: 'monthly',
+        next_due: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'stable',
+        confidence: 1.0
+      });
+      setModalVisible(false);
+      setNewName('');
+      setNewAmount('');
+      loadSubscriptions();
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to add subscription');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
