@@ -152,7 +152,8 @@ export default function DocumentsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
       {/* Header */}
-      <View className="px-6 pt-6 pb-4 bg-[#0A192F] border-b border-white/5">         <Text className="text-3xl font-bold text-white">My Documents</Text>
+      <View className="px-6 pt-6 pb-4 bg-[#0A192F] border-b border-white/5">
+        <Text className="text-3xl font-bold text-white">My Documents</Text>
         <Text className="text-[#8892B0] text-sm mt-1">Securely store and manage your financial files.</Text>
       </View>
 
@@ -197,8 +198,7 @@ export default function DocumentsScreen() {
 
       {/* Document List */}
       {loading ? (
-        <View className="items-center justify-center flex-1">   
-
+        <View className="items-center justify-center flex-1">
           <ActivityIndicator color="#64FFDA" size="large" />
           <Text className="text-[#8892B0] mt-4 font-medium">Loading Documents...</Text>
         </View>      ) : filteredDocs.length === 0 ? (

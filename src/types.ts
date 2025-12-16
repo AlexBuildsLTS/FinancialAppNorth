@@ -110,6 +110,9 @@ export interface ParsedVoiceCommand {
   category?: string;
   date?: Date;
   merchant?: string;
+  is_tax_deductible?: boolean;
+  confidence?: number;
+  raw_text?: string;
 }
 
 // --- 6. TITAN 3: PROFESSIONAL PORTAL ---

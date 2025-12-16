@@ -1348,7 +1348,39 @@ export const getActiveCPAs = async (): Promise<User[]> => {
     throw error;
   }
   
-  return (data || []).map((p: any) => ({
+  // Additional filtering to exclude mock/placeholder users by name patterns
+  const filteredData = (data || []).filter((p: any) => {
+    const firstName = (p.first_name || '').toLowerCase();
+    const lastName = (p.last_name || '').toLowerCase();
+    const fullName = `${firstName} ${lastName}`.trim().toLowerCase();
+    const email = (p.email || '').toLowerCase();
+    
+    // Exclude common mock/placeholder patterns
+    const mockPatterns = [
+      'user doe', 'ghost host', 'test user', 'mock user', 'demo user',
+      'example user', 'placeholder', 'sample user', 'fake user',
+      'john doe', 'jane doe', 'admin test', 'test admin'
+    ];
+    
+    // Check if name matches mock patterns
+    if (mockPatterns.some(pattern => fullName.includes(pattern) || firstName.includes(pattern) || lastName.includes(pattern))) {
+      return false;
+    }
+    
+    // Exclude if email domain is clearly a test domain
+    if (email.includes('@test.') || email.includes('@mock.') || email.includes('@example.') || email.includes('@demo.')) {
+      return false;
+    }
+    
+    // Exclude if name is just a single word that looks like a placeholder
+    if (fullName.split(' ').length === 1 && (fullName.length < 3 || fullName === 'user' || fullName === 'cpa')) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  return filteredData.map((p: any) => ({
     id: p.id,
     email: p.email,
     name: p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : p.email?.split('@')[0] || 'CPA',

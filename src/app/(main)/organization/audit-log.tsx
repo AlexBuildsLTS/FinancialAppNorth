@@ -12,13 +12,15 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity, Modal, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ShieldAlert, ArrowLeft, Filter } from 'lucide-react-native';
+import { ShieldAlert, ArrowLeft, Filter, Download, FileText, X, Calendar, Check } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../shared/context/AuthContext';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 interface AuditLogEntry {
   id: string;
@@ -30,12 +32,17 @@ interface AuditLogEntry {
   created_at: string;
 }
 
+type FilterType = 'all' | 'create' | 'update' | 'delete' | 'approve' | 'reject';
+
 export default function AuditLogScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [filteredLogs, setFilteredLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
 
   /**
    * Fetch audit logs (Protected by RLS - Admin/Owner only in production)
@@ -58,7 +65,10 @@ export default function AuditLogScreen() {
         return;
       }
 
-      if (data) setLogs(data);
+      if (data) {
+        setLogs(data);
+        applyFilter(data, selectedFilter);
+      }
     } catch (e) {
       console.error('Failed to load audit logs:', e);
     } finally {
@@ -67,13 +77,142 @@ export default function AuditLogScreen() {
     }
   };
 
+  const applyFilter = (logData: AuditLogEntry[], filter: FilterType) => {
+    if (filter === 'all') {
+      setFilteredLogs(logData);
+      return;
+    }
+
+    const filtered = logData.filter(item => {
+      const actionLower = item.action.toLowerCase();
+      switch (filter) {
+        case 'create':
+          return actionLower.includes('create') || actionLower.includes('insert');
+        case 'update':
+          return actionLower.includes('update') || actionLower.includes('modify');
+        case 'delete':
+          return actionLower.includes('delete') || actionLower.includes('remove');
+        case 'approve':
+          return actionLower.includes('approve') || actionLower.includes('accept');
+        case 'reject':
+          return actionLower.includes('reject') || actionLower.includes('deny');
+        default:
+          return true;
+      }
+    });
+    setFilteredLogs(filtered);
+  };
+
   useEffect(() => {
     fetchLogs();
   }, [user]);
 
+  useEffect(() => {
+    applyFilter(logs, selectedFilter);
+  }, [selectedFilter, logs]);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchLogs();
+  };
+
+  const exportToCSV = async () => {
+    try {
+      const headers = ['ID', 'Action', 'User ID', 'Organization ID', 'IP Address', 'Details', 'Timestamp'];
+      const rows = filteredLogs.map(log => [
+        log.id,
+        log.action,
+        log.user_id || '',
+        log.organization_id || '',
+        log.ip_address || '',
+        JSON.stringify(log.details || {}),
+        log.created_at
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      if (Platform.OS === 'web') {
+        // Web: Download via blob
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `audit-log-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        Alert.alert('Success', 'Audit log exported to CSV');
+      } else {
+        // Native: Use FileSystem and Sharing
+        const fileName = `audit-log-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+        await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+        
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri);
+        } else {
+          Alert.alert('Success', `File saved to: ${fileUri}`);
+        }
+      }
+    } catch (error: any) {
+      console.error('Export error:', error);
+      Alert.alert('Error', 'Failed to export audit log: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const exportToPDF = async () => {
+    // For now, export as formatted text that can be converted to PDF
+    // In production, use a library like react-native-pdf or @react-pdf/renderer
+    try {
+      const pdfContent = [
+        'NORTHFINANCE AUDIT LOG REPORT',
+        `Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`,
+        `Total Entries: ${filteredLogs.length}`,
+        '',
+        '='.repeat(80),
+        '',
+        ...filteredLogs.map(log => [
+          `Action: ${log.action.toUpperCase()}`,
+          `ID: ${log.id}`,
+          `User: ${log.user_id || 'N/A'}`,
+          `Organization: ${log.organization_id || 'N/A'}`,
+          `Timestamp: ${format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss')}`,
+          `IP: ${log.ip_address || 'N/A'}`,
+          `Details: ${JSON.stringify(log.details || {}, null, 2)}`,
+          '-'.repeat(80)
+        ].join('\n'))
+      ].join('\n');
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([pdfContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `audit-log-${format(new Date(), 'yyyy-MM-dd')}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        Alert.alert('Success', 'Audit log exported (TXT format - can be converted to PDF)');
+      } else {
+        const fileName = `audit-log-${format(new Date(), 'yyyy-MM-dd')}.txt`;
+        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+        await FileSystem.writeAsStringAsync(fileUri, pdfContent, { encoding: FileSystem.EncodingType.UTF8 });
+        
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri);
+        } else {
+          Alert.alert('Success', `File saved to: ${fileUri}`);
+        }
+      }
+    } catch (error: any) {
+      console.error('Export error:', error);
+      Alert.alert('Error', 'Failed to export audit log: ' + (error.message || 'Unknown error'));
+    }
   };
 
   /**
@@ -128,8 +267,21 @@ export default function AuditLogScreen() {
           <Text className="text-white text-2xl font-bold">System Audit Log</Text>
           <Text className="text-[#8892B0] text-xs">Immutable Record • SOX Compliance Mode</Text>
         </View>
-        <View className="w-10 h-10 bg-[#64FFDA]/10 rounded-full items-center justify-center">
-          <Filter size={18} color="#64FFDA" />
+        <View className="flex-row items-center gap-2">
+          <TouchableOpacity 
+            onPress={exportToCSV}
+            className="w-10 h-10 bg-[#64FFDA]/10 rounded-full items-center justify-center"
+            style={{ elevation: 2, shadowColor: '#64FFDA', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
+          >
+            <Download size={18} color="#64FFDA" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => setFilterVisible(true)}
+            className={`w-10 h-10 rounded-full items-center justify-center ${selectedFilter !== 'all' ? 'bg-[#64FFDA]/20' : 'bg-[#64FFDA]/10'}`}
+            style={{ elevation: 2, shadowColor: '#64FFDA', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
+          >
+            <Filter size={18} color="#64FFDA" />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -148,23 +300,104 @@ export default function AuditLogScreen() {
           <Text className="text-[#8892B0] mt-4">Loading audit trail...</Text>
         </View>
       ) : (
-        <FlatList
-          data={logs}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingTop: 16, paddingBottom: 24 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#64FFDA" />
-          }
-          ListEmptyComponent={
-            <View className="items-center mt-20 opacity-50">
-              <ShieldAlert size={64} color="#8892B0" />
-              <Text className="text-[#8892B0] mt-4 text-center px-8">
-                No audit logs found. Actions will appear here as they occur.
-              </Text>
+        <>
+          <FlatList
+            data={filteredLogs}
+            keyExtractor={item => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={{ paddingTop: 16, paddingBottom: 24 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#64FFDA" />
+            }
+            ListEmptyComponent={
+              <View className="items-center mt-20 opacity-50">
+                <ShieldAlert size={64} color="#8892B0" />
+                <Text className="text-[#8892B0] mt-4 text-center px-8">
+                  {selectedFilter !== 'all' 
+                    ? `No ${selectedFilter} actions found.` 
+                    : 'No audit logs found. Actions will appear here as they occur.'}
+                </Text>
+              </View>
+            }
+          />
+
+          {/* Filter Modal */}
+          <Modal
+            visible={filterVisible}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setFilterVisible(false)}
+          >
+            <View className="flex-1 bg-black/50 justify-end">
+              <TouchableOpacity 
+                className="flex-1" 
+                activeOpacity={1} 
+                onPress={() => setFilterVisible(false)}
+              />
+              <View className="bg-[#112240] rounded-t-3xl p-6 border-t border-white/10">
+                <View className="flex-row items-center justify-between mb-6">
+                  <Text className="text-white text-xl font-bold">Filter Audit Log</Text>
+                  <TouchableOpacity onPress={() => setFilterVisible(false)}>
+                    <X size={24} color="#8892B0" />
+                  </TouchableOpacity>
+                </View>
+
+                <View className="gap-3">
+                  {(['all', 'create', 'update', 'delete', 'approve', 'reject'] as FilterType[]).map((filter) => (
+                    <TouchableOpacity
+                      key={filter}
+                      onPress={() => {
+                        setSelectedFilter(filter);
+                        setFilterVisible(false);
+                      }}
+                      className={`flex-row items-center justify-between p-4 rounded-xl border ${
+                        selectedFilter === filter
+                          ? 'bg-[#64FFDA]/10 border-[#64FFDA]/30'
+                          : 'bg-[#0A192F] border-white/5'
+                      }`}
+                    >
+                      <View className="flex-row items-center gap-3">
+                        <Text className="text-white font-semibold capitalize">{filter}</Text>
+                        {filter !== 'all' && (
+                          <Text className="text-[#8892B0] text-xs">
+                            ({logs.filter(l => {
+                              const a = l.action.toLowerCase();
+                              return filter === 'create' ? (a.includes('create') || a.includes('insert')) :
+                                     filter === 'update' ? (a.includes('update') || a.includes('modify')) :
+                                     filter === 'delete' ? (a.includes('delete') || a.includes('remove')) :
+                                     filter === 'approve' ? (a.includes('approve') || a.includes('accept')) :
+                                     filter === 'reject' ? (a.includes('reject') || a.includes('deny')) : false;
+                            }).length})
+                          </Text>
+                        )}
+                      </View>
+                      {selectedFilter === filter && (
+                        <Check size={20} color="#64FFDA" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View className="flex-row gap-3 mt-6">
+                  <TouchableOpacity
+                    onPress={exportToCSV}
+                    className="flex-1 bg-[#64FFDA]/10 border border-[#64FFDA]/30 rounded-xl p-4 flex-row items-center justify-center gap-2"
+                  >
+                    <FileText size={18} color="#64FFDA" />
+                    <Text className="text-[#64FFDA] font-semibold">Export CSV</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={exportToPDF}
+                    className="flex-1 bg-[#64FFDA]/10 border border-[#64FFDA]/30 rounded-xl p-4 flex-row items-center justify-center gap-2"
+                  >
+                    <FileText size={18} color="#64FFDA" />
+                    <Text className="text-[#64FFDA] font-semibold">Export TXT</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-          }
-        />
+          </Modal>
+        </>
       )}
     </SafeAreaView>
   );

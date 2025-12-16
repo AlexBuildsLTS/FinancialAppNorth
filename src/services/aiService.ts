@@ -1,23 +1,40 @@
 import { supabase } from '../lib/supabase';
 import { ChatbotMessage } from '../types';
+import { generateContent as generateContentFromGemini } from './geminiService';
 
 const generateContentWithHistory = async (userText: string, userId?: string, imgBase64?: string): Promise<string> => {
+  // Validate input with detailed checks
+  if (!userText) {
+    console.error('[AI Service] userText is null or undefined');
+    return "Please provide a valid question or prompt.";
+  }
+  
+  if (typeof userText !== 'string') {
+    console.error('[AI Service] userText is not a string:', typeof userText);
+    return "Please provide a valid question or prompt.";
+  }
+  
+  const trimmedText = userText.trim();
+  if (trimmedText.length === 0) {
+    console.error('[AI Service] userText is empty after trimming');
+    return "Please provide a valid question or prompt.";
+  }
+  
+  // Ensure minimum length
+  if (trimmedText.length < 5) {
+    console.warn('[AI Service] Prompt is suspiciously short:', trimmedText);
+  }
+
   try {
-    // Try calling the edge function first
-    const { data, error } = await supabase.functions.invoke('ai-chat', {
-      body: { prompt: userText, userId, image: imgBase64 }
-    });
-
-    if (!error && data?.text) {
-      return data.text;
-    }
-
-    // Fallback to local implementation
-    return generateContent(userText, userId, imgBase64);
+    // Use geminiService directly which has better error handling
+    return await generateContentFromGemini(trimmedText, userId, imgBase64);
   } catch (e: any) {
-    console.error('[AI Service] Edge function failed, using fallback:', e.message);
-    // Fallback to local implementation
-    return generateContent(userText, userId, imgBase64);
+    console.error('[AI Service] AI service failed:', {
+      error: e,
+      message: e?.message,
+      stack: e?.stack
+    });
+    return "I'm having trouble connecting to the AI. Please try again in a moment.";
   }
 };
 
@@ -101,58 +118,57 @@ export const sendUserMessageToAI = async (userId: string, text: string): Promise
 
 export const generateFinancialInsight = async (userId: string, transactions: any[]): Promise<string> => {
   try {
-    if (transactions.length === 0) return "No transactions to analyze yet.";
+    if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+      console.error('[AI Service] Invalid userId in generateFinancialInsight');
+      return "Unable to generate insight: invalid user.";
+    }
+    
+    if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
+      return "No transactions to analyze yet.";
+    }
 
-    const summary = transactions.slice(0, 10).map(t => 
-      `${t.date}: ${t.description} (${t.amount})`
-    ).join('\n');
+    const validTransactions = transactions.slice(0, 10)
+      .filter(t => t && (t.date || t.description || t.amount));
+    
+    if (validTransactions.length === 0) {
+      return "No valid transaction data to analyze.";
+    }
 
-    const prompt = `
-      Analyze these recent financial transactions:
-      ${summary}
-      
-      Provide a 1-sentence insight about spending habits. 
-      Be concise and friendly.
-    `;
+    const summary = validTransactions
+      .map(t => {
+        const date = t.date ? new Date(t.date).toLocaleDateString() : 'Unknown date';
+        const desc = t.description || 'No description';
+        const amount = t.amount ? `$${Math.abs(Number(t.amount)).toFixed(2)}` : '$0.00';
+        return `${date}: ${desc} (${amount})`;
+      })
+      .join('\n');
+
+    if (!summary || summary.trim().length === 0) {
+      console.error('[AI Service] Summary is empty after processing transactions');
+      return "No valid transaction data to analyze.";
+    }
+
+    const prompt = `Analyze these recent financial transactions:\n${summary}\n\nProvide a 1-sentence insight about spending habits. Be concise and friendly.`.trim();
+
+    if (!prompt || prompt.length === 0) {
+      console.error('[AI Service] Generated prompt is empty');
+      return "Unable to generate insight at this time.";
+    }
+    
+    // Ensure prompt meets minimum requirements
+    if (prompt.length < 50) {
+      console.warn('[AI Service] Generated prompt is suspiciously short:', prompt);
+    }
 
     return await generateContentWithHistory(prompt, userId);
-  } catch (e) {
+  } catch (e: any) {
+    console.error('[AI Service] generateFinancialInsight error:', {
+      error: e,
+      message: e?.message,
+      stack: e?.stack
+    });
     return "Insight unavailable.";
   }
-};
-
-export async function generateContent(userText: string, userId?: string, imgBase64?: string): Promise<string> {
-  // Mock AI responses for demo purposes
-  const responses = [
-    "That's an interesting point! Have you considered setting up automatic savings to build your emergency fund?",
-    "Great question! Based on your transaction history, you might benefit from creating a budget for discretionary spending.",
-    "I notice some recurring expenses in your data. Would you like me to help identify potential subscription optimizations?",
-    "Financial planning is key to reaching your goals. What specific financial objective are you working towards?",
-    "Remember, small consistent changes in spending habits can lead to significant savings over time.",
-    "Have you explored any investment options that align with your risk tolerance and time horizon?",
-    "Tax season is coming up - have you gathered all your deductible expenses for potential savings?",
-    "Diversification is important in investing. Are you spreading your investments across different asset classes?",
-    "Setting specific, measurable financial goals can help you stay motivated and on track.",
-    "Regular financial check-ins are crucial. How often do you review your budget and spending?"
-  ];
-
-  // Simple keyword matching for more relevant responses
-  const lowerText = userText.toLowerCase();
-  if (lowerText.includes('budget') || lowerText.includes('spending')) {
-    return "Budgeting is fundamental to financial success. I can help you analyze your spending patterns and create a personalized budget plan.";
-  }
-  if (lowerText.includes('save') || lowerText.includes('saving')) {
-    return "Saving is one of the most powerful financial tools. Consider automating transfers to a high-yield savings account.";
-  }
-  if (lowerText.includes('invest') || lowerText.includes('investment')) {
-    return "Investing can help grow your wealth over time. Start with low-risk options and consider your long-term goals.";
-  }
-  if (lowerText.includes('debt') || lowerText.includes('loan')) {
-    return "Managing debt effectively is important. Focus on high-interest debt first and consider consolidation options.";
-  }
-
-  // Return random response if no keywords match
-  return responses[Math.floor(Math.random() * responses.length)];
 };
 
 // ==========================================
@@ -216,8 +232,16 @@ export const parseVoiceCommand = async (voiceText: string): Promise<ParsedVoiceC
   if (merchant !== 'Unknown') confidence += 0.2;
   if (category !== 'Other') confidence += 0.1;
 
+  // Generate description from merchant and category, or use raw text
+  const description = merchant !== 'Unknown' 
+    ? `${merchant} - ${category}`
+    : voiceText.length > 100 
+      ? voiceText.substring(0, 100) + '...'
+      : voiceText;
+
   return {
     amount,
+    description,
     merchant,
     category,
     is_tax_deductible: isTaxDeductible,

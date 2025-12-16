@@ -319,8 +319,9 @@ const DesktopSidebar = ({ user, pathname }: { user: any, pathname: string }) => 
     
     // FORCE ADD NEW FEATURES TO DESKTOP SIDEBAR
     // This ensures "Organization", "Approvals", and "Quick Add" appear
+    // EXCLUDE "Support" from main menu since it's in "Help & Legal" section at bottom
     const finalKeys = Array.from(new Set([
-        ...allowedKeys, 
+        ...allowedKeys.filter((key: string) => key !== 'Support'), // Remove Support from main menu
         'Hub', 
         'Organization', 
         'Approvals',

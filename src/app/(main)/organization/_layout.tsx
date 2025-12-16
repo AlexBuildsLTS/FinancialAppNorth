@@ -26,7 +26,6 @@ export default function OrganizationLayout() {
           fontSize: 17,
         },
         headerShadowVisible: false,   // Flat Modern Look
-        headerBackTitleVisible: false, // Minimalist
         
         // --- Content Container ---
         contentStyle: {

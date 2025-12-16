@@ -35,33 +35,58 @@ export const FinancialBrain = {
    */
   async askFinancialAdvisor(userId: string, userQuestion: string): Promise<string> {
     try {
+      // Validate inputs
+      if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+        throw new Error('Valid userId is required');
+      }
+      
+      if (!userQuestion || typeof userQuestion !== 'string' || userQuestion.trim().length === 0) {
+        // Default question if none provided
+        userQuestion = "Provide a brief financial health assessment and any key recommendations.";
+      }
+
       const context = await this.getFinancialContext(userId);
       const runway = this.predictRunway(context.balance, context.rawTransactions);
       
       // Default to Sweden/Individual for now
       const tax = this.calculateRealTaxLiability(context.netIncome, 'SE', 'INDIVIDUAL');
 
+      // Ensure all numeric values are valid before formatting
+      const balance = isNaN(context.balance) ? 0 : context.balance;
+      const monthlyBurn = isNaN(runway.monthlyBurn) ? 0 : runway.monthlyBurn;
+      const monthsLeft = isNaN(runway.monthsLeft) ? 0 : runway.monthsLeft;
+      const estimatedTax = isNaN(tax.estimatedTax) ? 0 : tax.estimatedTax;
+
       const prompt = `
         You are NorthFinance, a strategic CFO AI.
         
         --- LIVE FINANCIAL STATUS ---
-        💰 Balance: $${context.balance.toFixed(2)}
-        📉 Monthly Burn: $${runway.monthlyBurn.toFixed(2)}
-        ⚠️ Runway: ${runway.monthsLeft.toFixed(1)} months (${runway.status})
-        🏛️ Tax Liability (Est): $${tax.estimatedTax.toFixed(2)}
+        💰 Balance: $${balance.toFixed(2)}
+        📉 Monthly Burn: $${monthlyBurn.toFixed(2)}
+        ⚠️ Runway: ${monthsLeft.toFixed(1)} months (${runway.status || 'unknown'})
+        🏛️ Tax Liability (Est): $${estimatedTax.toFixed(2)}
         
         --- RECENT SPENDING ---
-        ${context.recent_spend}
+        ${context.recent_spend || 'No recent spending data available.'}
 
         --- BUDGET HEALTH ---
-        ${context.budget_health}
+        ${context.budget_health || 'No budget data available.'}
 
         --- USER QUESTION ---
-        "${userQuestion}"
+        "${userQuestion.trim()}"
 
         INSTRUCTIONS:
         Answer directly. If asked about affordability, reference the Runway Status.
-      `;
+      `.trim();
+
+      if (!prompt || prompt.length === 0) {
+        throw new Error('Generated prompt is empty');
+      }
+      
+      // Additional validation - ensure prompt has meaningful content
+      if (prompt.length < 50) {
+        console.warn('Generated prompt is suspiciously short:', prompt.substring(0, 100));
+      }
 
       return await generateContent(prompt, userId);
 

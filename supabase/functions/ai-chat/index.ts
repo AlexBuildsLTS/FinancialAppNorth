@@ -22,18 +22,86 @@ interface GeminiResponse {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS')
-    return new Response('ok', { headers: corsHeaders });
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Max-Age': '86400',
+      }
+    });
+  }
+
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed. Use POST.' }),
+      {
+        status: 405,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
 
   try {
+    // Log request details for debugging
+    console.log('Request received:', {
+      method: req.method,
+      url: req.url,
+      contentType: req.headers.get('content-type'),
+      contentLength: req.headers.get('content-length')
+    });
+
     // Parse request body with better error handling
     let requestBody: ChatRequest;
+    let rawBody: string | null = null;
+    
     try {
-      requestBody = await req.json();
+      // Try to read the raw body first for debugging
+      const bodyText = await req.text();
+      rawBody = bodyText;
+      console.log('Raw request body:', {
+        length: bodyText.length,
+        preview: bodyText.substring(0, 200),
+        isEmpty: bodyText.trim().length === 0
+      });
+      
+      if (!bodyText || bodyText.trim().length === 0) {
+        console.error('Request body is empty');
+        return new Response(
+          JSON.stringify({ error: 'Request body is required and cannot be empty' }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      
+      requestBody = JSON.parse(bodyText);
+      console.log('Parsed request body:', { 
+        hasPrompt: !!requestBody.prompt, 
+        promptType: typeof requestBody.prompt,
+        promptLength: requestBody.prompt?.length || 0,
+        promptPreview: requestBody.prompt ? requestBody.prompt.substring(0, 100) : 'N/A',
+        hasUserId: !!requestBody.userId,
+        userIdType: typeof requestBody.userId,
+        hasImage: !!requestBody.image,
+        imageLength: requestBody.image?.length || 0,
+        fullBodyKeys: Object.keys(requestBody)
+      });
     } catch (parseError) {
-      console.error('Failed to parse request body:', parseError);
+      console.error('Failed to parse request body:', {
+        error: parseError instanceof Error ? parseError.message : String(parseError),
+        stack: parseError instanceof Error ? parseError.stack : undefined,
+        rawBodyPreview: rawBody ? rawBody.substring(0, 200) : 'null',
+        rawBodyLength: rawBody?.length || 0
+      });
       return new Response(
-        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        JSON.stringify({ 
+          error: 'Invalid JSON in request body',
+          details: parseError instanceof Error ? parseError.message : 'Unknown parse error'
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -43,9 +111,34 @@ Deno.serve(async (req) => {
 
     const { prompt, userId, image } = requestBody;
     
-    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    // Validate prompt with detailed logging
+    if (!prompt) {
+      console.error('Prompt is missing:', { requestBody });
       return new Response(
         JSON.stringify({ error: 'Prompt is required and must be a non-empty string' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    if (typeof prompt !== 'string') {
+      console.error('Prompt is not a string:', { prompt, type: typeof prompt });
+      return new Response(
+        JSON.stringify({ error: 'Prompt must be a string' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    const trimmedPrompt = prompt.trim();
+    if (trimmedPrompt.length === 0) {
+      console.error('Prompt is empty after trimming:', { originalLength: prompt.length });
+      return new Response(
+        JSON.stringify({ error: 'Prompt cannot be empty' }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -78,12 +171,12 @@ Deno.serve(async (req) => {
     // 2. Get API Key (check user's custom key first, fallback to system key)
     let apiKey = Deno.env.get('GEMINI_API_KEY');
     
-    if (userId && typeof userId === 'string') {
+    if (userId && typeof userId === 'string' && userId.trim().length > 0) {
       try {
         const { data: secret, error: secretError } = await supabaseAdmin
           .from('user_secrets')
           .select('api_key_encrypted')
-          .eq('user_id', userId)
+          .eq('user_id', userId.trim())
           .eq('service', 'gemini')
           .maybeSingle();
           
@@ -116,7 +209,7 @@ Deno.serve(async (req) => {
     // 3. Build request parts
     const parts: Array<
       { text: string } | { inline_data: { mime_type: string; data: string } }
-    > = [{ text: prompt.trim() }];
+    > = [{ text: trimmedPrompt }];
 
     if (image && typeof image === 'string' && image.length > 0) {
       // Remove data URL prefix if present
@@ -131,7 +224,7 @@ Deno.serve(async (req) => {
 
     // 4. Call Gemini AI
     const apiUrl = `${GEMINI_API_URL}?key=${apiKey}`;
-    console.log('Calling Gemini API:', { url: GEMINI_API_URL, hasImage: !!image, promptLength: prompt.length });
+    console.log('Calling Gemini API:', { url: GEMINI_API_URL, hasImage: !!image, promptLength: trimmedPrompt.length });
     
     const response = await fetch(apiUrl, {
       method: 'POST',
