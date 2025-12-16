@@ -443,38 +443,67 @@ export default function ReportsScreen() {
 
   const exportToCSV = async () => {
     if (transactions.length === 0) {
-      return Alert.alert('Export Failed', 'No data available to export.');
+      Alert.alert('Export Failed', 'No data available to export.');
+      return;
     }
 
     try {
       const headers = ['Date', 'Description', 'Category', 'Amount', 'Type', 'Tax Deductible'];
       const rows = transactions.map(t => {
-        // Escape quotes for CSV safety
-        const desc = t.description.replace(/"/g, '""');
+        // Safely handle null/undefined values - ReportTransaction has: id, date, amount, category, description, type, is_tax_deductible
+        const desc = (t.description || 'N/A').toString().replace(/"/g, '""');
+        const category = (t.category || 'Uncategorized').toString();
+        const amount = typeof t.amount === 'number' ? Math.abs(t.amount).toFixed(2) : '0.00';
+        const type = (t.type || 'expense').toString();
+        const taxDeductible = t.is_tax_deductible ? 'Yes' : 'No';
+        const date = t.date ? new Date(t.date).toLocaleDateString() : new Date().toLocaleDateString();
+        
         return [
-          new Date(t.date).toLocaleDateString(),
+          date,
           `"${desc}"`,
-          t.category,
-          t.amount.toFixed(2),
-          t.type,
-          t.is_tax_deductible ? 'Yes' : 'No'
+          `"${category}"`,
+          amount,
+          type,
+          taxDeductible
         ].join(',');
       });
 
       const csvContent = headers.join(',') + '\n' + rows.join('\n');
       const filename = `NorthFinance_Report_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-      const fileUri = `${FileSystem.documentDirectory}${filename}`;
-
-      await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Financial Report' });
+      
+      // Handle web vs native
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        // Web: Create download link
+        try {
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          link.setAttribute('href', url);
+          link.setAttribute('download', filename);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          Alert.alert('Success', 'CSV file downloaded successfully.');
+        } catch (webError: any) {
+          console.error('Web export error:', webError);
+          Alert.alert('Export Error', 'Could not download file on web. Please try again.');
+        }
       } else {
-        Alert.alert('Saved', `Report saved to: ${fileUri}`);
+        // Native: Use FileSystem and Sharing
+        const fileUri = `${FileSystem.documentDirectory}${filename}`;
+        await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Financial Report' });
+        } else {
+          Alert.alert('Saved', `Report saved to: ${fileUri}`);
+        }
       }
     } catch (e: any) {
       console.error('[Reports] Export Error:', e);
-      Alert.alert('Export Error', 'Could not generate CSV file.');
+      Alert.alert('Export Error', e.message || 'Could not generate CSV file. Please try again.');
     }
   };
 

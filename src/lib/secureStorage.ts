@@ -1,70 +1,70 @@
-// src/lib/secureStorage.ts
-import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
-// The Supabase JS client expects an object with async methods:
-// getItem(key): Promise<string | null>
-// setItem(key, value): Promise<void>
-// removeItem(key): Promise<void>
-//
-// For web, we map to localStorage; for native, use expo-secure-store.
+/**
+ * ============================================================================
+ * 🔐 NORTHFINANCE SECURE STORAGE (TITAN LAYER)
+ * ============================================================================
+ * Abstraction layer ensuring secrets (Tokens, Biometric prefs) are stored
+ * in the device's hardware Secure Enclave (iOS/Android).
+ * * FALLBACK: Uses localStorage for Web.
+ * ============================================================================
+ */
 
-const isWeb = Platform.OS === 'web';
-
-const webSecureStorage = {
-  async getItem(key: string): Promise<string | null> {
-    try {
-      if (typeof localStorage === 'undefined') return null;
-      return localStorage.getItem(key);
-    } catch (err) {
-      console.warn('[secureStorage] web getItem failed', err);
-      return null;
-    }
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    try {
+export const setItem = async (key: string, value: string): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(key, value);
       }
-    } catch (err) {
-      console.warn('[secureStorage] web setItem failed', err);
+    } else {
+      await SecureStore.setItemAsync(key, value);
     }
-  },
-  async removeItem(key: string): Promise<void> {
-    try {
+  } catch (error) {
+    console.error(`[SecureStorage] Error setting ${key}:`, error);
+    throw error;
+  }
+};
+
+export const getItem = async (key: string): Promise<string | null> => {
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof localStorage !== 'undefined') {
+        return localStorage.getItem(key);
+      }
+      return null;
+    } else {
+      return await SecureStore.getItemAsync(key);
+    }
+  } catch (error) {
+    console.error(`[SecureStorage] Error getting ${key}:`, error);
+    return null;
+  }
+};
+
+export const deleteItem = async (key: string): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem(key);
       }
-    } catch (err) {
-      console.warn('[secureStorage] web removeItem failed', err);
-    }
-  },
-};
-
-const nativeSecureStorage = {
-  async getItem(key: string): Promise<string | null> {
-    try {
-      return await SecureStore.getItemAsync(key);
-    } catch (err) {
-      console.warn('[secureStorage] native getItem failed', err);
-      return null;
-    }
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    try {
-      await SecureStore.setItemAsync(key, value);
-    } catch (err) {
-      console.warn('[secureStorage] native setItem failed', err);
-    }
-  },
-  async removeItem(key: string): Promise<void> {
-    try {
+    } else {
       await SecureStore.deleteItemAsync(key);
-    } catch (err) {
-      console.warn('[secureStorage] native removeItem failed', err);
     }
-  },
+  } catch (error) {
+    console.error(`[SecureStorage] Error deleting ${key}:`, error);
+  }
 };
 
-export const secureStorage = isWeb ? webSecureStorage : nativeSecureStorage;
-export default secureStorage;
+// Export a storage adapter for Supabase Auth
+export const secureStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    return await getItem(key);
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    await setItem(key, value);
+  },
+  removeItem: async (key: string): Promise<void> => {
+    await deleteItem(key);
+  },
+};

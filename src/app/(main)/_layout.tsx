@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * 🧭 NORTHFINANCE MAIN LAYOUT (ENTERPRISE EDITION)
+ * ============================================================================
+ * The unified navigation controller for both Mobile (Tabs) and Desktop (Sidebar).
+ * * CORE FEATURES:
+ * - 📱 Adaptive Mobile Tabs: Prioritizes "Action" (Quick Add) and "Management" (Org).
+ * - 🖥️ Desktop Command Center: Full sidebar with role-based filtering.
+ * - 🔔 Unified Notifications: Dropdown integrated into headers.
+ * - 👤 Contextual Profile Menu: Settings/Support moved here to de-clutter tabs.
+ * * MAINTAINER NOTE:
+ * Do not remove "Help & Legal" or "Profile Dropdowns". 
+ * This layout handles 99% of the app's navigation logic.
+ * ============================================================================
+ */
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   View, 
@@ -15,7 +31,7 @@ import {
 } from 'react-native';
 import { Tabs, Redirect, useRouter, usePathname, Slot } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur'; // Assuming expo-blur is available, else View fallback
+import { BlurView } from 'expo-blur'; // Keeping commented as requested if package not present
 import {
   LayoutDashboard,
   CreditCard,
@@ -35,12 +51,15 @@ import {
   X,
   CheckCircle,
   AlertCircle,
-  Building
+  Building,
+  Zap,
+  Building2,
+  CheckSquare
 } from 'lucide-react-native';
 
 // --- INTERNAL IMPORTS ---
 import { useAuth } from '../../shared/context/AuthContext';
-import { ROLE_NAV_ITEMS } from '../../constants';
+import { ROLE_NAV_ITEMS } from '../../constants'; // Ensure this file exists with role arrays
 import { getNotifications, subscribeToNotifications, markAllNotificationsRead } from '../../services/dataService';
 import { NotificationItem, UserRole } from '../../types';
 
@@ -65,35 +84,45 @@ type NavItemKey =
   | 'Settings' 
   | 'Messages'
   | 'Support'
-  | 'Find CPA';
+  | 'Find CPA'
+  | 'Organization'
+  | 'Quick Add';
 
 interface NavConfigItem {
   name: string;
   icon: React.ElementType;
   path: string;
   label: string;
-  description?: string; // For tooltips or expanded views
+  description?: string;
+  isAction?: boolean; // Special styling for "Quick Add"
 }
 
+/**
+ * 🗺️ MASTER NAVIGATION CONFIGURATION
+ * Maps internal keys to routes, icons, and labels.
+ * This ensures consistency between Mobile Tabs and Desktop Sidebar.
+ */
 const NAV_CONFIG: Record<NavItemKey, NavConfigItem> = {
   'Dashboard':    { name: 'index',          icon: LayoutDashboard, path: '/(main)/',             label: 'Dashboard' },
   'Transactions': { name: 'finances',       icon: CreditCard,      path: '/(main)/finances',     label: 'Finances' },
+  'Quick Add':    { name: 'quick-add',      icon: Zap,             path: '/(main)/quick-add',    label: 'Smart Ledger', isAction: true },
+  'Organization': { name: 'organization',   icon: Building2,       path: '/(main)/organization', label: 'Org HQ' },
+  'Approvals':    { name: 'approvals',      icon: CheckSquare,     path: '/(main)/approvals',    label: 'Approvals' },
+  'AI Chat':      { name: 'aiChat',         icon: Bot,             path: '/(main)/aiChat',       label: 'AI CFO' },
+  'Hub':          { name: 'hub',            icon: Briefcase,       path: '/(main)/hub',          label: 'Workspace' },
   'Documents':    { name: 'documents',      icon: FileText,        path: '/(main)/documents',    label: 'Documents' },
-  'Approvals':    { name: 'approvals',      icon: CheckCircle,     path: '/(main)/approvals',    label: 'Approvals' },
-  'Hub':          { name: 'hub',            icon: Building,        path: '/(main)/hub',          label: 'Workspace' },
   'CPA Portal':   { name: 'cpa',            icon: Users,           path: '/(main)/cpa',          label: 'CPA Portal' },
   'Admin':        { name: 'admin',          icon: ShieldAlert,     path: '/(main)/admin',        label: 'Admin Console' },
-  'AI Chat':      { name: 'aiChat',         icon: Bot,             path: '/(main)/aiChat',       label: 'AI CFO' },
   'Settings':     { name: 'settings',       icon: Settings,        path: '/(main)/settings',     label: 'Settings' },
   'Messages':     { name: 'messages/index', icon: MessageSquare,   path: '/(main)/messages',     label: 'Messages' },
   'Support':      { name: 'support',        icon: LifeBuoy,        path: '/(main)/support',      label: 'Support' },
   'Find CPA':     { name: 'find-cpa',       icon: Search,          path: '/(main)/find-cpa',     label: 'Find Expert' },
 };
 
-// Colors
+// --- THEME CONSTANTS ---
 const THEME = {
   bg: '#0A192F',
-  sidebar: '#0A192F', // Or slightly lighter/darker
+  sidebar: '#0A192F', 
   card: '#112240',
   border: '#233554',
   text: '#CCD6F6',
@@ -115,6 +144,7 @@ const RoleBadge = ({ role }: { role: string }) => {
       case 'cpa':   return { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20' };
       case 'premium': case 'premium_member': return { bg: 'bg-[#64FFDA]/10', text: 'text-[#64FFDA]', border: 'border-[#64FFDA]/20' };
       case 'support': return { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' };
+      case 'owner': return { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/20' };
       default: return { bg: 'bg-white/5', text: 'text-gray-400', border: 'border-white/10' };
     }
   }, [role]);
@@ -171,7 +201,7 @@ const NotificationDropdown = ({
   if (!visible) return null;
 
   return (
-    <View className="absolute top-14 right-16 w-80 bg-[#112240] border border-[#233554] rounded-lg shadow-2xl z-50 overflow-hidden">
+    <View className="absolute top-14 right-4 md:right-16 w-80 bg-[#112240] border border-[#233554] rounded-lg shadow-2xl z-50 overflow-hidden">
       <View className="flex-row justify-between items-center p-4 border-b border-[#233554]">
         <Text className="text-sm font-bold text-white">Notifications</Text>
         <TouchableOpacity onPress={handleMarkRead}>
@@ -206,7 +236,7 @@ const NotificationDropdown = ({
   );
 };
 
-// --- Profile Menu Dropdown (Right Corner) ---
+// --- Profile Menu Dropdown (Desktop & Mobile Unified) ---
 const ProfileMenu = ({ 
   visible, 
   onClose, 
@@ -244,9 +274,12 @@ const ProfileMenu = ({
       </View>
 
       <ScrollView>
+        {/* Core Profile Actions */}
         <MenuItem icon={Settings} label="Settings" path="/(main)/settings" />
         <MenuItem icon={Briefcase} label="Workspace Hub" path="/(main)/hub" />
+        <MenuItem icon={Building2} label="Organization HQ" path="/(main)/organization" />
         
+        {/* Role Specific */}
         {['cpa', 'premium', 'premium_member', 'admin', 'support'].includes(user.role) && (
           <MenuItem icon={Users} label="CPA Portal" path="/(main)/cpa" color="#A78BFA" />
         )}
@@ -256,6 +289,9 @@ const ProfileMenu = ({
         )}
         
         <View className="h-[1px] bg-[#233554] my-1" />
+        
+        {/* Help & Logout */}
+        <MenuItem icon={LifeBuoy} label="Help & Support" path="/(main)/support" />
         
         <TouchableOpacity 
           onPress={() => { onClose(); logout(); }}
@@ -281,8 +317,15 @@ const DesktopSidebar = ({ user, pathname }: { user: any, pathname: string }) => 
     // Logic to merge standard role items with any extras
     const allowedKeys = (ROLE_NAV_ITEMS as any)[role] || ROLE_NAV_ITEMS['member'];
     
-    // Add "Hub" for everyone in this Enterprise View
-    const finalKeys = Array.from(new Set([...allowedKeys, 'Hub'])); 
+    // FORCE ADD NEW FEATURES TO DESKTOP SIDEBAR
+    // This ensures "Organization", "Approvals", and "Quick Add" appear
+    const finalKeys = Array.from(new Set([
+        ...allowedKeys, 
+        'Hub', 
+        'Organization', 
+        'Approvals',
+        'Quick Add' 
+    ])); 
 
     return finalKeys
       .map(key => NAV_CONFIG[key as NavItemKey])
@@ -305,25 +348,32 @@ const DesktopSidebar = ({ user, pathname }: { user: any, pathname: string }) => 
       {/* Navigation */}
       <ScrollView className="flex-1 px-3 py-6">
         <Text className="text-[#8892B0] text-xs font-bold uppercase mb-4 px-3">Main Menu</Text>
+        
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.path);
+          const isAction = item.isAction;
+
           return (
             <TouchableOpacity
               key={item.name}
               onPress={() => router.push(item.path as any)}
               className={`flex-row items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all ${
-                isActive ? 'bg-[#112240] border-l-4 border-[#64FFDA]' : 'opacity-70 hover:opacity-100 hover:bg-[#112240]/50'
+                isActive 
+                    ? 'bg-[#112240] border-l-4 border-[#64FFDA]' 
+                    : isAction 
+                        ? 'bg-[#64FFDA]/10 border border-[#64FFDA]/30' 
+                        : 'opacity-70 hover:opacity-100 hover:bg-[#112240]/50'
               }`}
             >
-              <item.icon size={20} color={isActive ? '#64FFDA' : '#8892B0'} />
-              <Text className={`text-sm font-medium ${isActive ? 'text-white' : 'text-[#8892B0]'}`}>
+              <item.icon size={20} color={isActive || isAction ? '#64FFDA' : '#8892B0'} />
+              <Text className={`text-sm font-medium ${isActive || isAction ? 'text-white' : 'text-[#8892B0]'}`}>
                 {item.label}
               </Text>
             </TouchableOpacity>
           );
         })}
 
-        {/* Support Section */}
+        {/* Support Section - Preserving the "Help & Legal" you mentioned */}
         <View className="px-3 mt-8 mb-2">
              <Text className="text-[#8892B0] text-xs font-bold uppercase mb-2">Help & Legal</Text>
              <TouchableOpacity 
@@ -336,7 +386,7 @@ const DesktopSidebar = ({ user, pathname }: { user: any, pathname: string }) => 
         </View>
       </ScrollView>
 
-      {/* Sidebar Footer (Optional quick stats or version) */}
+      {/* Sidebar Footer */}
       <View className="p-4 border-t border-[#233554]">
         <View className="bg-[#112240] rounded-lg p-3">
             <Text className="text-[#64FFDA] text-xs font-bold mb-1">System Status</Text>
@@ -469,93 +519,12 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ route, user, logout }) => {
       {/* NOTIFICATIONS DROPDOWN (Mobile) */}
       <NotificationDropdown visible={notifOpen} onClose={() => setNotifOpen(false)} userId={user.id} />
 
-      {/* PROFILE DROPDOWN (Mobile, EXACT match to desktop ProfileMenu) */}
-      {menuOpen && (
-        <View className="absolute top-14 right-4 w-56 bg-[#112240] border border-[#233554] rounded-lg shadow-2xl z-50 overflow-hidden">
-          {/* Header - EXACT match to desktop */}
-          <View className="p-4 border-b border-[#233554] bg-[#0A192F]">
-            <Text className="text-sm font-bold text-white truncate">{user.name}</Text>
-            <Text className="text-[#8892B0] text-xs truncate">{user.email}</Text>
-            <View className="flex-row mt-2">
-              <RoleBadge role={user.role} />
-            </View>
-          </View>
-
-          <ScrollView>
-            {/* Settings */}
-            <TouchableOpacity
-              onPress={() => {
-                setMenuOpen(false);
-                router.push('/(main)/settings');
-              }}
-              className="flex-row items-center px-4 py-3"
-            >
-              <Settings size={16} color="#8892B0" style={{ marginRight: 12 }} />
-              <Text className="text-sm text-white">Settings</Text>
-            </TouchableOpacity>
-
-            {/* Workspace Hub */}
-            <TouchableOpacity
-              onPress={() => {
-                setMenuOpen(false);
-                router.push('/(main)/hub');
-              }}
-              className="flex-row items-center px-4 py-3"
-            >
-              <Briefcase size={16} color="#8892B0" style={{ marginRight: 12 }} />
-              <Text className="text-sm text-white">Workspace Hub</Text>
-            </TouchableOpacity>
-
-            {/* CPA Portal (role-gated) */}
-            {['cpa', 'premium', 'premium_member', 'admin', 'support'].includes(
-              user.role,
-            ) && (
-              <TouchableOpacity
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push('/(main)/cpa');
-                }}
-                className="flex-row items-center px-4 py-3"
-              >
-                <Users size={16} color="#A78BFA" style={{ marginRight: 12 }} />
-                <Text className="text-sm text-white">CPA Portal</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Admin Console (admin-only) */}
-            {user.role === 'admin' && (
-              <TouchableOpacity
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push('/(main)/admin');
-                }}
-                className="flex-row items-center px-4 py-3"
-              >
-                <ShieldAlert size={16} color="#F59E0B" style={{ marginRight: 12 }} />
-                <Text className="text-sm text-white">Admin Console</Text>
-              </TouchableOpacity>
-            )}
-
-            <View className="h-[1px] bg-[#233554] my-1" />
-
-            {/* Sign Out */}
-            <TouchableOpacity
-              onPress={() => {
-                setMenuOpen(false);
-                logout();
-              }}
-              className="flex-row items-center px-4 py-3"
-            >
-              <LogOut size={16} color="#EF4444" style={{ marginRight: 12 }} />
-              <Text className="text-[#EF4444] text-sm font-bold">Sign Out</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      )}
+      {/* PROFILE DROPDOWN (Mobile - Reusing logic for consistency) */}
+      <ProfileMenu visible={menuOpen} onClose={() => setMenuOpen(false)} user={user} logout={logout} />
     </SafeAreaView>
-    
   );
 };
+
 // ============================================================================
 // 5. MAIN LAYOUT ORCHESTRATOR
 // ============================================================================
@@ -591,17 +560,22 @@ export default function MainLayout() {
           screenOptions={{
             headerShown: true,
             header: (props: { route: any }) => <MobileHeader route={props.route} user={user} logout={logout} />,
-            tabBarShowLabel: false,
+            tabBarShowLabel: true, // Labels help with new complex features
             tabBarStyle: {
               backgroundColor: '#020C1B',
               borderTopWidth: 1,
               borderTopColor: '#233554',
-              height: Platform.OS === 'ios' ? 88 : 65,
-              paddingBottom: Platform.OS === 'ios' ? 28 : 10,
-              paddingTop: 10,
+              height: Platform.OS === 'ios' ? 90 : 70,
+              paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+              paddingTop: 8,
             },
             tabBarActiveTintColor: '#64FFDA',
             tabBarInactiveTintColor: '#8892B0',
+            tabBarLabelStyle: {
+                fontSize: 10,
+                fontWeight: '600',
+                marginTop: 0
+            }
           }}
         >
             {/* 1. Dashboard */}
@@ -609,6 +583,7 @@ export default function MainLayout() {
                 name="index"
                 options={{
                     href: NAV_CONFIG.Dashboard.path,
+                    title: 'Home',
                     tabBarIcon: ({color}: {color: string}) => <LayoutDashboard color={color} size={24} />
                 }}
             />
@@ -618,63 +593,63 @@ export default function MainLayout() {
                 name="finances"
                 options={{
                     href: NAV_CONFIG.Transactions.path,
+                    title: 'Finances',
                     tabBarIcon: ({color}: {color: string}) => <CreditCard color={color} size={24} />
                 }}
             />
 
-            {/* 3. Workspace Hub */}
+            {/* 3. CENTER HERO: Quick Add (The "Brain") */}
             <Tabs.Screen
-                name="hub"
+                name="quick-add"
                 options={{
-                    href: NAV_CONFIG.Hub.path,
-                    tabBarIcon: ({color}: {color: string}) => <Briefcase color={color} size={24} />
+                    href: NAV_CONFIG['Quick Add'].path,
+                    title: 'Quick Add',
+                    tabBarIcon: ({ focused }: { focused: boolean }) => (
+                        <View className={`-mt-6 w-14 h-14 rounded-full items-center justify-center shadow-lg border-4 border-[#020C1B] ${focused ? 'bg-[#64FFDA]' : 'bg-[#112240]'}`}>
+                            <Zap color={focused ? '#0A192F' : '#64FFDA'} size={28} fill={focused ? '#0A192F' : 'none'} />
+                        </View>
+                    ),
+                    tabBarLabelStyle: { display: 'none' } // Hide label for the hero button
                 }}
             />
 
-            {/* 4. AI Chat */}
+            {/* 4. Organization HQ (Titan Feature) */}
+            <Tabs.Screen
+                name="organization"
+                options={{
+                    href: NAV_CONFIG.Organization.path,
+                    title: 'Org HQ',
+                    tabBarIcon: ({color}: {color: string}) => <Building2 color={color} size={24} />
+                }}
+            />
+
+            {/* 5. AI Chat (CFO) */}
             <Tabs.Screen
                 name="aiChat"
                 options={{
                     href: NAV_CONFIG['AI Chat'].path,
-                    tabBarIcon: ({color}: {color: string}) => (
-                      <View className="bg-[#112240] p-2 rounded-full border border-[#64FFDA]/30">
-                        <Bot color={'#64FFDA'} size={24} />
-                      </View>
-                    ),
+                    title: 'AI CFO',
+                    tabBarIcon: ({color}: {color: string}) => <Bot color={color} size={24} />
                 }}
             />
 
-            {/* 5. Support */}
-            <Tabs.Screen
-                name="support"
-                options={{
-                    href: NAV_CONFIG.Support.path,
-                    tabBarIcon: ({color}: {color: string}) => <LifeBuoy color={color} size={24} />
-                }}
-            />
+            {/* 6. Settings (Hidden from Bottom Bar, accessible via Profile) */}
+            <Tabs.Screen name="settings" options={{ href: null }} />
 
-            {/* 6. Settings */}
-            <Tabs.Screen
-                name="settings"
-                options={{
-                    href: NAV_CONFIG.Settings.path,
-                    tabBarIcon: ({color}: {color: string}) => <Settings color={color} size={24} />
-                }}
-            />
+            {/* 7. Support (Hidden from Bottom Bar, accessible via Profile) */}
+            <Tabs.Screen name="support" options={{ href: null }} />
 
-            {/* Hidden Routes - href: null hides them from tab bar */}
+            {/* Hidden Routes */}
             <Tabs.Screen name="admin" options={{ href: null }} />
             <Tabs.Screen name="cpa" options={{ href: null }} />
+            <Tabs.Screen name="hub" options={{ href: null }} />
+            <Tabs.Screen name="approvals" options={{ href: null }} />
             <Tabs.Screen name="messages/index" options={{ href: null }} />
             <Tabs.Screen name="messages/[id]" options={{ href: null }} />
             <Tabs.Screen name="documents" options={{ href: null }} />
             <Tabs.Screen name="scan" options={{ href: null }} />
             <Tabs.Screen name="find-cpa" options={{ href: null }} />
-            <Tabs.Screen name="approvals" options={{ href: null }} />
-            <Tabs.Screen name="quick-add" options={{ href: null }} />
-            {/* Extra hidden routes to avoid tab bar slots */}
             <Tabs.Screen name="invoices" options={{ href: null }} />
-            <Tabs.Screen name="organization" options={{ href: null }} />
         </Tabs>
       </View>
     );

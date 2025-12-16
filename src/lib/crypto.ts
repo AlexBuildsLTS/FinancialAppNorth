@@ -54,3 +54,26 @@ export const generateKey = (): string => {
 export const hashString = (text: string): string => {
   return CryptoJS.SHA256(text).toString();
 };
+
+/**
+ * ============================================================================
+ * 🔐 E2EE FUNCTIONS (Titan 1 - Zero-Knowledge Architecture)
+ * ============================================================================
+ * Simple aliases for encryptMessage/decryptMessage to match E2EE naming convention.
+ * Used by messaging system for client-side encryption before storage.
+ * ============================================================================
+ */
+
+/**
+ * Encrypts text for E2EE messaging (alias for encryptMessage)
+ */
+export const encrypt = (text: string): string => {
+  return encryptMessage(text);
+};
+
+/**
+ * Decrypts E2EE encrypted text (alias for decryptMessage)
+ */
+export const decrypt = (cipherText: string): string => {
+  return decryptMessage(cipherText);
+};

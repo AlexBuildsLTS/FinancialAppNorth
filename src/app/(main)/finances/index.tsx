@@ -7,10 +7,22 @@ import {
 } from 'lucide-react-native'; 
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../../shared/context/AuthContext';
+/**
+ * ============================================================================
+ * 🏦 NORTHFINANCE: FINANCIAL OPERATING SYSTEM - CFO DASHBOARD
+ * ============================================================================
+ * The central command center for financial intelligence.
+ * Displays real-time metrics, AI insights, and predictive forecasting.
+ * Designed for solopreneurs to Fortune 500 teams.
+ * ============================================================================
+ */
+
 import { getFinancialSummary, getTransactions } from '../../../services/dataService';
 import { generateFinancialInsight } from '../../../services/aiService';
 import { generateCashFlowForecast, getCashFlowRiskLevel } from '../../../services/analysisService';
+import { generateFinancialForecast } from '../../../lib/forecasting';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LineChart } from 'react-native-gifted-charts';
 import { CashFlowPoint } from '../../../types';
 
 export default function FinanceOverviewScreen() {
@@ -24,6 +36,9 @@ export default function FinanceOverviewScreen() {
     const [cashFlowRisk, setCashFlowRisk] = useState<'low' | 'medium' | 'high'>('low');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    
+    // Titan 2: Predictive Forecasting State
+    const [forecastData, setForecastData] = useState<{ value: number; label: string }[]>([]);
 
     // Load Data
     const loadData = async () => {
@@ -43,6 +58,24 @@ export default function FinanceOverviewScreen() {
             if (txs.length > 0) {
                 const aiText = await generateFinancialInsight(user.id, txs);
                 setInsight(aiText);
+                
+                // 4. Generate Predictive Forecast (Titan 2 - FOS Feature)
+                // Convert transactions to forecasting format
+                const historicalData = txs
+                  .filter(t => t.date) // Only valid dates
+                  .map(t => ({
+                    date: new Date(t.date),
+                    value: Math.abs(Number(t.amount)) // Use absolute for trend analysis
+                  }))
+                  .sort((a, b) => a.date.getTime() - b.date.getTime()); // Sort chronologically
+                
+                if (historicalData.length >= 2) {
+                  const { forecast } = generateFinancialForecast(historicalData, 3); // 3 months ahead
+                  setForecastData(forecast.map(f => ({
+                    value: f.value,
+                    label: f.label
+                  })));
+                }
             } else {
                 setInsight("Start adding transactions to get AI-powered financial advice!");
             }
@@ -129,6 +162,43 @@ export default function FinanceOverviewScreen() {
                     />
                 </View>
 
+                {/* Titan 2: AI Cash Flow Projection (FOS Predictive Intelligence) */}
+                {forecastData.length > 0 && (
+                    <View className="bg-[#112240] p-4 rounded-xl mt-6 border border-white/10 mb-8">
+                        <View className="flex-row items-center justify-between mb-4">
+                            <View>
+                                <Text className="text-white font-bold text-lg">AI Cash Flow Projection</Text>
+                                <Text className="text-[#8892B0] text-xs mt-1">3-Month Predictive Forecast</Text>
+                            </View>
+                            <View className="bg-[#64FFDA]/20 px-2 py-1 rounded">
+                                <Text className="text-[#64FFDA] text-xs font-bold">PREDICTIVE</Text>
+                            </View>
+                        </View>
+                        
+                        <LineChart
+                            data={forecastData}
+                            color="#64FFDA"
+                            thickness={3}
+                            dataPointsColor="#64FFDA"
+                            startFillColor="rgba(100, 255, 218, 0.3)"
+                            endFillColor="rgba(100, 255, 218, 0.01)"
+                            startOpacity={0.9}
+                            endOpacity={0.2}
+                            areaChart
+                            rulesColor="#333"
+                            yAxisTextStyle={{ color: '#8892B0', fontSize: 10 }}
+                            xAxisLabelTextStyle={{ color: '#8892B0', fontSize: 10 }}
+                            height={180}
+                            width={300}
+                            isAnimated
+                            animationDuration={1500}
+                        />
+                        <Text className="text-[#8892B0] text-xs mt-2 italic text-center">
+                            *Projection based on 6-month Linear Regression model (Titan 2 Engine)
+                        </Text>
+                    </View>
+                )}
+
                 {/* Cash Flow Forecast */}
                 {cashFlow.length > 0 && (
                     <View className="mb-8">
@@ -172,10 +242,6 @@ export default function FinanceOverviewScreen() {
                                     </Text>
                                 </View>
                             </View>
-
-                            <Text className="text-[#8892B0] text-xs mt-2 text-center">
-                                *Chart visualization requires react-native-chart-kit
-                            </Text>
                         </View>
                     </View>
                 )}

@@ -1,15 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   View, Text, TouchableOpacity, Modal, TextInput, SafeAreaView, Alert, ActivityIndicator, RefreshControl, StatusBar, 
   ScrollView
 } from 'react-native';
-import { Plus, X, DollarSign, AlignLeft, Trash2, Filter, Search, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
+import { Plus, X, Filter, Search, ArrowUpRight, ArrowDownLeft, Trash2, AlertTriangle } from 'lucide-react-native';
 import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import { FlashList } from '@shopify/flash-list';
 import { useAuth } from '../../../shared/context/AuthContext';
 import { getTransactions, createTransaction, deleteTransaction } from '../../../services/dataService';
-import { Transaction } from '../../../types';
+import { Transaction } from '../../../types'; // Ensure this type has category: string | { name: string }
 import { useFocusEffect } from 'expo-router';
 
 const CATEGORIES = ['Food', 'Travel', 'Utilities', 'Entertainment', 'Income', 'Business', 'Shopping', 'Healthcare'];
@@ -17,19 +17,32 @@ type FilterType = 'All' | 'Income' | 'Expense';
 
 export default function TransactionsScreen() {
   const { user } = useAuth();
+  
+  // --- Data State ---
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [filter, setFilter] = useState<FilterType>('All');
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // --- Filter State ---
+  const [filter, setFilter] = useState<FilterType>('All');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Form State
+  // --- Modal Form State ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
   const [submitting, setSubmitting] = useState(false);
 
+  // --- HELPER: Safe String Extraction (Fixes the TS Error) ---
+  const getCategoryString = (category: any): string => {
+    if (!category) return 'Uncategorized';
+    if (typeof category === 'string') return category;
+    if (typeof category === 'object' && category.name) return String(category.name);
+    return 'Uncategorized';
+  };
+
+  // --- Load Data ---
   const loadData = useCallback(async (refresh = false) => {
     if (!user) return;
     if (refresh) setRefreshing(true);
@@ -39,21 +52,22 @@ export default function TransactionsScreen() {
       const allTx = await getTransactions(user.id);
       
       let filtered = allTx;
+      // Filter by Type
       if (filter === 'Income') filtered = allTx.filter(t => Number(t.amount) > 0);
       if (filter === 'Expense') filtered = allTx.filter(t => Number(t.amount) < 0);
       
+      // Filter by Search (ROBUST FIX)
       if (searchQuery) {
         const lower = searchQuery.toLowerCase();
-        filtered = filtered.filter(t => 
-           t.description?.toLowerCase().includes(lower) || 
-           (typeof t.category === 'string' && t.category
-             ? (t.category as string).toLowerCase()
-             : (typeof t.category === 'object' && t.category?.name ? t.category.name.toLowerCase() : ''))?.includes(lower)
-        );
+        filtered = filtered.filter(t => {
+          const desc = t.description ? String(t.description).toLowerCase() : '';
+          const cat = getCategoryString(t.category).toLowerCase();
+          return desc.includes(lower) || cat.includes(lower);
+        });
       }
       setTransactions(filtered);
     } catch (error) {
-      console.error('Error loading transactions:', error);
+      console.error('[Transactions] Error:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -62,6 +76,29 @@ export default function TransactionsScreen() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
+  // --- TITAN 2: Anomaly Engine Calculation (Memoized) ---
+  const categoryAverages = useMemo(() => {
+    const totals: Record<string, { sum: number; count: number }> = {};
+    
+    transactions.forEach(t => {
+      // Only analyze expenses for anomalies
+      if (Number(t.amount) < 0) { 
+        const cat = getCategoryString(t.category);
+        
+        if (!totals[cat]) totals[cat] = { sum: 0, count: 0 };
+        totals[cat].sum += Math.abs(Number(t.amount));
+        totals[cat].count += 1;
+      }
+    });
+
+    const avgs: Record<string, number> = {};
+    Object.keys(totals).forEach(k => {
+      avgs[k] = totals[k].sum / totals[k].count;
+    });
+    return avgs;
+  }, [transactions]);
+
+  // --- Handlers ---
   const handleAdd = async () => {
     if (!amount || !description || !user) return;
     setSubmitting(true);
@@ -70,14 +107,10 @@ export default function TransactionsScreen() {
       const isIncome = selectedCategory === 'Income';
       const finalAmount = isIncome ? Math.abs(val) : -Math.abs(val);
 
-      // We pass the category name as a string; dataService handles the ID lookup/creation
       await createTransaction({
         amount: finalAmount,
         description,
-        category: {
-          name: selectedCategory,
-          id: '' // ID will be handled by dataService
-        },
+        category: { name: selectedCategory, id: '' }, // Ensure your DB handles JSON or text here
         date: new Date().toISOString(),
         type: isIncome ? 'income' : 'expense'
       }, user.id);
@@ -94,7 +127,7 @@ export default function TransactionsScreen() {
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert('Delete', 'Are you sure?', [
+    Alert.alert('Delete Transaction', 'Are you sure? This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
           try {
@@ -113,20 +146,60 @@ export default function TransactionsScreen() {
     </TouchableOpacity>
   );
 
+  // --- Render Item (With Anomaly Check) ---
+  const renderItem = ({ item, index }: { item: Transaction, index: number }) => {
+    const catName = getCategoryString(item.category);
+    
+    // Anomaly Rule: Expense > 200% of category average
+    const isAnomaly = Number(item.amount) < 0 && Math.abs(Number(item.amount)) > (categoryAverages[catName] * 2.0);
+
+    return (
+      <Animated.View entering={FadeInDown.delay(index * 50)} layout={Layout.springify()}>
+          <Swipeable renderRightActions={() => renderRightActions(item.id)}>
+          <View className="bg-[#112240] p-4 rounded-xl mb-3 flex-row items-center justify-between border border-white/5">
+              <View className="flex-row items-center gap-4 flex-1">
+                <View className={`w-10 h-10 rounded-full items-center justify-center ${Number(item.amount) > 0 ? 'bg-[#64FFDA]/10' : 'bg-white/5'}`}>
+                    {Number(item.amount) > 0 ? <ArrowUpRight size={20} color="#64FFDA" /> : <ArrowDownLeft size={20} color="#F87171" />}
+                </View>
+                <View className="flex-1">
+                    <View className="flex-row items-center">
+                      <Text className="text-white font-bold text-base mr-2">{item.description}</Text>
+                      {/* Anomaly Badge */}
+                      {isAnomaly && (
+                        <View className="bg-red-500/10 border border-red-500 rounded px-1.5 py-0.5 flex-row items-center">
+                          <AlertTriangle size={10} color="#EF4444" />
+                          <Text className="text-red-500 text-[9px] font-bold ml-1">ANOMALY</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text className="text-[#8892B0] text-xs">{catName} • {new Date(item.date).toLocaleDateString()}</Text>
+                </View>
+              </View>
+              <Text className={`font-bold text-base ${Number(item.amount) > 0 ? 'text-[#64FFDA]' : 'text-white'}`}>
+                {Number(item.amount) > 0 ? '+' : ''}{Number(item.amount).toFixed(2)}
+              </Text>
+          </View>
+          </Swipeable>
+      </Animated.View>
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-[#0A192F]">
       <StatusBar barStyle="light-content" />
+      
+      {/* Header */}
       <View className="p-4 flex-row justify-between items-center">
         <View>
           <Text className="text-white text-2xl font-bold">Transactions</Text>
           <Text className="text-[#8892B0]">Recent activity</Text>
         </View>
-        <TouchableOpacity onPress={() => setIsModalOpen(true)} className="w-12 h-12 bg-[#64FFDA] rounded-full items-center justify-center shadow-lg">
+        <TouchableOpacity onPress={() => setIsModalOpen(true)} className="w-12 h-12 bg-[#64FFDA] rounded-full items-center justify-center shadow-lg shadow-[#64FFDA]/20">
           <Plus size={24} color="#0A192F" />
         </TouchableOpacity>
       </View>
 
-      {/* Filters */}
+      {/* Filter Tabs */}
       <View className="px-4 mb-4 flex-row gap-3">
         {['All', 'Income', 'Expense'].map((f) => (
           <TouchableOpacity key={f} onPress={() => setFilter(f as FilterType)} className={`px-5 py-2 rounded-full border ${filter === f ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-transparent border-white/20'}`}>
@@ -135,40 +208,28 @@ export default function TransactionsScreen() {
         ))}
       </View>
 
-      {/* Search */}
+      {/* Search Bar */}
       <View className="px-4 mb-4">
         <View className="bg-[#112240] rounded-xl flex-row items-center px-4 py-3 border border-white/5">
           <Search size={20} color="#8892B0" />
-          <TextInput className="flex-1 text-white ml-3" placeholder="Search..." placeholderTextColor="#8892B0" value={searchQuery} onChangeText={setSearchQuery} />
+          <TextInput 
+            className="flex-1 text-white ml-3" 
+            placeholder="Search..." 
+            placeholderTextColor="#8892B0" 
+            value={searchQuery} 
+            onChangeText={setSearchQuery} 
+          />
         </View>
       </View>
 
+      {/* Main List */}
       <FlashList
         data={transactions}
         keyExtractor={item => item.id}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         estimatedItemSize={80}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#64FFDA" />}
-        renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(index * 50)} layout={Layout.springify()}>
-                <Swipeable renderRightActions={() => renderRightActions(item.id)}>
-                <View className="bg-[#112240] p-4 rounded-xl mb-3 flex-row items-center justify-between border border-white/5">
-                    <View className="flex-row items-center gap-4">
-                    <View className={`w-10 h-10 rounded-full items-center justify-center ${Number(item.amount) > 0 ? 'bg-[#64FFDA]/10' : 'bg-white/5'}`}>
-                        {Number(item.amount) > 0 ? <ArrowUpRight size={20} color="#64FFDA" /> : <ArrowDownLeft size={20} color="#F87171" />}
-                    </View>
-                    <View>
-                        <Text className="text-white font-bold text-base">{item.description}</Text>
-                        <Text className="text-[#8892B0] text-xs">{(typeof item.category === 'string' ? item.category : item.category?.name)} • {new Date(item.date).toLocaleDateString()}</Text>
-                    </View>
-                    </View>
-                    <Text className={`font-bold text-base ${Number(item.amount) > 0 ? 'text-[#64FFDA]' : 'text-white'}`}>
-                      {Number(item.amount) > 0 ? '+' : ''}{Number(item.amount).toFixed(2)}
-                    </Text>
-                </View>
-                </Swipeable>
-            </Animated.View>
-        )}
+        renderItem={renderItem}
         ListEmptyComponent={
           loading ? <ActivityIndicator color="#64FFDA" style={{ marginTop: 50 }} /> : 
           <View className="mt-20 items-center"><Filter size={40} color="#112240" /><Text className="text-[#8892B0] mt-4">No transactions found.</Text></View>
@@ -176,7 +237,7 @@ export default function TransactionsScreen() {
       />
 
       {/* Add Modal */}
-      <Modal visible={isModalOpen} transparent animationType="slide">
+      <Modal visible={isModalOpen} transparent animationType="slide" onRequestClose={() => setIsModalOpen(false)}>
         <View className="flex-1 bg-black/80 justify-end">
           <View className="bg-[#112240] rounded-t-3xl p-6 h-[70%] border-t border-white/10">
             <View className="flex-row justify-between items-center mb-6">

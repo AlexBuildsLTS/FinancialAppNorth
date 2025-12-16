@@ -96,12 +96,15 @@ const getDefaultAccountId = async (userId: string): Promise<string> => {
   return newAccount.id;
 };
 
-export const logAuditAction = async (userId: string, action: string, details: string, orgId?: string) => {
+export const logAuditAction = async (userId: string, action: string, details: string | Record<string, any>, orgId?: string) => {
+  // Convert string details to JSONB format if needed
+  const detailsJson = typeof details === 'string' ? { message: details } : details;
+  
   supabase.from('audit_logs').insert({
     user_id: userId,
     organization_id: orgId || null,
     action,
-    details,
+    details: detailsJson,
     created_at: new Date().toISOString()
   }).then(({ error }) => {
     if (error) console.warn('[Audit] Failed to log:', error.message);

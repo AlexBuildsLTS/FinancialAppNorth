@@ -32,23 +32,45 @@ Deno.serve(async (req) => {
     // 1. Init Admin Client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
 
-    // 2. Get API Key (check user's custom key first)
+    // 2. Get API Key (check user's custom key first, fallback to system key)
     let apiKey = Deno.env.get('GEMINI_API_KEY');
+    
     if (userId) {
-      const { data: secret } = await supabaseAdmin
-        .from('user_secrets')
-        .select('api_key_encrypted')
-        .eq('user_id', userId)
-        .eq('service', 'gemini')
-        .maybeSingle();
-      if (secret?.api_key_encrypted) {
-        apiKey = decryptMessage(secret.api_key_encrypted);
+      try {
+        const { data: secret, error: secretError } = await supabaseAdmin
+          .from('user_secrets')
+          .select('api_key_encrypted')
+          .eq('user_id', userId)
+          .eq('service', 'gemini')
+          .maybeSingle();
+          
+        if (secretError) {
+          console.warn('Error fetching user secret:', secretError.message);
+        } else if (secret?.api_key_encrypted) {
+          try {
+            apiKey = decryptMessage(secret.api_key_encrypted);
+          } catch (decryptError) {
+            console.warn('Failed to decrypt user key, using system key:', decryptError);
+            // Fallback to system key if decryption fails
+          }
+        }
+      } catch (e) {
+        console.warn('User key retrieval failed, using system key:', e);
       }
     }
-    if (!apiKey) throw new Error('Server configuration error: No AI Key.');
+    
+    if (!apiKey) {
+      throw new Error('Server configuration error: No AI Key available.');
+    }
 
     // 3. Build request parts
     const parts: Array<
@@ -73,8 +95,18 @@ Deno.serve(async (req) => {
       }),
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API Error:', errorText);
+      throw new Error(`AI API failed: ${response.status} ${response.statusText}`);
+    }
+
     const data: GeminiResponse = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!text) {
+      throw new Error('AI returned empty response');
+    }
 
     return new Response(JSON.stringify({ text }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

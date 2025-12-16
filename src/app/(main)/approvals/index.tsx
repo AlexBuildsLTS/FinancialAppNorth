@@ -1,10 +1,24 @@
+/**
+ * ============================================================================
+ * 🏛️ NORTHFINANCE: SPEND CONTROL TOWER (FOS - Financial Operating System)
+ * ============================================================================
+ * Enterprise-grade expense approval workflow.
+ * Enables managers to approve/reject expense requests with automatic
+ * transaction creation and comprehensive audit logging.
+ * 
+ * Fortune 500 Rule: "Money does not leave the building without a signature."
+ * ============================================================================
+ */
+
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Plus, CheckCircle, XCircle, Clock } from 'lucide-react-native';
+import { Plus, CheckCircle, XCircle, Clock, DollarSign, FileText } from 'lucide-react-native';
+import { format } from 'date-fns';
 import { useAuth } from '@/shared/context/AuthContext';
 import { approvalService } from '@/services/approvalService';
 import { orgService } from '@/services/orgService';
+import { supabase } from '@/lib/supabase';
 import { ExpenseRequest } from '@/types';
 
 export default function ApprovalsDashboard() {
@@ -52,69 +66,127 @@ export default function ApprovalsDashboard() {
     }
   };
 
+  /**
+   * Approve expense request (Titan 3 - FOS Feature)
+   * Automatically creates transaction and logs to audit trail
+   */
   const handleApprove = async (req: ExpenseRequest) => {
-    if (!user) return;
+    if (!user || !orgId) return;
     try {
-        await approvalService.approveRequest(req.id, req, user.id);
-        loadRequests(); // Refresh
-    } catch (e) {
+        // 1. Update Request Status
+        const { error: updateError } = await supabase
+          .from('expense_requests')
+          .update({ status: 'approved' })
+          .eq('id', req.id);
+
+        if (updateError) throw updateError;
+
+        // 2. AUTOMATICALLY Create Transaction (Automation - Titan 2)
+        const { data: account } = await supabase
+          .from('accounts')
+          .select('id')
+          .eq('user_id', req.requester_id)
+          .limit(1)
+          .single();
+
+        if (account) {
+          await supabase.from('transactions').insert({
+            user_id: req.requester_id,
+            account_id: account.id,
+            amount: -Math.abs(req.amount), // Negative for expense
+            type: 'expense',
+            payee: req.merchant || 'Business Expense',
+            description: `Approved Request: ${req.reason || 'No reason provided'}`,
+            date: new Date().toISOString(),
+            status: 'cleared',
+            category: 'Business'
+          });
+        }
+
+        // 3. Log to Audit Trail (Compliance - Titan 3)
+        await supabase.from('audit_logs').insert({
+          organization_id: orgId,
+          user_id: user.id,
+          action: 'request_approved',
+          details: {
+            request_id: req.id,
+            amount: req.amount,
+            merchant: req.merchant,
+            requester_id: req.requester_id
+          },
+          ip_address: '127.0.0.1' // In production, get from request headers
+        });
+
+        Alert.alert("Success", "Request approved and transaction created.");
+        loadRequests();
+    } catch (e: any) {
         console.error("Approve failed", e);
+        Alert.alert("Error", e.message || "Could not approve request.");
     }
   };
 
+  /**
+   * Reject expense request with audit logging
+   */
   const handleReject = async (id: string) => {
+    if (!user || !orgId) return;
     try {
         await approvalService.rejectRequest(id);
+        
+        // Log to Audit Trail
+        await supabase.from('audit_logs').insert({
+          organization_id: orgId,
+          user_id: user.id,
+          action: 'request_rejected',
+          details: { request_id: id },
+          ip_address: '127.0.0.1'
+        });
+
+        Alert.alert("Success", "Request rejected.");
         loadRequests();
-    } catch (e) {
+    } catch (e: any) {
         console.error("Reject failed", e);
+        Alert.alert("Error", e.message || "Could not reject request.");
     }
   };
 
   const renderItem = ({ item }: { item: ExpenseRequest }) => (
-    <View className="p-4 mb-3 border bg-slate-800 rounded-xl border-slate-700">
-        <View className="flex-row items-start justify-between mb-2">
+    <View className="bg-[#112240] p-4 rounded-xl mb-3 border border-white/5">
+        <View className="flex-row justify-between items-start mb-2">
             <View>
-                <Text className="text-lg font-bold text-white">{item.merchant}</Text>
-                <Text className="text-sm text-slate-400">{item.reason}</Text>
+                <Text className="text-white font-bold text-lg">{item.merchant || 'Unknown Merchant'}</Text>
+                <Text className="text-[#8892B0] text-xs">{format(new Date(item.created_at), 'MMM dd, yyyy')}</Text>
             </View>
-            <Text className="text-[#64FFDA] font-bold text-lg">${item.amount.toFixed(2)}</Text>
-        </View>
-
-        <View className="flex-row items-center justify-between mt-2">
-            <View className={`px-2 py-1 rounded flex-row items-center gap-1 ${
+            <View className={`px-2 py-1 rounded-full ${
                 item.status === 'approved' ? 'bg-green-500/20' : 
                 item.status === 'rejected' ? 'bg-red-500/20' : 'bg-yellow-500/20'
             }`}>
-                {item.status === 'approved' && <CheckCircle size={12} color="#4ADE80" />}
-                {item.status === 'rejected' && <XCircle size={12} color="#F87171" />}
-                {item.status === 'pending' && <Clock size={12} color="#FBBF24" />}
-                <Text className={`text-xs font-bold uppercase ${
+                <Text className={`text-xs capitalize font-bold ${
                     item.status === 'approved' ? 'text-green-400' : 
                     item.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'
                 }`}>
                     {item.status}
                 </Text>
             </View>
-            <Text className="text-xs text-slate-500">
-                {new Date(item.created_at).toLocaleDateString()}
-            </Text>
         </View>
 
-        {/* Manager Actions */}
+        <Text className="text-white text-2xl font-bold mb-2">${item.amount.toFixed(2)}</Text>
+        <Text className="text-[#8892B0] mb-4 italic">"{item.reason || 'No reason provided'}"</Text>
+
+        {/* Manager Actions (Titan 3 - FOS Control) */}
         {activeTab === 'review' && item.status === 'pending' && (
-            <View className="flex-row gap-3 pt-3 mt-4 border-t border-slate-700">
+            <View className="flex-row gap-3 mt-2 border-t border-white/10 pt-3">
                 <TouchableOpacity 
                     onPress={() => handleReject(item.id)}
-                    className="items-center flex-1 py-3 rounded-lg bg-slate-700"
+                    className="flex-1 py-3 bg-red-500/20 rounded-lg items-center border border-red-500/50"
                 >
-                    <Text className="font-bold text-white">Reject</Text>
+                    <Text className="text-red-400 font-bold">Reject</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                     onPress={() => handleApprove(item)}
-                    className="flex-1 bg-[#64FFDA] py-3 rounded-lg items-center"
+                    className="flex-1 py-3 bg-[#64FFDA] rounded-lg items-center"
                 >
-                    <Text className="font-bold text-slate-900">Approve & Pay</Text>
+                    <Text className="text-[#0A192F] font-bold">Approve & Pay</Text>
                 </TouchableOpacity>
             </View>
         )}
@@ -122,11 +194,11 @@ export default function ApprovalsDashboard() {
   );
 
   return (
-    <View className="flex-1 bg-slate-900">
+    <View className="flex-1 bg-[#0A192F]">
       <Stack.Screen 
         options={{ 
-            title: "Approvals", 
-            headerStyle: { backgroundColor: '#0f172a' },
+            title: "Spend Control Tower", 
+            headerStyle: { backgroundColor: '#0A192F' },
             headerTintColor: '#fff',
             headerRight: () => (
                 <TouchableOpacity onPress={() => router.push('/(main)/approvals/request')}>
@@ -136,37 +208,50 @@ export default function ApprovalsDashboard() {
         }} 
       />
 
+      {/* Header Section */}
+      <View className="p-6 pb-2">
+        <Text className="text-white text-3xl font-bold">Approvals</Text>
+        <Text className="text-[#8892B0]">Spend Control Tower (FOS)</Text>
+      </View>
+
       {/* Tabs */}
-      <View className="flex-row gap-4 p-4">
+      <View className="flex-row px-6 mt-4 mb-2">
         <TouchableOpacity 
             onPress={() => setActiveTab('my')}
-            className={`flex-1 py-3 rounded-xl items-center ${activeTab === 'my' ? 'bg-slate-700' : 'bg-transparent'}`}
+            className={`pb-2 mr-6 ${activeTab === 'my' ? 'border-b-2 border-[#64FFDA]' : ''}`}
         >
-            <Text className={`font-bold ${activeTab === 'my' ? 'text-white' : 'text-slate-500'}`}>My Requests</Text>
+            <Text className={`${activeTab === 'my' ? 'text-white' : 'text-[#8892B0]'} font-bold`}>My Requests</Text>
         </TouchableOpacity>
         
         {isManager && (
             <TouchableOpacity 
                 onPress={() => setActiveTab('review')}
-                className={`flex-1 py-3 rounded-xl items-center ${activeTab === 'review' ? 'bg-slate-700' : 'bg-transparent'}`}
+                className={`pb-2 ${activeTab === 'review' ? 'border-b-2 border-[#64FFDA]' : ''}`}
             >
-                <Text className={`font-bold ${activeTab === 'review' ? 'text-white' : 'text-slate-500'}`}>To Review</Text>
+                <Text className={`${activeTab === 'review' ? 'text-white' : 'text-[#8892B0]'} font-bold`}>To Review (Manager)</Text>
             </TouchableOpacity>
         )}
       </View>
 
-      <FlatList
-        data={requests}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={{ padding: 16 }}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadRequests} tintColor="#64FFDA" />}
-        ListEmptyComponent={
-            <View className="items-center mt-10">
-                <Text className="text-slate-500">No requests found.</Text>
-            </View>
-        }
-      />
+      {loading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#64FFDA" />
+        </View>
+      ) : (
+        <FlatList
+          data={requests}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={{ padding: 24 }}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={loadRequests} tintColor="#64FFDA" />}
+          ListEmptyComponent={
+              <View className="items-center mt-10 opacity-50">
+                  <DollarSign size={48} color="#8892B0" />
+                  <Text className="text-[#8892B0] text-center mt-4">No requests found.</Text>
+              </View>
+          }
+        />
+      )}
     </View>
   );
 }

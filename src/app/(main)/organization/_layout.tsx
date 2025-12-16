@@ -1,26 +1,41 @@
+/**
+ * ============================================================================
+ * 🧭 ORGANIZATION NAVIGATION LAYOUT
+ * ============================================================================
+ * Configures the navigation stack for the Organization module.
+ * Enforces the "Deep Navy" (#0A192F) aesthetic consistent with the brand.
+ * ============================================================================
+ */
+
 import { Stack } from 'expo-router';
 import { Platform } from 'react-native';
+import React from 'react';
 
 export default function OrganizationLayout() {
   return (
     <Stack
       screenOptions={{
+        // --- Appearance ---
         headerStyle: {
-          backgroundColor: '#0A192F', // Deep Navy
+          backgroundColor: '#0A192F', // Deep Navy Brand Color
         },
-        headerTintColor: '#64FFDA', // Teal Accent
+        headerTintColor: '#64FFDA',   // Teal Accent for Back Buttons/Icons
         headerTitleStyle: {
-          color: '#E2E8F0', // Slate 200
+          color: '#E2E8F0',           // Slate 200 for Readability
           fontWeight: '600',
           fontSize: 17,
         },
-        headerShadowVisible: false, // Flat design
-        headerBackTitleVisible: false,
+        headerShadowVisible: false,   // Flat Modern Look
+        headerBackTitleVisible: false, // Minimalist
+        
+        // --- Content Container ---
         contentStyle: {
           backgroundColor: '#0A192F',
           borderTopWidth: 1,
-          borderTopColor: '#112240', // Subtle separator for Desktop
+          borderTopColor: '#112240',  // Subtle separator
         },
+        
+        // --- Animation ---
         animation: Platform.OS === 'android' ? 'fade_from_bottom' : 'default',
       }}
     >
@@ -28,8 +43,8 @@ export default function OrganizationLayout() {
         name="index" 
         options={{ 
           title: 'Organization HQ',
-          headerLargeTitle: true, // Native iOS large title feel
-          headerLargeTitleStyle: { color: 'white' }
+          headerLargeTitle: true, // iOS Native Feel
+          headerLargeTitleStyle: { color: '#FFFFFF' }
         }} 
       />
       <Stack.Screen 
@@ -37,13 +52,6 @@ export default function OrganizationLayout() {
         options={{ 
           title: 'Team Management',
           presentation: 'card'
-        }} 
-      />
-      <Stack.Screen 
-        name="settings" 
-        options={{ 
-          title: 'Org Settings',
-          presentation: 'modal'
         }} 
       />
       <Stack.Screen 
