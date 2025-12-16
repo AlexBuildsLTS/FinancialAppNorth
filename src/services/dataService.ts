@@ -18,8 +18,8 @@ import {
 } from '../lib/supabase';
 
 // --- Shared Services ---
-import { generateContent } from '../shared/services/geminiService';
-import { settingsService } from '../shared/services/settingsService';
+import { generateContent } from './geminiService';
+import { settingsService } from './settingsService';
 
 // --- Security & Config ---
 import { encryptMessage, decryptMessage } from '../lib/crypto';

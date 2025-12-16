@@ -24,7 +24,7 @@ import {
   Briefcase,
   LayoutDashboard
 } from 'lucide-react-native';
-import { settingsService } from '../../../shared/services/settingsService';
+import { settingsService } from '../../../services/settingsService';
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'SEK', 'JPY'] as const;
 type Currency = (typeof CURRENCIES)[number];

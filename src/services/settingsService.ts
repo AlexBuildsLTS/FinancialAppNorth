@@ -1,6 +1,6 @@
-import { supabase } from '../../lib/supabase';
-import { AppSettings } from '../../types';
-import { encryptMessage, decryptMessage } from '../../lib/crypto'; 
+import { supabase } from '../lib/supabase';
+import { AppSettings } from '../types';
+import { encryptMessage, decryptMessage } from '../lib/crypto'; 
 
 // Cache to prevent decrypting on every single chat message
 const keyCache: Record<string, string> = {};
@@ -32,13 +32,12 @@ export const settingsService = {
 
   /**
    * Securely encrypts and saves an API Key.
-   * FIX: Removed 'updated_at' to match your database schema.
    */
   async saveApiKey(userId: string, service: 'openai' | 'gemini' | 'claude', rawKey: string) {
     try {
       if (!rawKey || !rawKey.trim()) return; 
 
-      // 1. Encrypt
+      // 1. Encrypt (Titan 1 Security)
       const encryptedKey = encryptMessage(rawKey.trim());
 
       // 2. Save to DB (Clean payload)

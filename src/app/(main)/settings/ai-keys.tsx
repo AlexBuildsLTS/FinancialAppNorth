@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Save, Eye, EyeOff, Zap, BrainCircuit } from 'lucide-react-native';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { settingsService } from '../../../shared/services/settingsService';
+import { settingsService } from '../../../services/settingsService';
 
 export default function AiKeysScreen() {
   const { user } = useAuth();

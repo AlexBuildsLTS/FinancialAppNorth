@@ -1,4 +1,4 @@
-import CryptoJS from 'https://esm.sh/crypto-js@4.2.0';
+import CryptoJS from 'crypto-js';
 
 const ENCRYPTION_KEY = Deno.env.get('ENCRYPTION_KEY');
 

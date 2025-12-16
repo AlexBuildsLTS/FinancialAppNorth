@@ -26,7 +26,7 @@ import {
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../shared/context/AuthContext';
-import { generateContent } from '../../shared/services/geminiService';
+import { generateContent } from '../../services/geminiService';
 import { dataService } from '../../services/dataService';
 
 interface ChatMessage {

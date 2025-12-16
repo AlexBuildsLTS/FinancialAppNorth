@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { ChatbotMessage } from '../types';
-import * as geminiService from '../shared/services/geminiService';
+import * as geminiService from './geminiService';
 
 const generateContentWithHistory = async (userText: string, userId?: string, imgBase64?: string): Promise<string> => {
   const anyGemini: any = geminiService as any;

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { 
-  ArrowLeft, Check, Shield, Activity, Globe, Lock, User, Mail, 
-  PieChart, BarChart3, FileText, Users, Headphones, Twitter, 
-  Facebook, Instagram, Linkedin, Heart, CheckCircle2, TrendingUp 
+  Check, Shield, Activity, Lock, User, Mail, 
+  PieChart, BarChart3, FileText, Users, Twitter, 
+  Facebook, Instagram, Linkedin, CheckCircle2
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,7 +24,7 @@ import { useAuth } from '../../shared/context/AuthContext';
 import { GlassCard } from '../../shared/components/GlassCard';
 import { PasswordStrengthIndicator } from '../../shared/components/PasswordStrengthIndicator';
 
-// --- Reusable UI Components (Consistent with Login) ---
+// --- COMPONENTS ---
 
 const SectionHeader = ({ title }: { title: string }) => (
   <View className='mt-8 mb-6'>
@@ -75,15 +75,66 @@ const FooterColumn = ({ title, links }: any) => (
   </View>
 );
 
-// --- Main Component ---
+const MarketingContent = React.memo(({ isDesktop }: { isDesktop: boolean }) => (
+  <View className='w-full'>
+      <View className='mb-16'>
+          <View className='w-12 h-12 bg-[#112240] rounded-xl items-center justify-center mb-4 border border-[#64FFDA]/30'>
+          <Text className='text-[#64FFDA] font-bold text-xl'>N</Text>
+          </View>
+          <Text className='mb-4 text-3xl font-bold text-white'>About NorthFinance</Text>
+          <Text className='text-[#8892B0] text-base leading-7 max-w-3xl'>
+          NorthFinance is a comprehensive financial management platform designed to empower individuals and businesses.
+          </Text>
+      </View>
+
+      <View className='mb-16'>
+          <SectionHeader title='What We Offer' />
+          <View className={`flex-row flex-wrap ${isDesktop ? '-mx-2' : ''}`}>
+              <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={Activity} title='Smart Tracking' desc='AI-powered categorization.' />
+              <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={PieChart} title='Intelligent Budgets' desc='Real-time alerts.' />
+              <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={BarChart3} title='Analytics' desc='Visual reports & charts.' />
+              <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={Shield} title='AI Assistant' desc='Instant answers.' />
+              <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={FileText} title='Documents' desc='Secure storage.' />
+              <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={Users} title='CPA Collab' desc='Professional guidance.' />
+          </View>
+      </View>
+
+      <View className='mb-16'>
+          <SectionHeader title='Membership Tiers' />
+          <View className={`flex-row flex-wrap ${isDesktop ? '-mx-3' : ''}`}>
+              <TierCard className={isDesktop ? 'w-1/3 px-3' : 'w-full'} title='Member' subtitle='Starter' features={['Basic tracking', 'Budgets']} />
+              <TierCard className={isDesktop ? 'w-1/3 px-3' : 'w-full'} title='Premium' subtitle='Pro' recommended={true} features={['Advanced analytics', 'AI insights']} />
+              <TierCard className={isDesktop ? 'w-1/3 px-3' : 'w-full'} title='CPA' subtitle='Certified' features={['Client dashboard', 'Multi-client']} />
+          </View>
+      </View>
+
+      <View className='border-t border-[#233554] pt-12 pb-8'>
+          <View className='flex-row flex-wrap justify-between w-full'>
+              <FooterColumn title='Company' links={['About Us', 'Careers', 'Press', 'Blog']} />
+              <FooterColumn title='Products' links={['Personal Finance', 'Business Solutions', 'CPA Tools', 'API']} />
+              <FooterColumn title='Legal' links={['Privacy Policy', 'Terms of Service', 'Cookie Policy', 'Security']} />
+          </View>
+          <View className='h-[1px] bg-[#233554] w-full my-8' />
+          <View className='flex-row items-center justify-between'>
+              <Text className='text-[#4A5568] text-xs'>© 2025 NorthFinance. Made with ❤️ for better financial futures.</Text>
+              <View className='flex-row gap-4'>
+                  <Twitter size={18} color='#8892B0' />
+                  <Facebook size={18} color='#8892B0' />
+                  <Instagram size={18} color='#8892B0' />
+                  <Linkedin size={18} color='#8892B0' />
+              </View>
+          </View>
+      </View>
+  </View>
+));
+
+// --- MAIN SCREEN ---
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { register, isLoading } = useAuth();
   const { width, height } = useWindowDimensions();
-  
-  // Memoize isDesktop to prevent re-renders when keyboard appears
-  const isDesktop = useMemo(() => width >= 1024, [width]);
+  const isDesktop = width >= 1024;
   
   const [form, setForm] = useState({
     firstName: '', 
@@ -94,44 +145,24 @@ export default function RegisterScreen() {
     agreed: false
   });
 
-  // Memoize form update handlers to prevent re-renders
-  const updateForm = useCallback((field: keyof typeof form, value: string | boolean) => {
+  const updateForm = (field: keyof typeof form, value: string | boolean) => {
     setForm(prev => ({ ...prev, [field]: value }));
-  }, []);
+  };
 
-  const handleRegister = useCallback(async () => {
-    // 1. Strict Validation
-    if (!form.agreed) {
-        return Alert.alert('Terms Required', 'You must agree to the Terms of Service and Privacy Policy to continue.');
-    }
-    if (form.password !== form.confirmPassword) {
-        return Alert.alert('Password Mismatch', 'The passwords you entered do not match.');
-    }
-    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
-        return Alert.alert('Incomplete Form', 'Please fill in all required fields.');
-    }
-    if (form.password.length < 6) {
-        return Alert.alert('Weak Password', 'Password must be at least 6 characters long.');
-    }
+  const handleRegister = async () => {
+    if (!form.agreed) return Alert.alert('Terms Required', 'You must agree to the Terms of Service.');
+    if (form.password !== form.confirmPassword) return Alert.alert('Password Mismatch', 'Passwords do not match.');
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) return Alert.alert('Incomplete', 'Fill in all fields.');
+    if (form.password.length < 6) return Alert.alert('Weak Password', 'Minimum 6 characters.');
 
-    // 2. Execution
     try {
-      await register(
-        form.email.trim(), 
-        form.password, 
-        form.firstName.trim(), 
-        form.lastName.trim()
-      );
-      // Navigation is handled by AuthContext or Supabase Auth State Change
+      await register(form.email.trim(), form.password, form.firstName.trim(), form.lastName.trim());
     } catch (error: any) {
-      console.error(error);
-      Alert.alert('Registration Failed', error.message || 'An unexpected error occurred.');
+      Alert.alert('Registration Failed', error.message || 'Error occurred.');
     }
-  }, [form, register]);
+  };
 
-  // --- Layout Renderers (Memoized to prevent re-renders) ---
-
-  const RegisterForm = useCallback(() => (
+  const RegisterInputs = () => (
     <View className='w-full max-w-md mx-auto'>
         <Animated.View entering={FadeInDown.duration(600)} className='items-center mb-8'>
             <View className='w-16 h-16 bg-[#64FFDA] rounded-2xl items-center justify-center mb-4 shadow-lg shadow-[#64FFDA]/20'>
@@ -144,7 +175,6 @@ export default function RegisterScreen() {
         <Animated.View entering={FadeInDown.delay(100).duration(600)}>
             <GlassCard className='gap-4 p-5 border border-[#233554] bg-[#112240]/90'>
             
-            {/* Name Fields Row */}
             <View className='flex-row gap-3'>
                 <View className='flex-1'>
                 <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>First Name</Text>
@@ -157,7 +187,6 @@ export default function RegisterScreen() {
                         value={form.firstName} 
                         onChangeText={t => updateForm('firstName', t)}
                         editable={!isLoading}
-                        autoComplete='given-name'
                     />
                 </View>
                 </View>
@@ -172,13 +201,11 @@ export default function RegisterScreen() {
                         value={form.lastName} 
                         onChangeText={t => updateForm('lastName', t)}
                         editable={!isLoading}
-                        autoComplete='family-name'
                     />
                 </View>
                 </View>
             </View>
 
-            {/* Email */}
             <View>
                 <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Email</Text>
                 <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-4 h-12 flex-row items-center focus:border-[#64FFDA]'>
@@ -192,12 +219,10 @@ export default function RegisterScreen() {
                     value={form.email} 
                     onChangeText={t => updateForm('email', t)}
                     editable={!isLoading}
-                    autoComplete='email'
                     />
                 </View>
             </View>
 
-            {/* Password */}
             <View>
                 <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Password</Text>
                 <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-4 h-12 flex-row items-center focus:border-[#64FFDA]'>
@@ -210,16 +235,13 @@ export default function RegisterScreen() {
                     value={form.password} 
                     onChangeText={t => updateForm('password', t)}
                     editable={!isLoading}
-                    autoComplete='password-new'
                     />
                 </View>
-                {/* Strength Indicator */}
                 <View className='mt-2'>
                     <PasswordStrengthIndicator password={form.password} />
                 </View>
             </View>
 
-            {/* Confirm Password */}
             <View>
                 <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Confirm Password</Text>
                 <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-4 h-12 flex-row items-center focus:border-[#64FFDA]'>
@@ -232,12 +254,10 @@ export default function RegisterScreen() {
                     value={form.confirmPassword} 
                     onChangeText={t => updateForm('confirmPassword', t)}
                     editable={!isLoading}
-                    autoComplete='password-new'
                     />
                 </View>
             </View>
 
-            {/* Terms Checkbox */}
             <TouchableOpacity 
                 className='flex-row items-start gap-3 mt-1' 
                 onPress={() => updateForm('agreed', !form.agreed)}
@@ -252,7 +272,6 @@ export default function RegisterScreen() {
                 </Text>
             </TouchableOpacity>
 
-            {/* Submit Button */}
             <TouchableOpacity 
                 className={`bg-[#64FFDA] h-12 rounded-xl items-center justify-center shadow-lg mt-2 active:opacity-90 ${isLoading || !form.agreed ? 'opacity-80 bg-[#233554]' : ''}`}
                 onPress={handleRegister}
@@ -267,7 +286,6 @@ export default function RegisterScreen() {
                 )}
             </TouchableOpacity>
 
-            {/* Footer Links */}
             <View className='flex-row justify-center mt-2'>
                 <Text className='text-[#8892B0] text-sm'>Already have an account? </Text>
                 <Link href='/(auth)/login' asChild>
@@ -278,79 +296,12 @@ export default function RegisterScreen() {
             </GlassCard>
         </Animated.View>
         
-        {/* Security Badge */}
         <View className='flex-row items-center justify-center mt-8 opacity-60'>
             <Shield size={14} color='#8892B0' />
             <Text className='text-[#8892B0] text-xs ml-2'>Encrypted & Secure</Text>
         </View>
     </View>
-  ), [form, isLoading, updateForm, handleRegister, router]);
-
-  const MarketingContent = useCallback(() => (
-    <View className='w-full'>
-        {/* About */}
-        <View className='mb-16'>
-            <View className='w-12 h-12 bg-[#112240] rounded-xl items-center justify-center mb-4 border border-[#64FFDA]/30'>
-            <Text className='text-[#64FFDA] font-bold text-xl'>N</Text>
-            </View>
-            <Text className='mb-4 text-3xl font-bold text-white'>About NorthFinance</Text>
-            <Text className='text-[#8892B0] text-base leading-7 max-w-3xl'>
-            NorthFinance is a comprehensive financial management platform designed to empower individuals and businesses with intelligent tools for tracking, analyzing, and optimizing their financial health. We combine cutting-edge AI technology with professional CPA expertise.
-            </Text>
-        </View>
-
-        {/* Mission */}
-        <View className='mb-16'>
-            <SectionHeader title='Our Mission' />
-            <Text className='text-[#8892B0] text-base leading-7 max-w-3xl'>
-            We believe financial clarity should be accessible to everyone. Our mission is to democratize professional-grade financial management tools, making them intuitive enough for individuals while powerful enough for certified professionals.
-            </Text>
-        </View>
-
-        {/* Features */}
-        <View className='mb-16'>
-            <SectionHeader title='What We Offer' />
-            <View className={`flex-row flex-wrap ${isDesktop ? '-mx-2' : ''}`}>
-                <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={Activity} title='Smart Tracking' desc='AI-powered categorization.' />
-                <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={PieChart} title='Intelligent Budgets' desc='Real-time alerts.' />
-                <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={BarChart3} title='Analytics' desc='Visual reports & charts.' />
-                <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={Shield} title='AI Assistant' desc='Instant answers.' />
-                <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={FileText} title='Documents' desc='Secure storage.' />
-                <FeatureItem className={isDesktop ? 'w-1/2 px-2' : 'w-full'} icon={Users} title='CPA Collab' desc='Professional guidance.' />
-            </View>
-        </View>
-
-        {/* Tiers */}
-        <View className='mb-16'>
-            <SectionHeader title='Membership Tiers' />
-            <View className={`flex-row flex-wrap ${isDesktop ? '-mx-3' : ''}`}>
-                <TierCard className={isDesktop ? 'w-1/3 px-3' : 'w-full'} title='Member' subtitle='Starter' features={['Basic tracking', 'Budgets']} />
-                <TierCard className={isDesktop ? 'w-1/3 px-3' : 'w-full'} title='Premium' subtitle='Pro' recommended={true} features={['Advanced analytics', 'AI insights']} />
-                <TierCard className={isDesktop ? 'w-1/3 px-3' : 'w-full'} title='CPA' subtitle='Certified' features={['Client dashboard', 'Multi-client']} />
-            </View>
-        </View>
-
-        {/* Footer */}
-        <View className='border-t border-[#233554] pt-12 pb-8'>
-            <View className='flex-row flex-wrap justify-between w-full'>
-                <FooterColumn title='Company' links={['About Us', 'Careers', 'Press', 'Blog']} />
-                <FooterColumn title='Products' links={['Personal Finance', 'Business Solutions', 'CPA Tools', 'API']} />
-                <FooterColumn title='Resources' links={['Help Center', 'Documentation', 'Community', 'Status']} />
-                <FooterColumn title='Legal' links={['Privacy Policy', 'Terms of Service', 'Cookie Policy', 'Security']} />
-            </View>
-            <View className='h-[1px] bg-[#233554] w-full my-8' />
-            <View className='flex-row items-center justify-between'>
-                <Text className='text-[#4A5568] text-xs'>© 2025 NorthFinance. Made with ❤️ for better financial futures.</Text>
-                <View className='flex-row gap-4'>
-                    <Twitter size={18} color='#8892B0' />
-                    <Facebook size={18} color='#8892B0' />
-                    <Instagram size={18} color='#8892B0' />
-                    <Linkedin size={18} color='#8892B0' />
-                </View>
-            </View>
-        </View>
-    </View>
-  ), [isDesktop]);
+  );
 
   return (
     <View className='flex-1 bg-[#0A192F]'>
@@ -360,34 +311,29 @@ export default function RegisterScreen() {
           style={{ flex: 1 }}
         >
           {isDesktop ? (
-            // --- DESKTOP SPLIT LAYOUT ---
             <View className='flex-row flex-1'>
-                {/* Left Side: Register Form (Fixed) */}
                 <View className='w-[40%] h-full justify-center items-center px-12 border-r border-[#233554] bg-[#0A192F] z-10'>
-                    <RegisterForm />
+                    <RegisterInputs />
                 </View>
-
-                {/* Right Side: Scrollable Marketing Content */}
                 <ScrollView 
                     className='flex-1 bg-[#0B1C36]' 
                     contentContainerStyle={{ padding: 64, minHeight: '100%' }}
                     showsVerticalScrollIndicator={false}
                 >
-                    <MarketingContent />
+                    <MarketingContent isDesktop={isDesktop} />
                 </ScrollView>
             </View>
           ) : (
-            // --- MOBILE STACKED LAYOUT ---
             <ScrollView 
               contentContainerStyle={{ flexGrow: 1 }} 
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
               <View style={{ minHeight: height * 0.9 }} className='items-center justify-center flex-1 px-6 py-12'>
-                <RegisterForm />
+                <RegisterInputs />
               </View>
               <View className='bg-[#0B1C36] px-6 py-12 border-t border-[#233554]'>
-                <MarketingContent />
+                <MarketingContent isDesktop={isDesktop} />
               </View>
             </ScrollView>
           )}
