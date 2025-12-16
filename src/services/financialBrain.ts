@@ -4,6 +4,16 @@ import { generateContent } from './geminiService';
 import type { Transaction, Budget } from '../types';
 import dayjs from 'dayjs';
 
+// Local interface for budget processing (maps DB schema to brain's expected format)
+interface BudgetForBrain {
+  id: string;
+  user_id: string;
+  category: string;
+  limit_amount: number;
+  spent_amount: number;
+  period: string;
+}
+
 // --- CONFIGURATION (Defined locally to avoid import errors) ---
 export const TAX_JURISDICTIONS = {
   'US_CA': { rate: 0.29, name: 'California, USA' },
@@ -64,26 +74,37 @@ export const FinancialBrain = {
   /**
    * 🏗️ DATA FETCHING LAYER
    */
-  async getFinancialContext(userId: string) {
+  async getFinancialContext(userId: string): Promise<{
+    balance: number;
+    netIncome: number;
+    rawTransactions: Transaction[];
+    recent_spend: string;
+    budget_health: string;
+  }> {
     const [txRes, budgetRes, balanceRes] = await Promise.all([
       supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(20),
       supabase.from('budgets').select('*').eq('user_id', userId),
       supabase.from('accounts').select('balance').eq('user_id', userId).maybeSingle()
     ]);
 
-    // Force Type Casting to fix "Property does not exist" errors
-    // We map your DB columns to the shape the Brain expects
-    const rawBudgets = (budgetRes.data || []) as any[];
+    // Map DB schema to brain's expected format
+    const rawBudgets = (budgetRes.data || []) as Budget[];
     
-    const budgets: Budget[] = rawBudgets.map(b => ({
+    // Fetch category names for budgets
+    const categoryIds = [...new Set(rawBudgets.map(b => b.category_id).filter(Boolean))];
+    const { data: categories } = categoryIds.length > 0 ? await supabase
+      .from('categories')
+      .select('id, name')
+      .in('id', categoryIds) : { data: null };
+    
+    const categoryMap = new Map((categories || []).map((c: any) => [c.id, c.name]));
+    
+    const budgets: BudgetForBrain[] = rawBudgets.map((b: Budget) => ({
       id: b.id,
       user_id: b.user_id,
-      // Map DB 'category_id' to 'category' name (fallback to ID if name missing)
-      category: b.category_name || b.category_id || 'Uncategorized', 
-      // Map DB 'amount' to 'limit_amount'
-      limit_amount: b.amount || 0,
-      // Default spent to 0 if not calculated yet
-      spent_amount: 0, 
+      category: categoryMap.get(b.category_id) || b.category_id || 'Uncategorized',
+      limit_amount: Number(b.amount) || 0,
+      spent_amount: 0, // Will be calculated if needed
       period: b.period || 'monthly'
     }));
 

@@ -2,6 +2,10 @@
  * ==================================================================================================
  * 🏦 NORTHFINANCE ENTERPRISE DATA SERVICE (Unified DAL)
  * ==================================================================================================
+ * FIXED:
+ * 1. Added explicit foreign key hints (!client_id, !cpa_id) to fix PGRST201 errors.
+ * 2. Added existence checks to inviteClient/requestCPA to fix 409 Conflict errors.
+ * 3. Added error handling for Organization fetches.
  */
 
 import { Platform } from 'react-native';
@@ -97,7 +101,6 @@ const getDefaultAccountId = async (userId: string): Promise<string> => {
 };
 
 export const logAuditAction = async (userId: string, action: string, details: string | Record<string, any>, orgId?: string) => {
-  // Convert string details to JSONB format if needed
   const detailsJson = typeof details === 'string' ? { message: details } : details;
   
   supabase.from('audit_logs').insert({
@@ -128,6 +131,8 @@ export const getUserOrganizations = async (): Promise<Organization[]> => {
 };
 
 export const createOrganization = async (name: string, ownerId: string) => {
+    await ensureProfileExists(ownerId); // SAFETY CHECK
+
     const { data: org, error: orgError } = await supabase
         .from('organizations')
         .insert({ name, owner_id: ownerId })
@@ -249,15 +254,17 @@ export const scanForSubscriptions = async (userId: string): Promise<DetectedSubs
         detected.push({
           id: `detected_${key}`,
           merchant: latest.description || 'Unknown',
+          name: latest.description || 'Unknown',
           amount: Math.abs(latest.amount),
           frequency: 'monthly',
-          // FIX: Changed from 'active' to 'stable' to match Type Definition
           status: 'stable',
+          next_billing_date: nextDate.toISOString(),
           next_due: nextDate.toISOString(),
           yearly_waste: Math.abs(latest.amount) * 12,
           confidence: 0.8,
-          name: undefined,
-          next_billing_date: ''
+          user_id: userId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
     }
   });
@@ -274,14 +281,19 @@ export const getSubscriptions = async (userId: string): Promise<DetectedSubscrip
     const manualSubs: DetectedSubscription[] = (dbSubs || []).map((s: any) => ({
         id: s.id,
         merchant: s.merchant,
-        name: s.merchant, // Added 'name' property
+        name: s.merchant,
         amount: parseFloat(s.amount),
         frequency: (s.frequency || 'monthly').toLowerCase() as any,
         status: s.status,
+        next_billing_date: s.next_billing_date || new Date().toISOString(),
         next_due: s.next_billing_date || new Date().toISOString(),
         yearly_waste: parseFloat(s.amount) * 12,
         confidence: 1.0,
-        next_billing_date: s.next_billing_date // Added 'next_billing_date' property
+        user_id: s.user_id,
+        created_at: s.created_at,
+        updated_at: s.updated_at,
+        previous_amount: s.previous_amount,
+        anomaly_detected_at: s.anomaly_detected_at
     }));
 
     const detectedSubs = await scanForSubscriptions(userId);
@@ -302,9 +314,9 @@ export const addSubscription = async (userId: string, sub: Partial<DetectedSubsc
         user_id: userId,
         merchant: sub.merchant,
         amount: sub.amount,
-        frequency: sub.frequency || 'Monthly',
+        frequency: sub.frequency || 'monthly',
         status: 'stable',
-        next_billing_date: sub.next_due
+        next_billing_date: sub.next_due || sub.next_billing_date
     });
     if (error) throw error;
 };
@@ -621,7 +633,7 @@ export const getFinancialSummary = async (userId: string): Promise<FinancialSumm
     .eq('user_id', userId)
     .order('date', { ascending: true });
 
-  if (!transactions) return { balance: 0, income: 0, expense: 0, trend: [] };
+  if (!transactions) return { balance: 0, income: 0, expense: 0, savings_rate: 0, trend: [] };
 
   let income = 0;
   let expense = 0;
@@ -634,10 +646,14 @@ export const getFinancialSummary = async (userId: string): Promise<FinancialSumm
       return { value: runningBalance, date: t.date };
   });
 
+  const balance = income - expense;
+  const savings_rate = income > 0 ? (balance / income) : 0;
+
   return {
-    balance: income - expense,
+    balance,
     income,
     expense,
+    savings_rate,
     trend: trend.length ? trend : [{ value: 0, date: new Date().toISOString() }]
   };
 };
@@ -817,7 +833,7 @@ export const getConversations = async (userId: string) => {
  * ==============================================================================
  */
 
-export const getDocuments = async (userId: string): Promise<DocumentItem[]> => {
+export const getDocuments = async (userId: string, p0?: string): Promise<DocumentItem[]> => {
   const { data, error } = await supabase
     .from('documents')
     .select('*')
@@ -826,13 +842,20 @@ export const getDocuments = async (userId: string): Promise<DocumentItem[]> => {
 
   if (error) return [];
   
-  return data.map((d: any) => ({
+  return data.map((d: any) => {
+    const { data: urlData } = supabase.storage
+      .from('documents')
+      .getPublicUrl(d.file_path);
+    
+    return {
       ...d,
       name: d.file_name,
       formattedSize: d.size_bytes ? `${(d.size_bytes / 1024).toFixed(1)} KB` : 'Unknown',
       date: d.created_at,
-      type: d.mime_type?.includes('pdf') ? 'contract' : 'receipt'
-  }));
+      type: d.mime_type?.includes('pdf') ? 'contract' : 'receipt',
+      url: urlData?.publicUrl || null
+    };
+  });
 };
 
 export const uploadDocument = async (
@@ -943,10 +966,11 @@ export const pickAndUploadFile = async (userId: string) => {
  * ==============================================================================
  */
 
+// ✅ FIXED: Added explicit foreign key hint (!client_id)
 export const getCpaClients = async (cpaId: string): Promise<CpaClient[]> => {
   const { data, error } = await supabase
     .from('cpa_clients')
-    .select(`*, client:profiles(*)`)
+    .select(`*, client:profiles!client_id(*)`) // Hint applied here
     .eq('cpa_id', cpaId);
 
   if (error) {
@@ -957,17 +981,22 @@ export const getCpaClients = async (cpaId: string): Promise<CpaClient[]> => {
   return data.map((item: any) => ({
     id: item.client.id,
     name: item.client.first_name ? `${item.client.first_name} ${item.client.last_name || ''}`.trim() : 'Unknown Client',
-    email: item.client.email,
-    status: item.status,
+    email: item.client.email || '',
+    status: item.status || 'pending',
     last_audit: item.updated_at,
-    permissions: item.permissions || {}
+    permissions: item.permissions || {},
+    cpa_id: item.cpa_id,
+    client_id: item.client_id,
+    created_at: item.created_at,
+    updated_at: item.updated_at
   }));
 };
 
+// ✅ FIXED: Added explicit foreign key hint (!cpa_id)
 export const getClientCpas = async (clientId: string) => {
   const { data, error } = await supabase
     .from('cpa_clients')
-    .select(`*, cpa:profiles(*)`)
+    .select(`*, cpa:profiles!cpa_id(*)`) // Hint applied here
     .eq('client_id', clientId);
 
   if (error) return [];
@@ -980,22 +1009,38 @@ export const getClientCpas = async (clientId: string) => {
   }));
 };
 
-export const requestCPA = async (userId: string, cpaEmail: string) => {
-    const { data: cpa } = await supabase.from('profiles').select('id, first_name').eq('email', cpaEmail).eq('role', 'cpa').single();
-    if (!cpa) throw new Error("CPA not found.");
+// ✅ FIXED: Added 409 Conflict Prevention Check
+export const requestCPA = async (userId: string, cpaIdOrEmail: string) => {
+    let cpaId: string;
+    
+    // If it looks like an email, look it up; otherwise treat as ID
+    if (cpaIdOrEmail.includes('@')) {
+        const { data: cpa } = await supabase.from('profiles').select('id, first_name').eq('email', cpaIdOrEmail).eq('role', 'cpa').single();
+        if (!cpa) throw new Error("CPA not found.");
+        cpaId = cpa.id;
+    } else {
+        // It's already an ID
+        cpaId = cpaIdOrEmail;
+    }
 
-    const { data: existing } = await supabase.from('cpa_clients').select('id').match({ client_id: userId, cpa_id: cpa.id }).maybeSingle();
+    // Check existing
+    const { data: existing } = await supabase.from('cpa_clients').select('id').match({ client_id: userId, cpa_id: cpaId }).maybeSingle();
     if (existing) throw new Error("Connection already exists.");
 
-    const { error } = await supabase.from('cpa_clients').insert({ client_id: userId, cpa_id: cpa.id, status: 'pending' });
+    const { error } = await supabase.from('cpa_clients').insert({ client_id: userId, cpa_id: cpaId, status: 'pending' });
     if (error) throw error;
 
-    await notifyCpaRequest(cpa.id, 'New Client', userId);
+    await notifyCpaRequest(cpaId, 'New Client', userId);
 };
 
+// ✅ FIXED: Added 409 Conflict Prevention Check
 export const inviteClient = async (cpaId: string, clientEmail: string) => {
     const { data: client, error } = await supabase.from('profiles').select('id').eq('email', clientEmail).single();
     if (!client) throw new Error("Client not found.");
+
+    // Check existing
+    const { data: existing } = await supabase.from('cpa_clients').select('id').match({ client_id: client.id, cpa_id: cpaId }).maybeSingle();
+    if (existing) throw new Error("Invitation already sent or user is already a client.");
 
     const { error: inviteError } = await supabase.from('cpa_clients').insert({ client_id: client.id, cpa_id: cpaId, status: 'pending' });
     if (inviteError) throw inviteError;
@@ -1214,7 +1259,6 @@ export const updateTicketStatus = async (ticketId: string, status: string) => {
   }
 };
 
-// FIX: EXPORTING MISSING FUNCTION
 export const addInternalNote = async (ticketId: string, userId: string, note: string) => {
   const { error } = await supabase.from('ticket_messages').insert({
     ticket_id: ticketId,
@@ -1276,7 +1320,7 @@ export const exportUserData = async (userId: string) => {
     const [profile, transactions, documents] = await Promise.all([
         getUserDetails(userId),
         getTransactions(userId),
-        getDocuments(userId)
+        getDocuments(userId, '')
     ]);
     
     return {
@@ -1496,6 +1540,7 @@ export const dataService = {
   suspendUser,
   getUserDetails,
   exportUserData,
+  
   // Aliases
   getAllUsers,
   deleteUser,

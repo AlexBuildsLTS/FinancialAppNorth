@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/shared/context/AuthContext';
 import { getFinancialSummary, getFinancialHealthScore } from '@/services/dataService';
+import { FinancialBrain } from '@/services/financialBrain';
 import { GlassCard } from '@/shared/components/GlassCard';
 
 // --- Types ---
@@ -25,6 +26,7 @@ export default function FinancialScorecard() {
   const [refreshing, setRefreshing] = useState(false);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [healthScore, setHealthScore] = useState(0);
+  const [aiInsight, setAiInsight] = useState<string>('');
 
   const calculateFinancialHealth = useCallback(async () => {
     if (!user?.id) return;
@@ -92,6 +94,18 @@ export default function FinancialScorecard() {
 
       setKpis(computedKPIs);
       setHealthScore(score);
+
+      // Get AI-powered insight (Titan 2 - Active Intelligence)
+      try {
+        const insight = await FinancialBrain.askFinancialAdvisor(
+          user.id,
+          `Analyze my financial health. My score is ${score}/100. Income: $${income.toFixed(2)}, Expenses: $${expense.toFixed(2)}, Balance: $${balance.toFixed(2)}. Provide actionable advice.`
+        );
+        setAiInsight(insight);
+      } catch (aiError) {
+        console.error('AI Insight Error:', aiError);
+        setAiInsight(''); // Fallback to static message
+      }
 
     } catch (e) {
       console.error('Scorecard Error:', e);
@@ -206,11 +220,11 @@ export default function FinancialScorecard() {
                    <Text className="text-lg font-bold text-white">AI CFO Analysis</Text>
                  </View>
                  <Text className="leading-6 text-[#8892B0]">
-                   {healthScore > 80 
+                   {aiInsight || (healthScore > 80 
                      ? "Your financial health is strong. Consider optimizing tax deductions and exploring investment opportunities."
                      : healthScore > 50
                      ? "Your burn rate is manageable but could be optimized. Review subscription spending and consider increasing revenue streams."
-                     : "Immediate action required. Your cash runway is critical. Focus on reducing expenses and increasing income immediately."}
+                     : "Immediate action required. Your cash runway is critical. Focus on reducing expenses and increasing income immediately.")}
                  </Text>
               </View>
             </View>

@@ -19,7 +19,7 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { approvalService } from '@/services/approvalService';
 import { orgService } from '@/services/orgService';
 import { supabase } from '@/lib/supabase';
-import { ExpenseRequest } from '@/types';
+import type { ExpenseRequest } from '@/types';
 
 export default function ApprovalsDashboard() {
   const router = useRouter();
@@ -40,27 +40,39 @@ export default function ApprovalsDashboard() {
 
   const loadContext = async () => {
     if (!user) return;
-    const org = await orgService.getMyOrganization(user.id);
-    if (org) {
-        setOrgId(org.id);
-        // Check if user is owner/admin (Simplified for MVP)
-        setIsManager(org.owner_id === user.id); 
+    try {
+      const org = await orgService.getMyOrganization(user.id);
+      if (org) {
+          setOrgId(org.id);
+          // Check if user is owner/admin (Simplified for MVP)
+          setIsManager(org.owner_id === user.id);
+      }
+    } catch (e) {
+      console.error('Failed to load organization:', e);
+      // Continue without org - user can still see their own requests
     }
   };
 
   const loadRequests = async () => {
-    if (!user || !orgId) return;
+    if (!user) return;
     setLoading(true);
     try {
         if (activeTab === 'my') {
+            // My requests work even without org
             const data = await approvalService.getMyRequests(user.id);
             setRequests(data || []);
         } else {
+            // Review tab requires org
+            if (!orgId) {
+                setRequests([]);
+                return;
+            }
             const data = await approvalService.getPendingRequests(orgId);
             setRequests(data || []);
         }
     } catch (e) {
-        console.error(e);
+        console.error('Failed to load requests:', e);
+        setRequests([]);
     } finally {
         setLoading(false);
     }
@@ -107,12 +119,15 @@ export default function ApprovalsDashboard() {
         await supabase.from('audit_logs').insert({
           organization_id: orgId,
           user_id: user.id,
-          action: 'request_approved',
-          details: {
+          action: 'update',
+          table_name: 'expense_requests',
+          record_id: req.id,
+          new_data: {
             request_id: req.id,
             amount: req.amount,
             merchant: req.merchant,
-            requester_id: req.requester_id
+            requester_id: req.requester_id,
+            status: 'approved'
           },
           ip_address: '127.0.0.1' // In production, get from request headers
         });
@@ -137,8 +152,10 @@ export default function ApprovalsDashboard() {
         await supabase.from('audit_logs').insert({
           organization_id: orgId,
           user_id: user.id,
-          action: 'request_rejected',
-          details: { request_id: id },
+          action: 'update',
+          table_name: 'expense_requests',
+          record_id: id,
+          new_data: { request_id: id, status: 'rejected' },
           ip_address: '127.0.0.1'
         });
 
@@ -155,7 +172,7 @@ export default function ApprovalsDashboard() {
         <View className="flex-row justify-between items-start mb-2">
             <View>
                 <Text className="text-white font-bold text-lg">{item.merchant || 'Unknown Merchant'}</Text>
-                <Text className="text-[#8892B0] text-xs">{format(new Date(item.created_at), 'MMM dd, yyyy')}</Text>
+                <Text className="text-[#8892B0] text-xs">{item.created_at ? format(new Date(item.created_at), 'MMM dd, yyyy') : 'Unknown date'}</Text>
             </View>
             <View className={`px-2 py-1 rounded-full ${
                 item.status === 'approved' ? 'bg-green-500/20' : 
@@ -237,6 +254,19 @@ export default function ApprovalsDashboard() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#64FFDA" />
         </View>
+      ) : !orgId && activeTab === 'review' ? (
+        <View className="flex-1 items-center justify-center p-6">
+          <Text className="text-white text-xl font-bold mb-2">No Organization</Text>
+          <Text className="text-[#8892B0] text-center mb-6">
+            You need to be part of an organization to review expense requests.
+          </Text>
+          <TouchableOpacity 
+            onPress={() => router.push('/(main)/organization')}
+            className="bg-[#64FFDA] px-6 py-3 rounded-xl"
+          >
+            <Text className="text-[#0A192F] font-bold">Create Organization</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={requests}
@@ -247,7 +277,11 @@ export default function ApprovalsDashboard() {
           ListEmptyComponent={
               <View className="items-center mt-10 opacity-50">
                   <DollarSign size={48} color="#8892B0" />
-                  <Text className="text-[#8892B0] text-center mt-4">No requests found.</Text>
+                  <Text className="text-[#8892B0] text-center mt-4">
+                    {activeTab === 'my' 
+                      ? 'You have no expense requests yet.' 
+                      : 'No pending requests to review.'}
+                  </Text>
               </View>
           }
         />

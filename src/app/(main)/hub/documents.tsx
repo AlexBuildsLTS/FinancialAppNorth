@@ -84,7 +84,7 @@ export default function DocumentsScreen() {
     try {
         let csvContent = "File Name,Date,Size,Type\n";
         filteredDocs.forEach(d => {
-            csvContent += `"${d.name}",${new Date(d.date).toISOString()},${d.formattedSize},${d.type}\n`;
+            csvContent += `"${d.name}",${d.date ? new Date(d.date).toISOString() : new Date().toISOString()},${d.formattedSize},${d.type}\n`;
         });
 
         const fileUri = FileSystem.documentDirectory + `NorthFinance_Docs_${Date.now()}.csv`;
@@ -225,10 +225,10 @@ export default function DocumentsScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-base font-bold text-white" numberOfLines={1}>{item.name ?? 'Untitled Document'}</Text>
-                  <Text className="text-xs text-[#8892B0]">{item.formattedSize} • {new Date(item.date ?? '').toLocaleDateString()}</Text>
+                  <Text className="text-xs text-[#8892B0]">{item.formattedSize} • {item.date ? new Date(item.date).toLocaleDateString() : 'Unknown date'}</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={() => handleDelete(item.id, item.name)} className="p-2 ml-3 rounded-full bg-red-500/10">
+              <TouchableOpacity onPress={() => handleDelete(item.id, item.name || item.file_name || 'Document')} className="p-2 ml-3 rounded-full bg-red-500/10">
                 <Trash2 size={20} color="#F87171" />
               </TouchableOpacity>
             </View>

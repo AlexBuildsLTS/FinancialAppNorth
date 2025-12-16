@@ -20,9 +20,20 @@ export default function RequestFundsScreen() {
 
   const loadOrg = async () => {
     if (!user) return;
-    const org = await orgService.getMyOrganization(user.id);
-    if (org) setOrgId(org.id);
-    else Alert.alert("No Organization", "You must join an organization to request funds.");
+    try {
+      const org = await orgService.getMyOrganization(user.id);
+      if (org) {
+        setOrgId(org.id);
+      } else {
+        Alert.alert("No Organization", "You must join an organization to request funds.", [
+          { text: "Create Org", onPress: () => router.push('/(main)/organization') },
+          { text: "Cancel", style: "cancel" }
+        ]);
+      }
+    } catch (e: any) {
+      console.error('Failed to load organization:', e);
+      Alert.alert("Error", "Could not load organization. Please try again.");
+    }
   };
 
   const handleSubmit = async () => {

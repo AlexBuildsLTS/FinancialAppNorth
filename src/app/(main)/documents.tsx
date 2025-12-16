@@ -174,7 +174,7 @@ export default function DocumentsScreen() {
         <View className="flex-1">
           <Text className="text-base font-bold text-white" numberOfLines={1}>{item.name}</Text>
           <Text className="text-[#8892B0] text-xs mt-1">
-            {item.formattedSize} • {new Date(item.date).toLocaleDateString()}
+            {item.formattedSize} • {item.date ? new Date(item.date).toLocaleDateString() : 'Unknown date'}
           </Text>
         </View>
       </View>

@@ -1,9 +1,12 @@
 import { Database } from './lib/database.types';
 
-// Supabase Helpers
+// --- 1. SUPABASE HELPERS ---
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
+export type TablesInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
+export type TablesUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];
+export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
 
-// --- CORE ENUMS ---
+// --- 2. CORE ENUMS ---
 export enum UserRoleEnum {
   ADMIN = 'admin',
   CPA = 'cpa',
@@ -14,7 +17,7 @@ export enum UserRoleEnum {
 export type UserRole = UserRoleEnum | 'owner' | 'viewer';
 export type UserStatus = 'active' | 'banned' | 'suspended' | 'deactivated';
 
-// --- AUTH ---
+// --- 3. AUTH & USER ---
 export interface User {
   id: string;
   email: string;
@@ -24,36 +27,22 @@ export interface User {
   avatar?: string;
   currency?: string;
   country?: string;
+  suspended_until?: string; 
 }
 
-// --- TRANSACTIONS (FIXED) ---
-// 1. We OMIT all fields that we want to redefine or make optional to prevent conflicts.
-// 2. Added 'tax_category' to this list to fix your specific error.
-export interface Transaction extends Omit<Tables<'transactions'>, 'category' | 'is_tax_deductible' | 'tax_category'> {
-  merchant?: string | null;
-  merchant_name?: string | null;
-  
-  // Allow category to be an object (frontend) or string (DB ID)
-  category?: { id: string; name: string; icon?: string; color?: string } | string | null;
-  
-  // Safely optional booleans
-  is_tax_deductible?: boolean; 
-  
-  // Safely optional strings (Fixes "Type 'undefined' is not assignable to 'string | null'")
-  tax_category?: string | null;
+// ✅ APP SETTINGS
+export interface AppSettings {
+  id?: string;
+  user_id?: string;
+  currency: string;
+  country: string;
+  theme?: 'dark' | 'light' | 'system';
+  notifications?: boolean;
+  language?: string;
 }
 
-// --- BUDGETS ---
-export interface Budget {
-  id: string;
-  user_id: string;
-  category: string;
-  limit_amount: number;
-  spent_amount: number;
-  period: 'monthly' | 'weekly';
-}
+// --- 4. FINANCIAL CORE ---
 
-// --- TITAN 1: TAX ---
 export enum TaxCategory {
   MARKETING = 'Marketing',
   TRAVEL = 'Travel',
@@ -64,35 +53,197 @@ export enum TaxCategory {
   OTHER = 'Other'
 }
 
-// --- FINANCIAL SUMMARY ---
+// Transaction: Hybrid of DB row + Frontend UI fields
+export interface Transaction extends Omit<Tables<'transactions'>, 'category' | 'is_tax_deductible' | 'tax_category'> {
+  merchant?: string | null;
+  merchant_name?: string | null;
+  category?: { id: string; name: string; icon?: string; color?: string } | string | null;
+  is_tax_deductible?: boolean; 
+  tax_category?: string | null;
+}
+
+export type Budget = Tables<'budgets'>;
+
+export interface BudgetWithSpent extends Budget {
+  category_name: string;
+  category_color?: string;
+  spent: number;
+  remaining: number;
+  percentage: number;
+}
+
 export interface FinancialSummary {
   balance: number;
   income: number;
   expense: number;
-  savings_rate: number;
+  savings_rate?: number; // Optional to prevent crash on empty states
   trend: { date: string; value: number; label?: string }[];
 }
 
-// --- CHAT & AI ---
-export interface Message {
+// --- 5. TITAN 2: INTELLIGENCE ---
+
+export interface DetectedSubscription {
   id: string;
-  text: string;
-  sender: 'user' | 'ai';
-  timestamp: string | Date;
+  merchant: string;
+  amount: number;
+  frequency: 'weekly' | 'monthly' | 'yearly';
+  status: 'stable' | 'price_hike' | 'cancelled';
+  next_billing_date: string; 
+  yearly_waste: number;
+  confidence: number;
+  
+  // UI Fields (Added to fix 'Property does not exist' errors)
+  name?: string; 
+  next_due?: string; 
+  
+  // Database fields made optional for AI-generated items
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  previous_amount?: number | null;
+  anomaly_detected_at?: string | null;
 }
 
+export interface ParsedVoiceCommand {
+  amount: number;
+  description: string;
+  category?: string;
+  date?: Date;
+  merchant?: string;
+}
 
-export interface AppSettings {
-  // Database fields
-  id?: string;
-  user_id?: string;
+// --- 6. TITAN 3: PROFESSIONAL PORTAL ---
+
+export interface CpaClient {
+  id: string;
+  name: string;
+  email: string;
+  status: 'active' | 'pending' | 'rejected';
+  last_audit?: string;
+  permissions?: Record<string, boolean>;
   
-  // Preferences
-  currency: 'USD' | 'GBP' | 'EUR' | 'SEK' | 'JPY' | string; // Stricter for better autocomplete
-  country: string;
-  language?: string;
+  // Database fields made optional for UI-mapped objects
+  cpa_id?: string;
+  client_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TaxReportSummary {
+  user_id: string; // ✅ Fixed: Added user_id
+  generated_at: string;
+  total_deductible_amount: number;
+  transaction_count: number;
+  tax_categories_breakdown: Record<string, number>;
+  potential_savings: number;
+  evidence_files: string[];
+  transactions: any[];
   
-  // UI Preferences (Good to have ready)
-  theme?: 'dark' | 'light' | 'system';
-  notifications?: boolean;
+  // Optional extras
+  total_non_deductible_amount?: number;
+}
+
+// --- 7. ENTERPRISE & ORGANIZATION ---
+
+export interface Organization {
+  id: string;
+  name: string;
+  owner_id: string;
+  created_at: string;
+  logo_url?: string;
+}
+
+export interface OrgMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: 'owner' | 'admin' | 'member' | 'viewer';
+  joined_at: string;
+}
+
+export interface ExpenseRequest extends Tables<'expense_requests'> {
+  requester?: {
+    first_name: string;
+    last_name: string;
+    avatar_url: string;
+  };
+}
+
+// --- 8. MESSAGING & NOTIFICATIONS ---
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content_encrypted: string;
+  created_at: string;
+  is_system_message: boolean;
+  attachment_url?: string;
+  attachment_type?: string;
+  
+  // UI Helper
+  sender?: {
+    name: string;
+    avatar?: string;
+  };
+  text?: string; 
+  timestamp?: string | Date; 
+}
+
+export interface NotificationItem {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: 'ticket' | 'cpa' | 'message' | 'system' | string | null;
+  is_read: boolean;
+  created_at: string;
+  related_id?: string;
+  created_by?: string;
+  data?: any;
+}
+
+export interface ChatbotMessage {
+  id: string;
+  user_id: string;
+  sender: 'user' | 'ai';
+  text: string;
+  created_at: string | null;
+}
+
+// --- 9. DOCUMENTS ---
+export interface DocumentItem {
+  // Base document fields from DB
+  id: string;
+  user_id: string;
+  transaction_id: string | null;
+  file_path: string;
+  file_name: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  status: 'scanning' | 'processed' | 'failed' | 'verified' | null;
+  created_at: string | null;
+  // Make extracted_data optional (DB has it as Json | null, we make it optional)
+  extracted_data?: any;
+  // UI helper fields
+  name: string;
+  formattedSize: string;
+  date: string;
+  type: 'receipt' | 'invoice' | 'contract' | 'other';
+  url: string | null;
+}
+
+// --- 10. EXTRAS ---
+export interface SafeSpendMetrics {
+  safeToSpend: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  emergencyFund: number;
+  daysUntilPayday: number;
+}
+
+export interface CashFlowPoint {
+  date: string;
+  value: number;
+  label?: string;
 }

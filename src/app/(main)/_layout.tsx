@@ -225,7 +225,7 @@ const NotificationDropdown = ({
                 <View className="flex-1">
                   <Text className="mb-1 text-xs font-bold text-white">{item.title}</Text>
                   <Text className="text-[#8892B0] text-xs leading-4">{item.message}</Text>
-                  <Text className="text-[#233554] text-[10px] mt-2">{new Date(item.created_at).toLocaleDateString()}</Text>
+                  <Text className="text-[#233554] text-[10px] mt-2">{item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Unknown date'}</Text>
                 </View>
               </View>
             </TouchableOpacity>

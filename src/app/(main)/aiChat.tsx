@@ -119,7 +119,7 @@ export default function AIChatScreen() {
 
     try {
       // 2. Call AI Service with LIVE CONTEXT
-      const aiResponseText = await generateContent(textToSend, user.id, financialContext);
+      const aiResponseText = await generateContent(textToSend, user.id);
 
       // 3. Add AI Message
       const aiMsg: ChatMessage = {

@@ -43,7 +43,7 @@ export default function FindCPAScreen() {
           await dataService.requestCPA(user!.id, cpaId); 
           Alert.alert("Request Sent", `A connection request has been sent to ${name}.`);
       } catch (e: any) {
-          Alert.alert("Notice", "Request already pending or connected.");
+          Alert.alert("Notice", e.message || "Request already pending or connected.");
       }
   };
 

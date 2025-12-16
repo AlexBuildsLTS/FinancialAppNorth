@@ -887,6 +887,11 @@ export type CompositeTypes<
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
+// --- EXPORTED TYPES FOR CONVENIENCE ---
+export type ExpenseRequest = Database["public"]["Tables"]["expense_requests"]["Row"];
+export type NotificationItem = Database["public"]["Tables"]["notifications"]["Row"];
+export type DocumentItem = Database["public"]["Tables"]["documents"]["Row"];
+
 export const Constants = {
   public: {
     Enums: {

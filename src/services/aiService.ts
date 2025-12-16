@@ -1,22 +1,24 @@
 import { supabase } from '../lib/supabase';
 import { ChatbotMessage } from '../types';
-import * as geminiService from './geminiService';
 
 const generateContentWithHistory = async (userText: string, userId?: string, imgBase64?: string): Promise<string> => {
-  const anyGemini: any = geminiService as any;
+  try {
+    // Try calling the edge function first
+    const { data, error } = await supabase.functions.invoke('ai-chat', {
+      body: { prompt: userText, userId, image: imgBase64 }
+    });
 
-  if (typeof anyGemini.generateContent === 'function') {
-    return anyGemini.generateContent(userText, userId, imgBase64);
-  }
-  if (typeof anyGemini.generateContentWithHistory === 'function') {
-    return anyGemini.generateContentWithHistory(userText, userId, imgBase64);
-  }
-  if (typeof anyGemini.default === 'function') {
-    return anyGemini.default(userText, userId, imgBase64);
-  }
+    if (!error && data?.text) {
+      return data.text;
+    }
 
-  // fallback to local implementation within this file
-  return generateContent(userText, userId, imgBase64);
+    // Fallback to local implementation
+    return generateContent(userText, userId, imgBase64);
+  } catch (e: any) {
+    console.error('[AI Service] Edge function failed, using fallback:', e.message);
+    // Fallback to local implementation
+    return generateContent(userText, userId, imgBase64);
+  }
 };
 
 // ==========================================

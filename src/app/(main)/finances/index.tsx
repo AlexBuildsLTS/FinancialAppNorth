@@ -236,9 +236,9 @@ export default function FinanceOverviewScreen() {
                                 <View className="items-end">
                                     <Text className="text-[#8892B0] text-sm">Projected (30 days)</Text>
                                     <Text className={`font-bold text-lg ${
-                                        cashFlow[cashFlow.length - 1]?.balance >= 0 ? 'text-green-400' : 'text-red-400'
+                                        (cashFlow[cashFlow.length - 1]?.value || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                                     }`}>
-                                        ${cashFlow[cashFlow.length - 1]?.balance.toFixed(2) || '0.00'}
+                                        ${(cashFlow[cashFlow.length - 1]?.value || 0).toFixed(2)}
                                     </Text>
                                 </View>
                             </View>
