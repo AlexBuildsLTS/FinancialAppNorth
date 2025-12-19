@@ -24,7 +24,7 @@ import { useAuth } from '../../shared/context/AuthContext';
 import { GlassCard } from '../../shared/components/GlassCard';
 import { PasswordStrengthIndicator } from '../../shared/components/PasswordStrengthIndicator';
 
-// --- COMPONENTS ---
+// --- UI COMPONENTS ---
 
 const SectionHeader = ({ title }: { title: string }) => (
   <View className='mt-8 mb-6'>
@@ -128,6 +128,157 @@ const MarketingContent = React.memo(({ isDesktop }: { isDesktop: boolean }) => (
   </View>
 ));
 
+// --- FORM COMPONENT (MOVED OUTSIDE) ---
+// This prevents re-creation of the component on every render, fixing the focus issue.
+
+const RegisterForm = ({ form, updateForm, isLoading, handleRegister }: any) => (
+  <View className='w-full max-w-md mx-auto'>
+      <Animated.View entering={FadeInDown.duration(600)} className='items-center mb-8'>
+          <View className='w-16 h-16 bg-[#64FFDA] rounded-2xl items-center justify-center mb-4 shadow-lg shadow-[#64FFDA]/20'>
+              <Text className='text-[#0A192F] font-extrabold text-3xl'>N</Text>
+          </View>
+          <Text className='text-3xl font-bold tracking-tight text-center text-white'>Create Account</Text>
+          <Text className='text-[#8892B0] text-center mt-2'>Join NorthFinance today</Text>
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.delay(100).duration(600)}>
+          <GlassCard className='gap-4 p-5 border border-[#233554] bg-[#112240]/90'>
+          
+          {/* First Name & Last Name */}
+          <View className='flex-row gap-3'>
+              <View className='flex-1'>
+              <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>First Name</Text>
+              <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-3 h-12 flex-row items-center focus:border-[#64FFDA]'>
+                  <User size={18} color='#8892B0' />
+                  <TextInput 
+                      className='flex-1 h-full ml-2 text-sm text-white outline-none' 
+                      placeholder='Jane' 
+                      placeholderTextColor='#475569'
+                      value={form.firstName} 
+                      onChangeText={t => updateForm('firstName', t)}
+                      editable={!isLoading}
+                  />
+              </View>
+              </View>
+              <View className='flex-1'>
+              <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Last Name</Text>
+              <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-3 h-12 flex-row items-center focus:border-[#64FFDA]'>
+                  <User size={18} color='#8892B0' />
+                  <TextInput 
+                      className='flex-1 h-full ml-2 text-sm text-white outline-none' 
+                      placeholder='Doe' 
+                      placeholderTextColor='#475569'
+                      value={form.lastName} 
+                      onChangeText={t => updateForm('lastName', t)}
+                      editable={!isLoading}
+                  />
+              </View>
+              </View>
+          </View>
+
+          {/* Email */}
+          <View>
+              <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Email</Text>
+              <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-4 h-12 flex-row items-center focus:border-[#64FFDA]'>
+                  <Mail size={18} color='#8892B0' />
+                  <TextInput 
+                  className='flex-1 h-full ml-3 text-sm text-white outline-none' 
+                  placeholder='jane@nf.com' 
+                  placeholderTextColor='#475569'
+                  autoCapitalize='none' 
+                  keyboardType='email-address'
+                  value={form.email} 
+                  onChangeText={t => updateForm('email', t)}
+                  editable={!isLoading}
+                  />
+              </View>
+          </View>
+
+          {/* Password */}
+          <View>
+              <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Password</Text>
+              <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-4 h-12 flex-row items-center focus:border-[#64FFDA]'>
+                  <Lock size={18} color='#8892B0' />
+                  <TextInput 
+                  className='flex-1 h-full ml-3 text-sm text-white outline-none' 
+                  placeholder='••••••••' 
+                  placeholderTextColor='#475569'
+                  secureTextEntry
+                  value={form.password} 
+                  onChangeText={t => updateForm('password', t)}
+                  editable={!isLoading}
+                  />
+              </View>
+              <View className='mt-2'>
+                  <PasswordStrengthIndicator password={form.password} />
+              </View>
+          </View>
+
+          {/* Confirm Password */}
+          <View>
+              <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Confirm Password</Text>
+              <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-4 h-12 flex-row items-center focus:border-[#64FFDA]'>
+                  <Lock size={18} color='#8892B0' />
+                  <TextInput 
+                  className='flex-1 h-full ml-3 text-sm text-white outline-none' 
+                  placeholder='••••••••' 
+                  placeholderTextColor='#475569'
+                  secureTextEntry
+                  value={form.confirmPassword} 
+                  onChangeText={t => updateForm('confirmPassword', t)}
+                  editable={!isLoading}
+                  />
+              </View>
+          </View>
+
+          {/* Terms Checkbox */}
+          <TouchableOpacity 
+              className='flex-row items-start gap-3 mt-1' 
+              onPress={() => updateForm('agreed', !form.agreed)}
+              activeOpacity={0.8}
+              disabled={isLoading}
+          >
+              <View className={`w-5 h-5 rounded border mt-0.5 items-center justify-center ${form.agreed ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#0A192F] border-[#233554]'}`}>
+              {form.agreed && <Check size={12} color='#0A192F' strokeWidth={4} />}
+              </View>
+              <Text className='text-[#8892B0] text-xs flex-1 leading-5'>
+              I agree to the <Text className='text-[#64FFDA] font-bold'>Terms</Text> & <Text className='text-[#64FFDA] font-bold'>Privacy Policy</Text>.
+              </Text>
+          </TouchableOpacity>
+
+          {/* Submit Button */}
+          <TouchableOpacity 
+              className={`bg-[#64FFDA] h-12 rounded-xl items-center justify-center shadow-lg mt-2 active:opacity-90 ${isLoading || !form.agreed ? 'opacity-80 bg-[#233554]' : ''}`}
+              onPress={handleRegister}
+              disabled={isLoading || !form.agreed}
+          >
+              {isLoading ? (
+              <ActivityIndicator color='#64FFDA' />
+              ) : (
+              <Text className={`font-bold text-lg ${!form.agreed ? 'text-[#8892B0]' : 'text-[#0A192F]'}`}>
+                  Create Account
+              </Text>
+              )}
+          </TouchableOpacity>
+
+          {/* Footer Links */}
+          <View className='flex-row justify-center mt-2'>
+              <Text className='text-[#8892B0] text-sm'>Already have an account? </Text>
+              <Link href='/(auth)/login' asChild>
+              <TouchableOpacity><Text className='text-[#64FFDA] font-bold text-sm'>Sign In</Text></TouchableOpacity>
+              </Link>
+          </View>
+
+          </GlassCard>
+      </Animated.View>
+      
+      <View className='flex-row items-center justify-center mt-8 opacity-60'>
+          <Shield size={14} color='#8892B0' />
+          <Text className='text-[#8892B0] text-xs ml-2'>Encrypted & Secure</Text>
+      </View>
+  </View>
+);
+
 // --- MAIN SCREEN ---
 
 export default function RegisterScreen() {
@@ -162,147 +313,6 @@ export default function RegisterScreen() {
     }
   };
 
-  const RegisterInputs = () => (
-    <View className='w-full max-w-md mx-auto'>
-        <Animated.View entering={FadeInDown.duration(600)} className='items-center mb-8'>
-            <View className='w-16 h-16 bg-[#64FFDA] rounded-2xl items-center justify-center mb-4 shadow-lg shadow-[#64FFDA]/20'>
-                <Text className='text-[#0A192F] font-extrabold text-3xl'>N</Text>
-            </View>
-            <Text className='text-3xl font-bold tracking-tight text-center text-white'>Create Account</Text>
-            <Text className='text-[#8892B0] text-center mt-2'>Join NorthFinance today</Text>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-            <GlassCard className='gap-4 p-5 border border-[#233554] bg-[#112240]/90'>
-            
-            <View className='flex-row gap-3'>
-                <View className='flex-1'>
-                <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>First Name</Text>
-                <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-3 h-12 flex-row items-center focus:border-[#64FFDA]'>
-                    <User size={18} color='#8892B0' />
-                    <TextInput 
-                        className='flex-1 h-full ml-2 text-sm text-white outline-none' 
-                        placeholder='Jane' 
-                        placeholderTextColor='#475569'
-                        value={form.firstName} 
-                        onChangeText={t => updateForm('firstName', t)}
-                        editable={!isLoading}
-                    />
-                </View>
-                </View>
-                <View className='flex-1'>
-                <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Last Name</Text>
-                <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-3 h-12 flex-row items-center focus:border-[#64FFDA]'>
-                    <User size={18} color='#8892B0' />
-                    <TextInput 
-                        className='flex-1 h-full ml-2 text-sm text-white outline-none' 
-                        placeholder='Doe' 
-                        placeholderTextColor='#475569'
-                        value={form.lastName} 
-                        onChangeText={t => updateForm('lastName', t)}
-                        editable={!isLoading}
-                    />
-                </View>
-                </View>
-            </View>
-
-            <View>
-                <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Email</Text>
-                <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-4 h-12 flex-row items-center focus:border-[#64FFDA]'>
-                    <Mail size={18} color='#8892B0' />
-                    <TextInput 
-                    className='flex-1 h-full ml-3 text-sm text-white outline-none' 
-                    placeholder='jane@nf.com' 
-                    placeholderTextColor='#475569'
-                    autoCapitalize='none' 
-                    keyboardType='email-address'
-                    value={form.email} 
-                    onChangeText={t => updateForm('email', t)}
-                    editable={!isLoading}
-                    />
-                </View>
-            </View>
-
-            <View>
-                <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Password</Text>
-                <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-4 h-12 flex-row items-center focus:border-[#64FFDA]'>
-                    <Lock size={18} color='#8892B0' />
-                    <TextInput 
-                    className='flex-1 h-full ml-3 text-sm text-white outline-none' 
-                    placeholder='••••••••' 
-                    placeholderTextColor='#475569'
-                    secureTextEntry
-                    value={form.password} 
-                    onChangeText={t => updateForm('password', t)}
-                    editable={!isLoading}
-                    />
-                </View>
-                <View className='mt-2'>
-                    <PasswordStrengthIndicator password={form.password} />
-                </View>
-            </View>
-
-            <View>
-                <Text className='text-[#8892B0] text-xs font-bold mb-1 ml-1 uppercase tracking-wider'>Confirm Password</Text>
-                <View className='bg-[#0A192F] border border-[#233554] rounded-xl px-4 h-12 flex-row items-center focus:border-[#64FFDA]'>
-                    <Lock size={18} color='#8892B0' />
-                    <TextInput 
-                    className='flex-1 h-full ml-3 text-sm text-white outline-none' 
-                    placeholder='••••••••' 
-                    placeholderTextColor='#475569'
-                    secureTextEntry
-                    value={form.confirmPassword} 
-                    onChangeText={t => updateForm('confirmPassword', t)}
-                    editable={!isLoading}
-                    />
-                </View>
-            </View>
-
-            <TouchableOpacity 
-                className='flex-row items-start gap-3 mt-1' 
-                onPress={() => updateForm('agreed', !form.agreed)}
-                activeOpacity={0.8}
-                disabled={isLoading}
-            >
-                <View className={`w-5 h-5 rounded border mt-0.5 items-center justify-center ${form.agreed ? 'bg-[#64FFDA] border-[#64FFDA]' : 'bg-[#0A192F] border-[#233554]'}`}>
-                {form.agreed && <Check size={12} color='#0A192F' strokeWidth={4} />}
-                </View>
-                <Text className='text-[#8892B0] text-xs flex-1 leading-5'>
-                I agree to the <Text className='text-[#64FFDA] font-bold'>Terms</Text> & <Text className='text-[#64FFDA] font-bold'>Privacy Policy</Text>.
-                </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-                className={`bg-[#64FFDA] h-12 rounded-xl items-center justify-center shadow-lg mt-2 active:opacity-90 ${isLoading || !form.agreed ? 'opacity-80 bg-[#233554]' : ''}`}
-                onPress={handleRegister}
-                disabled={isLoading || !form.agreed}
-            >
-                {isLoading ? (
-                <ActivityIndicator color='#64FFDA' />
-                ) : (
-                <Text className={`font-bold text-lg ${!form.agreed ? 'text-[#8892B0]' : 'text-[#0A192F]'}`}>
-                    Create Account
-                </Text>
-                )}
-            </TouchableOpacity>
-
-            <View className='flex-row justify-center mt-2'>
-                <Text className='text-[#8892B0] text-sm'>Already have an account? </Text>
-                <Link href='/(auth)/login' asChild>
-                <TouchableOpacity><Text className='text-[#64FFDA] font-bold text-sm'>Sign In</Text></TouchableOpacity>
-                </Link>
-            </View>
-
-            </GlassCard>
-        </Animated.View>
-        
-        <View className='flex-row items-center justify-center mt-8 opacity-60'>
-            <Shield size={14} color='#8892B0' />
-            <Text className='text-[#8892B0] text-xs ml-2'>Encrypted & Secure</Text>
-        </View>
-    </View>
-  );
-
   return (
     <View className='flex-1 bg-[#0A192F]'>
       <SafeAreaView className='flex-1' edges={['top']}>
@@ -313,7 +323,12 @@ export default function RegisterScreen() {
           {isDesktop ? (
             <View className='flex-row flex-1'>
                 <View className='w-[40%] h-full justify-center items-center px-12 border-r border-[#233554] bg-[#0A192F] z-10'>
-                    <RegisterInputs />
+                    <RegisterForm 
+                      form={form} 
+                      updateForm={updateForm} 
+                      isLoading={isLoading} 
+                      handleRegister={handleRegister} 
+                    />
                 </View>
                 <ScrollView 
                     className='flex-1 bg-[#0B1C36]' 
@@ -330,7 +345,12 @@ export default function RegisterScreen() {
               keyboardShouldPersistTaps="handled"
             >
               <View style={{ minHeight: height * 0.9 }} className='items-center justify-center flex-1 px-6 py-12'>
-                <RegisterInputs />
+                <RegisterForm 
+                  form={form} 
+                  updateForm={updateForm} 
+                  isLoading={isLoading} 
+                  handleRegister={handleRegister} 
+                />
               </View>
               <View className='bg-[#0B1C36] px-6 py-12 border-t border-[#233554]'>
                 <MarketingContent isDesktop={isDesktop} />
