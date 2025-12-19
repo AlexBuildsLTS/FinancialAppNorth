@@ -1,21 +1,14 @@
 import { supabase } from '../lib/supabase';
 
-/**
- * 💎 NorthFinance Unified Gemini Bridge
- * Handles Chat, Vision (OCR), and JSON Extraction.
- */
 export async function generateContent(
   prompt: string, 
   userId?: string, 
   image?: string, 
   isJsonMode: boolean = false
 ): Promise<string> {
-  if (!prompt?.trim()) return "No prompt provided.";
+  if (!prompt?.trim()) return "Please enter a message.";
 
   try {
-    console.log(`[GeminiService] 📡 Invoking 'ai-chat'... Prompt length: ${prompt.length}`);
-
-    // Increased timeout for complex financial reasoning (45 seconds)
     const { data, error } = await supabase.functions.invoke('ai-chat', {
       body: { 
         prompt: prompt.trim(), 
@@ -25,39 +18,33 @@ export async function generateContent(
     });
 
     if (error) {
-      console.error('[GeminiService] ❌ Invocation Error:', error);
-      // Return the specific error for debugging
-      return `Error: ${error.message || 'The connection was interrupted.'}`;
+        console.error('[Gemini] Invocation Error:', error);
+        return "I'm having trouble reaching the server. Please try again in a moment.";
     }
 
-    if (!data) return "No data returned from AI.";
+    // Safely extract text
+    const text = data?.text || "";
 
-    // Logic: If we expect JSON (like for transaction logging), we want the rawest string.
-    // If it's a chat, we use the "Paranoid Parser" to clean artifacts like "{text:}"
-    
-    let text = "";
-    if (typeof data === 'object' && data.text) {
-      text = data.text;
-    } else if (typeof data === 'string') {
-      text = data;
-    } else {
-      text = JSON.stringify(data);
-    }
-
+    // If we're in JSON mode (for Ledger), return the raw string
     if (isJsonMode) {
-       // Just return the rawest string to let the caller handle JSON.parse
-       return text.replace(/```json|```/g, '').trim();
+        return text.replace(/```json|```/g, '').trim();
     }
 
-    // Paranoid Parser for Chat UI
-    return text
-      .replace(/^{?\s*"?text"?\s*:\s*/i, '') // Remove start "text:"
-      .replace(/}\s*$/, '')                   // Remove end "}"
-      .replace(/^"|"$/g, '')                  // Remove surrounding quotes
+    // For Chat: Paranoid Cleaning
+    const cleanText = text
+      .replace(/^{?\s*"?text"?\s*:\s*/i, '') 
+      .replace(/}\s*$/, '')
+      .replace(/^"|"$/g, '')
       .trim();
 
+    if (!cleanText || cleanText === '""') {
+        return "The AI brain processed your request but didn't have anything to say. Try asking specifically about your transactions or balances.";
+    }
+
+    return cleanText;
+
   } catch (err: any) {
-    console.error('[GeminiService] 💥 System Failure:', err);
-    return "The system is currently unable to reach the AI brain. Please check your internet.";
+    console.error('[Gemini] Critical Failure:', err);
+    return "Service error. Please check your internet connection.";
   }
 }

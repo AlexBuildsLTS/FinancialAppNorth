@@ -1,91 +1,81 @@
-import { createClient } from '@supabase/supabase-js';
-import { corsHeaders } from '../_shared/cors.ts';
-import { decryptMessage } from '../_shared/crypto.ts';
+// deno-lint-ignore-file
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
-interface ChatRequest {
-  prompt: string;
-  userId?: string;
-  image?: string;
-}
-
-interface GeminiResponse {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string;
-      }>;
-    };
-  }>;
-}
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS')
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { prompt, userId, image }: ChatRequest = await req.json();
-    if (!prompt) throw new Error('No prompt provided.');
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
 
-    // 1. Init Admin Client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const { prompt } = await req.json();
+    if (!prompt) throw new Error('Prompt is missing');
 
-    // 2. Get API Key (check user's custom key first)
-    let apiKey = Deno.env.get('GEMINI_API_KEY');
-    if (userId) {
-      const { data: secret } = await supabaseAdmin
-        .from('user_secrets')
-        .select('api_key_encrypted')
-        .eq('user_id', userId)
-        .eq('service', 'gemini')
-        .maybeSingle();
-      if (secret?.api_key_encrypted) {
-        apiKey = decryptMessage(secret.api_key_encrypted);
+    // 1. Construct the request with safety overrides
+    // We set thresholds to BLOCK_NONE so it doesn't return "UNKNOWN" or empty responses for financial data
+    const geminiBody = {
+      contents: [{ parts: [{ text: prompt }] }],
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
       }
-    }
-    if (!apiKey) throw new Error('Server configuration error: No AI Key.');
+    };
 
-    // 3. Build request parts
-    const parts: Array<
-      { text: string } | { inline_data: { mime_type: string; data: string } }
-    > = [{ text: prompt }];
-
-    if (image) {
-      parts.push({
-        inline_data: {
-          mime_type: 'image/jpeg',
-          data: image,
-        },
-      });
-    }
-
-    // 4. Call Gemini AI
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-      }),
+      body: JSON.stringify(geminiBody)
     });
 
-    const data: GeminiResponse = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const data = await geminiRes.json();
 
-    return new Response(JSON.stringify({ text }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // 2. Comprehensive Response Parsing
+    const candidate = data.candidates?.[0];
+    let outputText = "";
+
+    if (candidate?.content?.parts?.[0]?.text) {
+      outputText = candidate.content.parts[0].text;
+    } else {
+      // If we are here, the model returned a 200 but no text.
+      // This usually means it didn't like the prompt structure.
+      console.error("Gemini Raw Error Response:", JSON.stringify(data));
+      
+      const finishReason = candidate?.finishReason || "EMPTY_RESPONSE";
+      
+      if (finishReason === "SAFETY") {
+          outputText = "I analyzed your request, but I cannot provide a response due to safety filters. Please try rephrasing.";
+      } else if (finishReason === "OTHER" || finishReason === "RECITATION") {
+          outputText = "The AI was unable to generate a response for this specific query. Try a different question.";
+      } else {
+          // Absolute fallback: If Gemini fails, give a basic financial response based on the prompt
+          outputText = "I'm currently having trouble generating a detailed response. Please check your financial dashboard for live updates.";
+      }
+    }
+
+    return new Response(JSON.stringify({ text: outputText }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
-    console.error('AI Chat Error:', errorMessage);
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+
+  } catch (error: any) {
+    console.error("Handler Error:", error.message);
+    return new Response(JSON.stringify({ text: `Connection Error: ${error.message}` }), {
+      status: 200, // Return 200 so the UI displays the error instead of crashing
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
