@@ -11,6 +11,7 @@
   "imports": {
     "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",
     "cors": "https://deno.land/x/cors@v1.2.2/mod.ts",
-    "crypto-js": "npm:crypto-js@4.2.0"
+    "crypto-js": "npm:crypto-js@4.2.0",
+    "std/": "https://deno.land/std@0.168.0/"
   }
 }

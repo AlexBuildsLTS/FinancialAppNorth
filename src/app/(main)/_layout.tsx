@@ -54,7 +54,8 @@ import {
   Building,
   Zap,
   Building2,
-  CheckSquare
+  CheckSquare,
+  GitBranch // Added for Scenarios
 } from 'lucide-react-native';
 
 // --- INTERNAL IMPORTS ---
@@ -86,7 +87,8 @@ type NavItemKey =
   | 'Support'
   | 'Find CPA'
   | 'Organization'
-  | 'Quick Add';
+  | 'Quick Add'
+  | 'Scenarios'; // New Key
 
 interface NavConfigItem {
   name: string;
@@ -95,6 +97,7 @@ interface NavConfigItem {
   label: string;
   description?: string;
   isAction?: boolean; // Special styling for "Quick Add"
+  experimental?: boolean; // Label for new features
 }
 
 /**
@@ -106,6 +109,7 @@ const NAV_CONFIG: Record<NavItemKey, NavConfigItem> = {
   'Dashboard':    { name: 'index',          icon: LayoutDashboard, path: '/(main)/',             label: 'Dashboard' },
   'Transactions': { name: 'finances',       icon: CreditCard,      path: '/(main)/finances',     label: 'Finances' },
   'Quick Add':    { name: 'quick-add',      icon: Zap,             path: '/(main)/quick-add',    label: 'Smart Ledger', isAction: true },
+  'Scenarios':    { name: 'scenarios',      icon: GitBranch,       path: '/(main)/scenarios',    label: 'Scenario Planner', experimental: true },
   'Organization': { name: 'organization',   icon: Building2,       path: '/(main)/organization', label: 'Org HQ' },
   'Approvals':    { name: 'approvals',      icon: CheckSquare,     path: '/(main)/approvals',    label: 'Approvals' },
   'AI Chat':      { name: 'aiChat',         icon: Bot,             path: '/(main)/aiChat',       label: 'AI CFO' },
@@ -314,19 +318,27 @@ const DesktopSidebar = ({ user, pathname }: { user: any, pathname: string }) => 
 
   const navItems = useMemo(() => {
     const role = user?.role || 'member';
-    // Logic to merge standard role items with any extras
     const allowedKeys = (ROLE_NAV_ITEMS as any)[role] || ROLE_NAV_ITEMS['member'];
     
-    // FORCE ADD NEW FEATURES TO DESKTOP SIDEBAR
-    // This ensures "Organization", "Approvals", and "Quick Add" appear
-    // EXCLUDE "Support" from main menu since it's in "Help & Legal" section at bottom
+    const canSeeScenarios = ['admin', 'cpa', 'premium', 'premium_member', 'support'].includes(role);
+
+    // Build the list
     const finalKeys = Array.from(new Set([
         ...allowedKeys.filter((key: string) => key !== 'Support'), // Remove Support from main menu
         'Hub', 
         'Organization', 
+        'Quick Add',
         'Approvals',
-        'Quick Add' 
+        ...(canSeeScenarios ? ['Scenarios'] : []) // Conditionally add Scenarios
     ])); 
+    
+    // Sort specifically so Scenarios is under Quick Add
+    const order = ['Dashboard', 'Transactions', 'Hub', 'Organization', 'CPA Portal', 'Admin', 'AI Chat', 'Messages', 'Quick Add', 'Scenarios'];
+    finalKeys.sort((a: any, b: any) => {
+        const idxA = order.indexOf(a) !== -1 ? order.indexOf(a) : 99;
+        const idxB = order.indexOf(b) !== -1 ? order.indexOf(b) : 99;
+        return idxA - idxB;
+    });
 
     return finalKeys
       .map(key => NAV_CONFIG[key as NavItemKey])
@@ -357,6 +369,7 @@ const DesktopSidebar = ({ user, pathname }: { user: any, pathname: string }) => 
           return (
             <TouchableOpacity
               key={item.name}
+              // ✅ FIX: Cast to any to satisfy strict Expo Router typing
               onPress={() => router.push(item.path as any)}
               className={`flex-row items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all ${
                 isActive 
@@ -366,10 +379,17 @@ const DesktopSidebar = ({ user, pathname }: { user: any, pathname: string }) => 
                         : 'opacity-70 hover:opacity-100 hover:bg-[#112240]/50'
               }`}
             >
-              <item.icon size={20} color={isActive || isAction ? '#64FFDA' : '#8892B0'} />
-              <Text className={`text-sm font-medium ${isActive || isAction ? 'text-white' : 'text-[#8892B0]'}`}>
-                {item.label}
-              </Text>
+              <item.icon size={20} color={isActive || isAction ? '#64FFDA' : item.experimental ? '#A78BFA' : '#8892B0'} />
+              <View className="flex-row items-center justify-between flex-1">
+                  <Text className={`text-sm font-medium ${isActive || isAction ? 'text-white' : item.experimental ? 'text-[#A78BFA]' : 'text-[#8892B0]'}`}>
+                    {item.label}
+                  </Text>
+                  {item.experimental && (
+                    <View className="bg-purple-500/20 px-1.5 py-0.5 rounded ml-2">
+                        <Text className="text-[8px] text-purple-400 font-bold uppercase">BETA</Text>
+                    </View>
+                  )}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -536,6 +556,8 @@ export default function MainLayout() {
   const isMobile = width < 768;
   const pathname = usePathname();
 
+  const canSeeScenarios = ['admin', 'cpa', 'premium', 'premium_member', 'support'].includes(user?.role || '');
+
   // --- Safe Area Loading State ---
   if (isLoading) {
     return (
@@ -634,13 +656,19 @@ export default function MainLayout() {
                 }}
             />
 
-            {/* 6. Settings (Hidden from Bottom Bar, accessible via Profile) */}
+            {/* 6. Scenarios (Experimental - Role Protected) */}
+            <Tabs.Screen
+                name="scenarios"
+                options={{
+                    href: canSeeScenarios ? NAV_CONFIG.Scenarios.path : null,
+                    title: 'Plan',
+                    tabBarIcon: ({color}: {color: string}) => <GitBranch color={color} size={24} />
+                }}
+            />
+
+            {/* Hidden Routes (Still accessible via internal links but not bottom tabs) */}
             <Tabs.Screen name="settings" options={{ href: null }} />
-
-            {/* 7. Support (Hidden from Bottom Bar, accessible via Profile) */}
             <Tabs.Screen name="support" options={{ href: null }} />
-
-            {/* Hidden Routes */}
             <Tabs.Screen name="admin" options={{ href: null }} />
             <Tabs.Screen name="cpa" options={{ href: null }} />
             <Tabs.Screen name="hub" options={{ href: null }} />
@@ -678,4 +706,3 @@ export default function MainLayout() {
     </SafeAreaView>
   );
 }
-
