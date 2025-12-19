@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabase';
 
+/**
+ * 🚀 Gemini AI Service
+ * Communicates with the Supabase Edge Function to get AI responses.
+ */
 export async function generateContent(
   prompt: string, 
   userId?: string, 
@@ -9,42 +13,44 @@ export async function generateContent(
   if (!prompt?.trim()) return "Please enter a message.";
 
   try {
+    let cleanImage = undefined;
+    if (image && image.length > 0) {
+       // Strip standard data:image/jpeg;base64, prefix if present
+       cleanImage = image.includes('base64,') ? image.split('base64,')[1] : image;
+    }
+
     const { data, error } = await supabase.functions.invoke('ai-chat', {
       body: { 
         prompt: prompt.trim(), 
         userId, 
-        image: image ? (image.includes(',') ? image.split(',')[1] : image) : undefined 
+        image: cleanImage 
       }
     });
 
     if (error) {
-        console.error('[Gemini] Invocation Error:', error);
-        return "I'm having trouble reaching the server. Please try again in a moment.";
+      console.error('[Gemini Service] Edge Function Invocation Error:', error);
+      throw error;
     }
 
-    // Safely extract text
     const text = data?.text || "";
 
-    // If we're in JSON mode (for Ledger), return the raw string
     if (isJsonMode) {
+        // Remove markdown code blocks (```json ... ```)
         return text.replace(/```json|```/g, '').trim();
     }
 
-    // For Chat: Paranoid Cleaning
+    // Clean standard JSON artifacts if the model accidentally returns a JSON string
     const cleanText = text
-      .replace(/^{?\s*"?text"?\s*:\s*/i, '') 
-      .replace(/}\s*$/, '')
-      .replace(/^"|"$/g, '')
+      .replace(/^\{\s*"text":\s*"/i, '') 
+      .replace(/"\s*\}$/, '')
+      .replace(/\\n/g, '\n')
+      .replace(/\\"/g, '"')
       .trim();
 
-    if (!cleanText || cleanText === '""') {
-        return "The AI brain processed your request but didn't have anything to say. Try asking specifically about your transactions or balances.";
-    }
-
-    return cleanText;
+    return cleanText || "The AI brain processed your request but returned no text.";
 
   } catch (err: any) {
-    console.error('[Gemini] Critical Failure:', err);
-    return "Service error. Please check your internet connection.";
+    console.error('[Gemini] Service Exception:', err);
+    return "The AI system is temporarily unavailable. Please try again in a few seconds.";
   }
 }

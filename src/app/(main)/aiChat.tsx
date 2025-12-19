@@ -133,7 +133,7 @@ export default function AIChatScreen() {
         lowerText.includes('budget') || 
         lowerText.includes('predict')
       ) {
-          response = await FinancialBrain.askFinancialAdvisor(user.id, textToSend);
+          response = await FinancialBrain.askAdvisor(user.id, textToSend);
       } else {
           // Use standard general chat
           response = await generateContent(textToSend, user.id);

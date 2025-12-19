@@ -105,6 +105,8 @@ export interface DetectedSubscription {
 }
 
 export interface ParsedVoiceCommand {
+  commandType: any;
+  parameters: Record<string, any>;
   amount: number;
   description: string;
   category?: string;
@@ -243,10 +245,17 @@ export interface SafeSpendMetrics {
   monthlyExpenses: number;
   emergencyFund: number;
   daysUntilPayday: number;
+  daily_limit?: number; // Alternative name for safeToSpend
+  days_until_payday?: number; // Alternative name for daysUntilPayday
+  total_recurring_bills?: number;
+  average_daily_spending?: number;
+  risk_level?: 'low' | 'medium' | 'high';
+  next_payday?: string;
 }
 
 export interface CashFlowPoint {
   date: string;
   value: number;
   label?: string;
+  is_forecast?: boolean;
 }

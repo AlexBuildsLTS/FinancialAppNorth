@@ -59,7 +59,7 @@ export const generateCashFlowForecast = async (userId: string): Promise<CashFlow
       
       historicalPoints.unshift({
           date: dateStr,
-          balance: parseFloat(tempBalance.toFixed(2)),
+          value: parseFloat(tempBalance.toFixed(2)),
           is_forecast: false
       });
 
@@ -97,7 +97,7 @@ export const generateCashFlowForecast = async (userId: string): Promise<CashFlow
 
     forecastPoints.push({
       date: dateStr,
-      balance: parseFloat(forecastBalance.toFixed(2)),
+      value: parseFloat(forecastBalance.toFixed(2)),
       is_forecast: true
     });
   }
@@ -110,7 +110,7 @@ export const generateCashFlowForecast = async (userId: string): Promise<CashFlow
  */
 export const getCashFlowRiskLevel = (forecast: CashFlowPoint[]): 'low' | 'medium' | 'high' => {
   const futurePoints = forecast.filter(p => p.is_forecast);
-  const minBalance = Math.min(...futurePoints.map(p => p.balance));
+  const minBalance = Math.min(...futurePoints.map(p => p.value));
 
   if (minBalance < 0) return 'high'; // Going broke
   if (minBalance < 100) return 'medium'; // Cutting it close
@@ -178,6 +178,11 @@ export const calculateSafeToSpend = async (userId: string): Promise<SafeSpendMet
   else if (safeDailyLimit < averageDailySpending) riskLevel = 'medium';
 
   return {
+    safeToSpend: parseFloat(safeDailyLimit.toFixed(2)),
+    monthlyIncome: 0, // This would need to be calculated from actual income data
+    monthlyExpenses: totalRecent,
+    emergencyFund: currentBalance * 0.3,
+    daysUntilPayday: daysUntilPayday,
     daily_limit: parseFloat(safeDailyLimit.toFixed(2)),
     days_until_payday: daysUntilPayday,
     total_recurring_bills: totalRecurringBills,

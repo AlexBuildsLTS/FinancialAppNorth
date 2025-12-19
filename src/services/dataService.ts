@@ -2,18 +2,13 @@
  * ==================================================================================================
  * 🏦 NORTHFINANCE ENTERPRISE DATA SERVICE (Unified DAL)
  * ==================================================================================================
- * FINAL PRODUCTION VERSION:
- * - Fixed ambiguous foreign keys (!client_id, !cpa_id) for Supabase v2 joins.
- * - Added existence checks to prevent 409 Conflict errors on invites.
- * - Robust AI parsing with isJsonMode support.
- * - Complete Error Boundary handling for all sections.
- * ==================================================================================================
  */
 
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import * as DocumentPicker from 'expo-document-picker';
+import dayjs from 'dayjs';
 
 // --- Supabase Client & Admin Utilities ---
 import { 
@@ -47,6 +42,36 @@ import {
   TaxReportSummary,
   TaxCategory
 } from '../types';
+
+// --- Constants ---
+const DEFAULT_CURRENCY = 'USD';
+const SUBSCRIPTION_SCAN_DAYS = 90;
+const FORECAST_MONTHS = 6;
+const TREND_THRESHOLD = 100;
+const HEALTH_SCORE_BASE = 40;
+const HEALTH_SCORE_BONUS = 15;
+const CONFIDENCE_DETECTED = 0.8;
+const CONFIDENCE_MANUAL = 1.0;
+
+// --- Custom Error Classes ---
+class DataServiceError extends Error {
+  constructor(message: string, public code?: string) {
+    super(message);
+    this.name = 'DataServiceError';
+  }
+}
+
+class ValidationError extends DataServiceError {
+  constructor(field: string, value: any) {
+    super(`Invalid ${field}: ${value}`, 'VALIDATION_ERROR');
+  }
+}
+
+class NotFoundError extends DataServiceError {
+  constructor(resource: string, id: string) {
+    super(`${resource} not found: ${id}`, 'NOT_FOUND');
+  }
+}
 
 /**
  * ==============================================================================
@@ -249,19 +274,30 @@ export const approveExpenseRequest = async (requestId: string, approverId: strin
  * ==============================================================================
  */
 
+/**
+ * Scans historical transactions for recurring subscription patterns.
+ * @param userId - The user ID to scan subscriptions for
+ * @returns Array of detected subscriptions
+ */
 export const scanForSubscriptions = async (userId: string): Promise<DetectedSubscription[]> => {
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  if (!userId) throw new ValidationError('userId', userId);
+
+  const ninetyDaysAgo = dayjs().subtract(SUBSCRIPTION_SCAN_DAYS, 'day').toISOString();
   
-  const { data: txs } = await supabase
+  const { data: txs, error } = await supabase
     .from('transactions')
     .select('amount, description, date')
     .eq('user_id', userId)
     .eq('type', 'expense')
-    .gte('date', ninetyDaysAgo.toISOString())
+    .gte('date', ninetyDaysAgo)
     .order('date', { ascending: false });
 
-  if (!txs) return [];
+  if (error) {
+    console.warn('[SubscriptionScan] Query error:', error.message);
+    return [];
+  }
+
+  if (!txs || txs.length === 0) return [];
 
   const groups: Record<string, any[]> = {};
   const detected: DetectedSubscription[] = [];
@@ -411,11 +447,10 @@ export const processNaturalLanguageTransaction = async (userId: string, input: s
     `;
 
     try {
-        // FIXED: Using isJsonMode=true to bypass chat-cleaning artifacts
         const responseText = await generateContent(prompt, userId, undefined, true);
         const data = JSON.parse(responseText);
 
-        if (!data.amount || !data.merchant) throw new Error("Missing AI data");
+        if (!data.amount || !data.merchant) throw new Error("Could not detect amount or merchant.");
 
         let finalAmount = Math.abs(Number(data.amount));
         let type = data.type || 'expense';
@@ -437,15 +472,21 @@ export const processNaturalLanguageTransaction = async (userId: string, input: s
 };
 
 export const getSpendingForecast = async (userId: string): Promise<{ predictedAmount: number, trend: 'up' | 'down' | 'stable' }> => {
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    if (!userId) throw new ValidationError('userId', userId);
 
-    const { data: transactions } = await supabase
+    const sixMonthsAgo = dayjs().subtract(FORECAST_MONTHS, 'month').toISOString();
+
+    const { data: transactions, error } = await supabase
         .from('transactions')
         .select('amount, date')
         .eq('user_id', userId)
         .eq('type', 'expense')
-        .gte('date', sixMonthsAgo.toISOString());
+        .gte('date', sixMonthsAgo);
+
+    if (error) {
+        console.warn('[SpendingForecast] Query error:', error.message);
+        return { predictedAmount: 0, trend: 'stable' };
+    }
 
     if (!transactions || transactions.length === 0) return { predictedAmount: 0, trend: 'stable' };
 
@@ -464,30 +505,32 @@ export const getSpendingForecast = async (userId: string): Promise<{ predictedAm
     const xValues = months.map((_, i) => i);
     const yValues = months.map(m => monthlySpend[m]);
     const n = xValues.length;
-    
-    const sumX = xValues.reduce((a = 0, b = 0) => a + b, 0);
-    const sumY = yValues.reduce((a = 0, b = 0) => a + b, 0);
+
+    const sumX = xValues.reduce((a, b) => a + b, 0);
+    const sumY = yValues.reduce((a, b) => a + (b || 0), 0);
     const sumXY = xValues.reduce((sum, x, i) => sum + x * (yValues[i] || 0), 0);
     const sumXX = xValues.reduce((sum, x) => sum + x * x, 0);
 
-    const slope = (n * sumXY - sumX * sumY!) / (n * sumXX - sumX * sumX);
-    const intercept = (sumY! - slope * sumX) / n;
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
     const predicted = slope * n + intercept;
 
     return {
         predictedAmount: Math.max(0, Math.round(predicted)),
-        trend: slope > 50 ? 'up' : slope < -50 ? 'down' : 'stable'
+        trend: slope > TREND_THRESHOLD ? 'up' : slope < -TREND_THRESHOLD ? 'down' : 'stable'
     };
 };
 
 export const getFinancialHealthScore = async (userId: string): Promise<number> => {
+    if (!userId) throw new ValidationError('userId', userId);
+
     const summary = await getFinancialSummary(userId);
-    if (summary.income === 0) return 0;
-    
+    if (summary.income === 0) return HEALTH_SCORE_BASE;
+
     const savingsRate = (summary.income - summary.expense) / summary.income;
     let score = savingsRate * 100;
-    if (summary.balance > 0) score += 10;
-    
+    if (summary.balance > 0) score += HEALTH_SCORE_BONUS;
+
     return Math.min(Math.max(Math.round(score), 0), 100);
 };
 
@@ -998,7 +1041,7 @@ export const pickAndUploadFile = async (userId: string) => {
 export const getCpaClients = async (cpaId: string): Promise<CpaClient[]> => {
   const { data, error } = await supabase
     .from('cpa_clients')
-    .select(`*, client:profiles!client_id(*)`) 
+    .select(`*, client:profiles!client_id(*)`) // Hint applied here
     .eq('cpa_id', cpaId);
 
   if (error) {
@@ -1024,7 +1067,7 @@ export const getCpaClients = async (cpaId: string): Promise<CpaClient[]> => {
 export const getClientCpas = async (clientId: string) => {
   const { data, error } = await supabase
     .from('cpa_clients')
-    .select(`*, cpa:profiles!cpa_id(*)`) 
+    .select(`*, cpa:profiles!cpa_id(*)`) // Hint applied here
     .eq('client_id', clientId);
 
   if (error) return [];
@@ -1041,14 +1084,17 @@ export const getClientCpas = async (clientId: string) => {
 export const requestCPA = async (userId: string, cpaIdOrEmail: string) => {
     let cpaId: string;
     
+    // If it looks like an email, look it up; otherwise treat as ID
     if (cpaIdOrEmail.includes('@')) {
         const { data: cpa } = await supabase.from('profiles').select('id, first_name').eq('email', cpaIdOrEmail).eq('role', 'cpa').single();
         if (!cpa) throw new Error("CPA not found.");
         cpaId = cpa.id;
     } else {
+        // It's already an ID
         cpaId = cpaIdOrEmail;
     }
 
+    // Check existing
     const { data: existing } = await supabase.from('cpa_clients').select('id').match({ client_id: userId, cpa_id: cpaId }).maybeSingle();
     if (existing) throw new Error("Connection already exists.");
 
@@ -1063,6 +1109,7 @@ export const inviteClient = async (cpaId: string, clientEmail: string) => {
     const { data: client, error } = await supabase.from('profiles').select('id').eq('email', clientEmail).single();
     if (!client) throw new Error("Client not found.");
 
+    // Check existing
     const { data: existing } = await supabase.from('cpa_clients').select('id').match({ client_id: client.id, cpa_id: cpaId }).maybeSingle();
     if (existing) throw new Error("Invitation already sent or user is already a client.");
 
@@ -1179,9 +1226,9 @@ export const autoTagTaxDeductible = async (userId: string) => {
   if (error || !transactions) return;
 
   const businessKeywords = [
-    'office', 'supply', 'amazon business', 'quickbooks', 'software', 'software',
-    'advertising', 'marketing', 'subscription', 'consulting',
-    'equipment', 'tools', 'machinery', 'vehicle', 'gas', 'fuel',
+    'office', 'supply', 'depot', 'staples', 'amazon business', 'quickbooks', 'xero',
+    'advertising', 'marketing', 'software', 'subscription', 'service', 'consulting',
+    'equipment', 'tools', 'machinery', 'vehicle', 'gas', 'fuel', 'parking',
     'travel', 'hotel', 'flight', 'taxi', 'uber', 'lyft', 'mileage',
     'internet', 'phone', 'utilities', 'rent', 'lease', 'insurance',
     'professional', 'legal', 'accounting', 'tax', 'audit'
@@ -1192,7 +1239,10 @@ export const autoTagTaxDeductible = async (userId: string) => {
     const isBusiness = businessKeywords.some(k => desc.includes(k));
     
     if (isBusiness) {
-        return { id: t.id, is_tax_deductible: true };
+        return {
+            id: t.id,
+            is_tax_deductible: true
+        };
     }
     return null;
   }).filter(Boolean);
@@ -1320,22 +1370,64 @@ export const getUsers = async (): Promise<User[]> => {
   }));
 };
 
+/**
+ * Get only active CPAs (for Find CPA screen)
+ * Filters out test/mock users and only returns active, verified CPAs
+ */
 export const getActiveCPAs = async (): Promise<User[]> => {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('role', 'cpa')
     .not('email', 'ilike', '%test%')
+    .not('email', 'ilike', '%mock%')
+    .not('email', 'ilike', '%example%')
+    .not('email', 'ilike', '%demo%')
     .order('created_at', { ascending: false });
   
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching CPAs:', error);
+    throw error;
+  }
   
-  return (data || []).map((p: any) => ({
+  // Additional filtering to exclude mock/placeholder users by name patterns
+  const filteredData = (data || []).filter((p: any) => {
+    const firstName = (p.first_name || '').toLowerCase();
+    const lastName = (p.last_name || '').toLowerCase();
+    const fullName = `${firstName} ${lastName}`.trim().toLowerCase();
+    const email = (p.email || '').toLowerCase();
+    
+    // Exclude common mock/placeholder patterns
+    const mockPatterns = [
+      'user doe', 'ghost host', 'test user', 'mock user', 'demo user',
+      'example user', 'placeholder', 'sample user', 'fake user',
+      'john doe', 'jane doe', 'admin test', 'test admin'
+    ];
+    
+    // Check if name matches mock patterns
+    if (mockPatterns.some(pattern => fullName.includes(pattern) || firstName.includes(pattern) || lastName.includes(pattern))) {
+      return false;
+    }
+    
+    // Exclude if email domain is clearly a test domain
+    if (email.includes('@test.') || email.includes('@mock.') || email.includes('@example.') || email.includes('@demo.')) {
+      return false;
+    }
+    
+    // Exclude if name is just a single word that looks like a placeholder
+    if (fullName.split(' ').length === 1 && (fullName.length < 3 || fullName === 'user' || fullName === 'cpa')) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  return filteredData.map((p: any) => ({
     id: p.id,
     email: p.email,
-    name: p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : p.email?.split('@')[0],
+    name: p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : p.email?.split('@')[0] || 'CPA',
     role: p.role,
-    status: 'active',
+    status: 'active', // Default to active since status column doesn't exist
     suspended_until: p.suspended_until,
     avatar: p.avatar_url,
     currency: p.currency,
@@ -1344,10 +1436,14 @@ export const getActiveCPAs = async (): Promise<User[]> => {
 };
 
 export const suspendUser = async (userId: string, untilDate: Date) => {
-    const { error } = await supabase.from('profiles').update({
-        status: 'suspended',
-        suspended_until: untilDate.toISOString()
-    }).eq('id', userId);
+    const { error } = await supabase
+        .from('profiles')
+        .update({
+            status: 'suspended',
+            suspended_until: untilDate.toISOString()
+        })
+        .eq('id', userId);
+
     if (error) throw error;
 };
 
@@ -1362,8 +1458,22 @@ export const exportUserData = async (userId: string) => {
         getTransactions(userId),
         getDocuments(userId, '')
     ]);
-    return { profile, transactions, documents, exportedAt: new Date().toISOString() };
+    
+    return {
+        profile,
+        transactions,
+        documents,
+        exportedAt: new Date().toISOString()
+    };
 };
+
+export const getAllUsers = getUsers;
+export const deleteUser = adminDeleteUser;
+export const changeUserRole = adminChangeUserRole;
+export const changeUserStatus = adminDeactivateUser;
+export const removeUser = adminDeleteUser;
+export const updateUserStatus = adminDeactivateUser;
+export const updateUserRole = adminChangeUserRole;
 
 /**
  * ==============================================================================
@@ -1372,9 +1482,22 @@ export const exportUserData = async (userId: string) => {
  */
 
 export const createNotification = async (
-  userId: string, title: string, message: string, type: 'ticket' | 'cpa' | 'message' | 'system', relatedId?: string, createdBy?: string
+  userId: string,
+  title: string,
+  message: string,
+  type: 'ticket' | 'cpa' | 'message' | 'system',
+  relatedId?: string,
+  createdBy?: string
 ) => {
-  const payload: any = { user_id: userId, title, message, type, is_read: false, created_at: new Date().toISOString() };
+  const payload: any = {
+    user_id: userId,
+    title,
+    message,
+    type,
+    is_read: false,
+    created_at: new Date().toISOString()
+  };
+
   if (relatedId) payload.related_id = relatedId;
   if (createdBy) payload.created_by = createdBy;
 
@@ -1384,30 +1507,55 @@ export const createNotification = async (
 };
 
 export const getNotifications = async (userId: string): Promise<NotificationItem[]> => {
-  const { data, error } = await supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }).limit(50);
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_read', false)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
   if (error) return [];
   return data as NotificationItem[];
 };
 
-export const markNotificationRead = async (id: string) => {
-  await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+export const markNotificationRead = async (notificationId: string) => {
+  await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
 };
 
 export const markAllNotificationsRead = async (userId: string) => {
-  await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', userId)
+    .eq('is_read', false);
 };
 
 export const subscribeToNotifications = (userId: string, callback: (n: NotificationItem) => void) => {
-  return supabase.channel(`notifs:${userId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload) => callback(payload.new as NotificationItem)).subscribe();
+  return supabase
+    .channel(`notifs:${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`
+      },
+      (payload) => callback(payload.new as NotificationItem)
+    )
+    .subscribe();
 };
 
 export const notifyStaffNewTicket = async (ticketId: string, subject: string, userName: string) => {
   const { data: staff } = await supabase.from('profiles').select('id').in('role', ['admin', 'support']);
-  staff?.forEach(s => createNotification(s.id, 'New Ticket', `${userName}: ${subject}`, 'ticket', ticketId));
+  staff?.forEach(s => {
+    createNotification(s.id, 'New Ticket', `${userName}: ${subject}`, 'ticket', ticketId);
+  });
 };
 
 export const notifyUserTicketUpdate = async (userId: string, ticketId: string, status: string) => {
-  await createNotification(userId, 'Ticket Update', `Status: ${status}`, 'ticket', ticketId);
+  await createNotification(userId, 'Ticket Update', `Status changed to: ${status.replace('_', ' ')}`, 'ticket', ticketId);
 };
 
 export const notifyNewMessage = async (recipientId: string, senderName: string, conversationId: string, senderId?: string) => {
@@ -1415,7 +1563,7 @@ export const notifyNewMessage = async (recipientId: string, senderName: string, 
 };
 
 export const notifyCpaRequest = async (cpaId: string, clientName: string, createdBy?: string) => {
-  await createNotification(cpaId, 'New CPA Request', `${clientName} requested access.`, 'cpa', undefined, createdBy);
+  await createNotification(cpaId, 'New CPA Request', `${clientName} has requested access.`, 'cpa', undefined, createdBy);
 };
 
 export const notifyClientInvitation = async (clientId: string, cpaName: string, createdBy?: string) => {
@@ -1423,32 +1571,136 @@ export const notifyClientInvitation = async (clientId: string, cpaName: string, 
 };
 
 export const notifyConnectionAccepted = async (targetId: string, accepterName: string) => {
-  await createNotification(targetId, 'Connection Accepted', `${accepterName} connected with you.`, 'cpa');
+  await createNotification(targetId, 'Connection Accepted', `${accepterName} is now connected with you.`, 'cpa');
 };
 
 export const saveGeminiKey = async (userId: string, apiKey: string) => {
     const encrypted = encryptMessage(apiKey.trim());
-    const { error } = await supabase.from('user_secrets').upsert({ user_id: userId, service: 'gemini', api_key_encrypted: encrypted }, { onConflict: 'user_id,service' });
+    const { error } = await supabase
+        .from('user_secrets')
+        .upsert({ 
+            user_id: userId, 
+            service: 'gemini', 
+            api_key_encrypted: encrypted 
+        }, { onConflict: 'user_id,service' });
+        
     if (error) throw error;
 };
 
 export const getGeminiKey = async (userId: string) => {
-    const { data } = await supabase.from('user_secrets').select('api_key_encrypted').eq('user_id', userId).eq('service', 'gemini').maybeSingle();
-    return data?.api_key_encrypted ? decryptMessage(data.api_key_encrypted) : null;
+    const { data } = await supabase
+        .from('user_secrets')
+        .select('api_key_encrypted')
+        .eq('user_id', userId)
+        .eq('service', 'gemini')
+        .maybeSingle();
+
+    if (data?.api_key_encrypted) {
+        return decryptMessage(data.api_key_encrypted);
+    }
+    return null;
 };
 
 // Export Singleton
 export const dataService = {
-  ensureProfileExists, getDefaultAccountId, logAuditAction,
-  getUserOrganizations, createOrganization, inviteMemberToOrg, getExpenseRequests, approveExpenseRequest,
-  scanForSubscriptions, getSubscriptions, addSubscription, deleteSubscription,
-  processVoiceTransaction, processNaturalLanguageTransaction, getSpendingForecast, getFinancialHealthScore,
-  getTransactions, createTransaction, deleteTransaction, getBudgets, createBudget, deleteBudget, getFinancialSummary,
-  getOrCreateConversation, sendMessage, subscribeToChat, getConversationMessages, getConversations,
-  getDocuments, uploadDocument, deleteDocument, pickAndUploadFile,
-  getCpaClients, getClientCpas, requestCPA, inviteClient, acceptInvitation, declineInvitation, acceptCpaClient, rejectCpaClient, isCpaForClient, generateTaxReport, updateTransactionTaxStatus, autoTagTaxDeductible,
-  createTicket, getTickets, getAllTickets, getTicketDetails, updateTicketStatus, addInternalNote, addTicketReply, deleteTicket, getUsers, getActiveCPAs, suspendUser, getUserDetails, exportUserData,
-  createNotification, getNotifications, markNotificationRead, markAllNotificationsRead, subscribeToNotifications, notifyStaffNewTicket, notifyUserTicketUpdate, notifyNewMessage, notifyCpaRequest, notifyClientInvitation, notifyConnectionAccepted,
-  saveGeminiKey, getGeminiKey
+  // Core Security & Resilience
+  ensureProfileExists,
+  getDefaultAccountId,
+  logAuditAction,
+
+  // Enterprise & Organization
+  getUserOrganizations,
+  createOrganization,
+  inviteMemberToOrg,
+  getExpenseRequests,
+  approveExpenseRequest,
+
+  // Titan 1: Subscription Hawk
+  scanForSubscriptions,
+  getSubscriptions,
+  addSubscription,
+  deleteSubscription,
+
+  // Titan 2: AI, Voice & Forecasting
+  processVoiceTransaction,
+  processNaturalLanguageTransaction,
+  getSpendingForecast,
+  getFinancialHealthScore,
+
+  // Core Financial Engine
+  getTransactions,
+  createTransaction,
+  deleteTransaction,
+  getBudgets,
+  createBudget,
+  deleteBudget,
+  getFinancialSummary,
+
+  // Messaging & Collaboration
+  getOrCreateConversation,
+  sendMessage,
+  subscribeToChat,
+  getConversationMessages,
+  getConversations,
+
+  // Document Management
+  getDocuments,
+  uploadDocument,
+  deleteDocument,
+  pickAndUploadFile,
+
+  // Professional Portal (CPA)
+  getCpaClients,
+  getClientCpas,
+  requestCPA,
+  inviteClient, acceptInvitation,
+  declineInvitation,
+  acceptCpaClient,
+  rejectCpaClient,
+  isCpaForClient,
+  generateTaxReport,
+  updateTransactionTaxStatus,
+  autoTagTaxDeductible,
+
+  // Support & Admin Systems
+  createTicket,
+  getTickets,
+  getAllTickets,
+  getTicketDetails,
+  updateTicketStatus,
+  addInternalNote,
+  addTicketReply,
+  deleteTicket,
+  getUsers,
+  getActiveCPAs,
+  suspendUser,
+  getUserDetails,
+  exportUserData,
+  
+  // Aliases
+  getAllUsers,
+  deleteUser,
+  changeUserRole,
+  changeUserStatus,
+  removeUser,
+  updateUserStatus,
+  updateUserRole,
+
+  // Notifications System
+  createNotification,
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  subscribeToNotifications,
+  notifyStaffNewTicket,
+  notifyUserTicketUpdate,
+  notifyNewMessage,
+  notifyCpaRequest,
+  notifyClientInvitation,
+  notifyConnectionAccepted,
+
+  // Keys & Secrets
+  saveGeminiKey,
+  getGeminiKey,
 };
 export { supabase };
