@@ -402,37 +402,29 @@ export const processVoiceTransaction = async (userId: string, audioUri: string):
 export const processNaturalLanguageTransaction = async (userId: string, input: string) => {
     const prompt = `
         Input: "${input}"
-        Task: Extract transaction details into strict JSON.
-        Rules:
-        1. If 'income' or 'received', amount is positive.
-        2. If 'spent', 'paid', or 'buy', amount is negative.
-        3. Guess a category from: Groceries, Transport, Entertainment, Utilities, Business.
-        4. Output JSON ONLY.
-        Example: {"amount": -50.00, "merchant": "Uber", "category": "Transport", "type": "expense"}
-    `;
+        Action: Parse this financial transaction into a JSON object.
+        Structure: {"amount": number, "merchant": "string", "category": "string", "type": "income"|"expense"}
+        Rules: 
+        - Expenses are negative numbers.
+        - Categories: Food, Transport, Rent, Shopping, Income, Other.
+        - Return ONLY JSON object.
+    `.trim();
 
     try {
-        const responseText = await generateContent(prompt, userId);
-        const cleanJson = responseText.replace(/```json|```/g, '').trim();
-        const data = JSON.parse(cleanJson);
+        const responseText = await generateContent(prompt, userId, undefined, true);
+        const data = JSON.parse(responseText);
 
-        if (!data.amount || !data.merchant) throw new Error("Could not detect amount or merchant.");
+        if (!data.amount || !data.merchant) throw new Error("Missing AI data");
 
-        let finalAmount = Math.abs(Number(data.amount));
-        let type = data.type || 'expense';
-        if (type === 'expense') finalAmount = -finalAmount;
-        if (type === 'income') finalAmount = Math.abs(finalAmount);
-        
         return await createTransaction({
-            amount: finalAmount,
+            amount: data.amount,
             description: data.merchant,
-            category: data.category || 'Uncategorized',
+            category: data.category || 'Other',
             date: new Date().toISOString(),
-            type: type
+            type: data.type || 'expense'
         }, userId);
-
-    } catch (error: any) {
-        console.error("[DataService] AI Parsing Error:", error);
+    } catch (error) {
+        console.error("[DataService] AI Parsing Failed:", error);
         throw error;
     }
 };

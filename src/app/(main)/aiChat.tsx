@@ -25,9 +25,13 @@ import {
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+
+// --- SERVICE IMPORTS ---
 import { useAuth } from '../../shared/context/AuthContext';
 import { generateContent } from '../../services/geminiService';
 import { dataService } from '../../services/dataService';
+import { FinancialBrain } from '../../services/financialBrain'; // Added for Titan 2 Intelligence
+import { supabase } from '../../lib/supabase';
 
 interface ChatMessage {
   id: string;
@@ -58,19 +62,20 @@ export default function AIChatScreen() {
   const [ledgerInput, setLedgerInput] = useState('');
   const [ledgerProcessing, setLedgerProcessing] = useState(false);
   
-  // Data Context State (Titan 2)
+  // Data Context State
   const [financialContext, setFinancialContext] = useState<any>(null);
 
   // --- INITIALIZATION ---
   useEffect(() => {
     loadFinancialContext();
-    // Add welcome message
-    setMessages([{
-      id: 'welcome',
-      text: `Hello ${user?.name?.split(' ')[0]}! I am NorthAI. I can analyze your data or help you log expenses via the Smart Ledger.`,
-      sender: 'ai',
-      timestamp: new Date()
-    }]);
+    if (messages.length === 0) {
+        setMessages([{
+        id: 'welcome',
+        text: `Hello ${user?.name?.split(' ')[0] || 'there'}! I am NorthAI. I can analyze your data or help you log expenses via the Smart Ledger.`,
+        sender: 'ai',
+        timestamp: new Date()
+        }]);
+    }
   }, []);
 
   const loadFinancialContext = async () => {
@@ -86,26 +91,25 @@ export default function AIChatScreen() {
         balance: summary.balance,
         income: summary.income,
         expense: summary.expense,
-        recentTransactions: txs.slice(0, 5).map(t => ({ amount: t.amount, category: t.category, date: t.date })),
-        budgets: budgets.map(b => ({ category: b.category_name, remaining: b.remaining }))
+        recentTransactions: txs.slice(0, 5).map((t: any) => ({ amount: t.amount, category: t.category, date: t.date })),
+        budgets: budgets.map((b: any) => ({ category: b.category_name, remaining: b.remaining }))
       });
     } catch (e) {
       console.error("Failed to load context for AI", e);
     }
   };
 
-  // --- MODE SWITCHING ---
   const switchMode = (newMode: 'chat' | 'ledger') => {
     Haptics.selectionAsync();
     setMode(newMode);
   };
 
-  // --- CHAT HANDLER ---
+  // --- CHAT HANDLER (Fixed & Robust) ---
   const handleSend = async (textOverride?: string) => {
     const textToSend = textOverride || input;
     if (!textToSend.trim() || !user) return;
 
-    // 1. Add User Message
+    // 1. Add User Message UI
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       text: textToSend,
@@ -118,13 +122,27 @@ export default function AIChatScreen() {
     Keyboard.dismiss();
 
     try {
-      // 2. Call AI Service with LIVE CONTEXT
-      const aiResponseText = await generateContent(textToSend, user.id);
+      let response;
+      const lowerText = textToSend.toLowerCase();
 
-      // 3. Add AI Message
+      // 2. Intelligent Routing (Titan 2 Logic)
+      // If user asks for data analysis, use the "Financial Brain" context engine
+      if (
+        lowerText.includes('analyze') || 
+        lowerText.includes('spending') || 
+        lowerText.includes('budget') || 
+        lowerText.includes('predict')
+      ) {
+          response = await FinancialBrain.askFinancialAdvisor(user.id, textToSend);
+      } else {
+          // Use standard general chat
+          response = await generateContent(textToSend, user.id);
+      }
+
+      // 3. Add AI Message UI
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        text: aiResponseText,
+        text: response,
         sender: 'ai',
         timestamp: new Date()
       };
@@ -133,7 +151,7 @@ export default function AIChatScreen() {
     } catch (error: any) {
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        text: "I'm having trouble connecting to the financial brain. Please check your API Key in settings.",
+        text: "I'm having trouble connecting to the financial brain. Please verify your connection or check your API keys in settings.",
         sender: 'ai',
         timestamp: new Date()
       };
@@ -153,27 +171,43 @@ export default function AIChatScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // Use the Unified Data Service
-      const result = await dataService.processNaturalLanguageTransaction(user.id, ledgerInput);
+      const { data, error } = await supabase.functions.invoke('smart-ledger', {
+        body: { text: ledgerInput, userId: user.id }
+      });
+
+      if (error) throw new Error(error.message);
+      if (!data || !data.transaction) throw new Error("AI could not understand input.");
+
+      const result = data.transaction;
+
+      const { error: dbError } = await supabase.from('transactions').insert({
+        user_id: user.id,
+        amount: result.type === 'expense' ? -Math.abs(result.amount) : Math.abs(result.amount),
+        merchant: result.merchant || 'Unknown',
+        category: result.category || 'Uncategorized',
+        description: ledgerInput, 
+        date: result.date || new Date().toISOString(),
+        type: result.type || 'expense'
+      });
+
+      if (dbError) throw dbError;
       
-      if (result) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-            "Transaction Recorded", 
-            `Successfully logged: ${result.description || 'Transaction'}`, 
-            [
-                { text: "View Finances", onPress: () => router.push('/(main)/finances') },
-                { text: "Add Another", style: "cancel", onPress: () => setLedgerInput('') }
-            ]
-        );
-        // Refresh context after adding
-        loadFinancialContext();
-      } else {
-        throw new Error("Could not parse transaction.");
-      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Transaction Recorded", 
+        `Logged: ${result.merchant} ($${Math.abs(result.amount)})`, 
+        [
+            { text: "View Finances", onPress: () => router.push('/(main)/finances') },
+            { text: "Add Another", style: "cancel", onPress: () => setLedgerInput('') }
+        ]
+      );
+      
+      loadFinancialContext();
+
     } catch (error: any) {
+      console.error("Ledger Error:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("AI Processing Failed", "I couldn't understand that. Try simpler format: 'Spent 100 SEK at Ica'.");
+      Alert.alert("Processing Failed", "Try a clearer format like: 'Spent 100 on Coffee'.");
     } finally {
       setLedgerProcessing(false);
     }

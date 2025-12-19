@@ -31,7 +31,10 @@ Deno.serve(async (req) => {
          
        if (secret?.api_key_encrypted) {
            try {
-             apiKey = decryptMessage(secret.api_key_encrypted);
+             const decryptedKey = decryptMessage(secret.api_key_encrypted);
+             if (decryptedKey) {
+               apiKey = decryptedKey;
+             }
            } catch (_e) {
              console.warn("Failed to decrypt user key, falling back to system key");
            }
