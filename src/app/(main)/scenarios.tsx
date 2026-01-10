@@ -1,210 +1,309 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Dimensions,
+  Alert,
+  StatusBar,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LineChart } from 'react-native-chart-kit'; 
-import Slider from '@react-native-community/slider';
-import { GitBranch, Save, RotateCcw, TrendingUp, TrendingDown, Lock, ArrowLeft } from 'lucide-react-native';
+import { LineChart } from 'react-native-gifted-charts';
+import {
+  GitBranch,
+  Save,
+  RotateCcw,
+  TrendingUp,
+  TrendingDown,
+  Sparkles,
+  ArrowLeft,
+  Layers,
+} from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 
-// Internal Imports (Ensure these paths are correct for your project root)
+// --- TITAN ARCHITECTURE IMPORTS ---
 import { useAuth } from '../../shared/context/AuthContext';
-import { dataService } from '../../services/dataService';
+import { ScenarioService } from '../../services/scenarioService';
+import { AnalysisService } from '../../services/analysisService';
 import { GlassCard } from '../../shared/components/GlassCard';
+import { NFSlider } from '../../shared/components/Slider'; // Corrected Path
 
-export default function ScenariosScreen() {
+/**
+ * @component ScenarioLab
+ * @description Titan-4 Simulation Engine.
+ * Fixes the findDOMNode crash by using the Universal NFSlider.
+ */
+export default function ScenarioLab() {
   const router = useRouter();
   const { user } = useAuth();
-  
+  const screenWidth = Dimensions.get('window').width;
+
   // --- STATE ---
-  const [drivers, setDrivers] = useState({
-    revenueGrowth: 0,
-    expenseReduction: 0,
-    inflation: 2.5, 
-  });
-  const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentSummary, setCurrentSummary] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [baseline, setBaseline] = useState<any>(null);
 
-  // --- ACCESS CONTROL ---
-  // Only elite roles get access
-  const hasAccess = user && ['admin', 'cpa', 'premium', 'premium_member', 'support'].includes(user.role);
+  const [revenueGrowth, setRevenueGrowth] = useState(10);
+  const [expenseMultiplier, setExpenseMultiplier] = useState(1.0);
+  const [simulationTrend, setSimulationTrend] = useState<any[]>([]);
 
-  useEffect(() => {
+  const hasAccess =
+    user && ['admin', 'cpa', 'premium', 'premium_member'].includes(user.role);
+
+  const runSimulation = useCallback(
+    (startBalance: number, growth: number, burn: number) => {
+      const trend = [];
+      let rolling = startBalance;
+      const monthlyIncome = 5000;
+      const monthlyExpense = 3500;
+
+      for (let i = 0; i <= 6; i++) {
+        trend.push({
+          value: Number(rolling.toFixed(0)),
+          label: i === 0 ? 'Now' : `${i}M`,
+          dataPointText:
+            i === 6 ? `$${Math.round(rolling / 1000)}k` : undefined,
+        });
+        rolling += monthlyIncome * growth - monthlyExpense * burn;
+      }
+      setSimulationTrend(trend);
+    },
+    []
+  );
+
+  const initializeLab = useCallback(async () => {
     if (!user) return;
     if (!hasAccess) {
-        Alert.alert("Restricted Access", "This feature is for Premium users only.");
-        router.replace('/(main)/');
-        return;
+      Alert.alert(
+        'Premium Feature',
+        'Upgrade to Titan-4 to access the Scenario Lab.'
+      );
+      router.replace('/(main)/');
+      return;
     }
 
-    const loadData = async () => {
-        try {
-            const summary = await dataService.getFinancialSummary(user.id);
-            setCurrentSummary(summary);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
-    loadData();
-  }, [user]);
+    try {
+      const forecast = await AnalysisService.generateCashFlowForecast(user.id);
+      const startValue = forecast[0]?.value || 15000;
+      setBaseline({ value: startValue });
+      runSimulation(startValue, 1.1, 1.0);
+    } catch (e) {
+      console.error('[ScenarioLab] Init Error:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, hasAccess, runSimulation, router]);
 
-  // --- CALCULATION ENGINE ---
-  const projectedData = useMemo(() => {
-    if (!currentSummary) return null;
+  useEffect(() => {
+    initializeLab();
+  }, [initializeLab]);
 
-    const baseIncome = currentSummary.income || 5000; // Fallback for simulation
-    const baseExpense = currentSummary.expense || 3000;
-    const currentBalance = currentSummary.balance || 0;
+  const handleSliderChange = (type: 'growth' | 'burn', val: number) => {
+    Haptics.selectionAsync();
+    const currentGrowth = type === 'growth' ? val : revenueGrowth;
+    const currentBurn = type === 'burn' ? val : expenseMultiplier;
 
-    // Multipliers
-    const revMultiplier = 1 + (drivers.revenueGrowth / 100);
-    const expMultiplier = 1 - (drivers.expenseReduction / 100);
-    
-    // Projections
-    const projIncome = baseIncome * revMultiplier;
-    const projExpense = baseExpense * expMultiplier;
-    const monthlyNet = projIncome - projExpense;
+    if (type === 'growth') setRevenueGrowth(val);
+    if (type === 'burn') setExpenseMultiplier(val);
 
-    // Generate 6-month Trend
-    const labels = ['Now', '1M', '2M', '3M', '4M', '5M'];
-    const data = labels.map((_, i) => {
-        return Math.round(currentBalance + (monthlyNet * i));
-    });
+    runSimulation(baseline?.value || 0, 1 + currentGrowth / 100, currentBurn);
+  };
 
-    return {
-        balance: data[5], // Ending balance
-        chartData: {
-            labels,
-            datasets: [{ data, color: (opacity = 1) => `rgba(100, 255, 218, ${opacity})`, strokeWidth: 3 }]
-        }
-    };
-  }, [currentSummary, drivers]);
+  const handleSaveScenario = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-  if (!hasAccess) return null; // Handled by useEffect
-  if (loading || !projectedData) {
-      return (
-          <View className="flex-1 items-center justify-center bg-[#0A192F]">
-              <ActivityIndicator color="#64FFDA" />
-          </View>
-      );
-  }
+    try {
+      await ScenarioService.createScenario(user.id, {
+        name: `Simulation: ${revenueGrowth}% Growth`,
+        drivers: [
+          {
+            name: 'Revenue Growth',
+            key: 'rev_growth',
+            value: revenueGrowth,
+            unit: 'percent',
+          },
+          {
+            name: 'Expense Multiplier',
+            key: 'exp_mult',
+            value: expenseMultiplier,
+            unit: 'count',
+          },
+        ],
+      });
+      Alert.alert('Universe Created', 'Scenario synced to your cloud profile.');
+    } catch (e) {
+      Alert.alert('Sync Failed', 'Could not persist scenario.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-  const diff = projectedData.balance - (currentSummary?.balance || 0);
-  const isPositive = diff >= 0;
+  if (loading)
+    return (
+      <View className="flex-1 bg-[#020617] items-center justify-center">
+        <ActivityIndicator color="#22d3ee" />
+      </View>
+    );
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0A192F]">
-      <ScrollView className="flex-1 p-6">
-        
-        {/* Header */}
-        <View className="flex-row items-center justify-between mb-6">
-            <View className="flex-row items-center gap-3">
-                <TouchableOpacity onPress={() => router.back()} className="p-2 rounded-full active:bg-white/5">
-                    <ArrowLeft size={24} color="#8892B0" />
-                </TouchableOpacity>
-                <View>
-                    <Text className="text-2xl font-bold text-white">Scenario Lab</Text>
-                    <Text className="text-xs text-[#8892B0]">Titan 4: Forecasting</Text>
-                </View>
-            </View>
-        </View>
+    <SafeAreaView className="flex-1 bg-[#020617]">
+      <StatusBar barStyle="light-content" />
 
-        {/* 1. VISUALIZATION CARD */}
-        <GlassCard className="p-4 mb-6 border border-[#233554] bg-[#112240]/50">
-            <View className="flex-row justify-between mb-4">
-                <View>
-                    <Text className="text-xs font-bold uppercase text-[#8892B0]">Projected Balance (6mo)</Text>
-                    <Text className="mt-1 text-3xl font-bold text-white">
-                        ${projectedData.balance.toLocaleString()}
-                    </Text>
-                </View>
-                <View className="items-end">
-                    <View className="flex-row items-center px-2 py-1 border rounded-lg bg-[#0A192F] border-[#233554]">
-                        {isPositive ? <TrendingUp size={14} color="#64FFDA" /> : <TrendingDown size={14} color="#FF6B6B" />}
-                        <Text className={`ml-1 font-bold ${isPositive ? 'text-[#64FFDA]' : 'text-[#FF6B6B]'}`}>
-                            {isPositive ? '+' : ''}{diff.toLocaleString()}
-                        </Text>
-                    </View>
-                    <Text className="mt-1 text-xs text-[#8892B0]">vs Today</Text>
-                </View>
+      {/* HEADER */}
+      <View className="flex-row items-center justify-between px-6 py-4">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="p-2 border rounded-full bg-white/5 border-white/10"
+        >
+          <ArrowLeft size={20} color="#94a3b8" />
+        </TouchableOpacity>
+        <View className="items-center">
+          <Text className="text-white font-black text-xs uppercase tracking-[3px]">
+            Titan 4 Engine
+          </Text>
+          <Text className="text-cyan-400 text-[10px] font-bold">
+            Scenario Lab v2.1
+          </Text>
+        </View>
+        <TouchableOpacity className="p-2 border rounded-full bg-white/5 border-white/10">
+          <Layers size={20} color="#22d3ee" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
+        {/* CHART CARD */}
+        <Animated.View entering={FadeInDown.duration(800)} className="mb-8">
+          <BlurView
+            intensity={30}
+            tint="dark"
+            className="rounded-[40px] overflow-hidden border border-white/10 p-6"
+          >
+            <View className="flex-row justify-between mb-8">
+              <View>
+                <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                  Ending Position (6M)
+                </Text>
+                <Text className="mt-1 text-4xl font-black text-white">
+                  ${simulationTrend[6]?.value.toLocaleString()}
+                </Text>
+              </View>
+              <View className="self-start px-4 py-2 border bg-cyan-500/10 rounded-2xl border-cyan-500/20">
+                <Text className="text-xs font-black text-cyan-400">
+                  +{revenueGrowth}% VELOCITY
+                </Text>
+              </View>
             </View>
 
             <LineChart
-                data={projectedData.chartData}
-                width={Dimensions.get("window").width - 80}
-                height={180}
-                chartConfig={{
-                    backgroundColor: '#112240',
-                    backgroundGradientFrom: '#112240',
-                    backgroundGradientTo: '#112240',
-                    decimalPlaces: 0,
-                    color: (opacity = 1) => `rgba(100, 255, 218, ${opacity})`,
-                    labelColor: (opacity = 1) => `rgba(136, 146, 176, ${opacity})`,
-                    style: { borderRadius: 16 },
-                    propsForDots: { r: "4", strokeWidth: "2", stroke: "#0A192F" }
-                }}
-                bezier
-                style={{ marginVertical: 8, borderRadius: 16 }}
+              data={simulationTrend}
+              height={180}
+              width={screenWidth - 100}
+              color="#22d3ee"
+              thickness={4}
+              startFillColor="rgba(34, 211, 238, 0.3)"
+              endFillColor="rgba(34, 211, 238, 0.01)"
+              areaChart
+              curved
+              hideDataPoints
+              hideRules
+              yAxisThickness={0}
+              xAxisThickness={0}
+              yAxisTextStyle={{ color: '#475569', fontSize: 10 }}
+              xAxisLabelTextStyle={{ color: '#475569', fontSize: 10 }}
             />
-        </GlassCard>
+          </BlurView>
+        </Animated.View>
 
-        {/* 2. DRIVERS */}
-        <Text className="mb-4 text-lg font-bold text-white">Adjust Variables</Text>
-        
-        <View className="p-4 mb-4 border bg-[#112240] rounded-xl border-[#233554]">
-            <View className="flex-row justify-between mb-2">
-                <Text className="text-white">Revenue Growth</Text>
-                <Text className="font-bold text-[#64FFDA]">{drivers.revenueGrowth}%</Text>
+        <Text className="mb-6 text-lg font-black text-white">
+          Simulation Levers
+        </Text>
+
+        <View className="gap-4 mb-10">
+          {/* REVENUE GROWTH */}
+          <GlassCard className="p-5">
+            <View className="flex-row items-center justify-between mb-4">
+              <View className="flex-row items-center gap-3">
+                <TrendingUp size={20} color="#22d3ee" />
+                <Text className="font-bold text-white">Revenue Growth</Text>
+              </View>
+              <Text className="font-black text-cyan-400">{revenueGrowth}%</Text>
             </View>
-            <Slider
-                style={{ width: '100%', height: 40 }}
-                minimumValue={-20} maximumValue={100} step={1}
-                value={drivers.revenueGrowth}
-                onValueChange={(val) => setDrivers(p => ({...p, revenueGrowth: val}))}
-                minimumTrackTintColor="#64FFDA" maximumTrackTintColor="#233554" thumbTintColor="#FFFFFF"
+            <NFSlider
+              minimumValue={-50}
+              maximumValue={200}
+              step={1}
+              value={revenueGrowth}
+              onValueChange={(v) => handleSliderChange('growth', v)}
+              minimumTrackTintColor="#22d3ee"
+              maximumTrackTintColor="#1e293b"
+              thumbTintColor="#ffffff"
             />
-        </View>
+          </GlassCard>
 
-        <View className="p-4 mb-4 border bg-[#112240] rounded-xl border-[#233554]">
-            <View className="flex-row justify-between mb-2">
-                <Text className="text-white">Expense Reduction</Text>
-                <Text className="font-bold text-[#64FFDA]">{drivers.expenseReduction}%</Text>
+          {/* BURN MULTIPLIER */}
+          <GlassCard className="p-5">
+            <View className="flex-row items-center justify-between mb-4">
+              <View className="flex-row items-center gap-3">
+                <TrendingDown size={20} color="#f43f5e" />
+                <Text className="font-bold text-white">Burn Multiplier</Text>
+              </View>
+              <Text className="font-black text-rose-400">
+                {expenseMultiplier.toFixed(1)}x
+              </Text>
             </View>
-            <Slider
-                style={{ width: '100%', height: 40 }}
-                minimumValue={0} maximumValue={50} step={1}
-                value={drivers.expenseReduction}
-                onValueChange={(val) => setDrivers(p => ({...p, expenseReduction: val}))}
-                minimumTrackTintColor="#64FFDA" maximumTrackTintColor="#233554" thumbTintColor="#FFFFFF"
+            <NFSlider
+              minimumValue={0.5}
+              maximumValue={2.5}
+              step={0.1}
+              value={expenseMultiplier}
+              onValueChange={(v) => handleSliderChange('burn', v)}
+              minimumTrackTintColor="#f43f5e"
+              maximumTrackTintColor="#1e293b"
+              thumbTintColor="#ffffff"
             />
+          </GlassCard>
         </View>
 
-        {/* 3. ACTIONS */}
-        <View className="flex-row gap-4 mb-10">
-            <TouchableOpacity 
-                className="flex-1 flex-row items-center justify-center h-14 border bg-[#112240] border-[#233554] rounded-xl"
-                onPress={() => setDrivers({ revenueGrowth: 0, expenseReduction: 0, inflation: 2.5 })}
-            >
-                <RotateCcw size={20} color="#8892B0" />
-                <Text className="ml-2 font-bold text-[#8892B0]">Reset</Text>
-            </TouchableOpacity>
+        {/* ACTIONS */}
+        <View className="flex-row gap-4 mb-12">
+          <TouchableOpacity
+            onPress={() => {
+              setRevenueGrowth(10);
+              setExpenseMultiplier(1.0);
+              runSimulation(baseline?.value || 0, 1.1, 1.0);
+            }}
+            className="items-center justify-center flex-1 h-16 border bg-white/5 rounded-3xl border-white/10"
+          >
+            <RotateCcw size={20} color="#94a3b8" />
+            <Text className="text-slate-400 font-bold mt-1 text-[10px] uppercase">
+              Reset
+            </Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity 
-                className="flex-1 flex-row items-center justify-center h-14 bg-[#64FFDA] rounded-xl shadow-lg"
-                onPress={() => { setIsSaving(true); setTimeout(() => { setIsSaving(false); Alert.alert("Saved", "Scenario saved to profile."); }, 1000); }}
-                disabled={isSaving}
-            >
-                {isSaving ? <ActivityIndicator color="#0A192F" /> : (
-                    <>
-                        <Save size={20} color="#0A192F" />
-                        <Text className="ml-2 font-bold text-[#0A192F]">Save</Text>
-                    </>
-                )}
-            </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleSaveScenario}
+            disabled={isSaving}
+            className="flex-[2] bg-cyan-500 h-16 rounded-3xl items-center justify-center flex-row gap-3"
+          >
+            {isSaving ? (
+              <ActivityIndicator color="#020617" />
+            ) : (
+              <>
+                <Sparkles size={20} color="#020617" />
+                <Text className="font-black tracking-widest uppercase text-slate-950">
+                  Sync Universe
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );

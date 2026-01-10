@@ -1,255 +1,268 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
+  RefreshControl,
+} from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AlertTriangle } from 'lucide-react-native';
+import {
+  ShieldCheck,
+  TrendingUp,
+  Zap,
+  Info,
+  ArrowLeft,
+} from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 
+// --- TITAN SERVICE ARCHITECTURE ---
 import { useAuth } from '@/shared/context/AuthContext';
-import { getFinancialSummary, getFinancialHealthScore } from '@/services/dataService';
 import { FinancialBrain } from '@/services/financialBrain';
+import { AnalysisService } from '@/services/analysisService';
+import { TaxAgentService } from '@/services/taxAgentService';
 
-// --- Types ---
 interface KPI {
   label: string;
   value: string;
   status: 'healthy' | 'warning' | 'critical';
   benchmark: string;
   description: string;
+  icon: any;
 }
 
 export default function FinancialScorecard() {
-  const router = useRouter();
   const { user } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [healthScore, setHealthScore] = useState(0);
+  const [taxSavings, setTaxSavings] = useState({ total: 0, estimated: 0 });
   const [aiInsight, setAiInsight] = useState<string>('');
-  const isCalculatingRef = useRef(false);
 
-  const calculateFinancialHealth = useCallback(async () => {
+  const syncExecutiveData = useCallback(async () => {
     if (!user?.id) return;
-    
-    // Prevent multiple simultaneous calls
-    if (isCalculatingRef.current) {
-      console.log('Already calculating, skipping...');
-      return;
-    }
-    
+    setLoading(true);
+
     try {
-      isCalculatingRef.current = true;
-      setLoading(true);
-      
-      // Use unified data service
-      const summary = await getFinancialSummary(user.id);
-      const score = await getFinancialHealthScore(user.id);
-      
-      const income = summary.income;
-      const expense = summary.expense;
-      const balance = summary.balance;
-      const netIncome = income - expense;
+      // 1. Concurrent execution of heavy analytical logic
+      const [health, safeSpend, savings, advisorInsight] = await Promise.all([
+        FinancialBrain.calculateHealthMetrics(user.id),
+        AnalysisService.calculateSafeToSpend(user.id),
+        TaxAgentService.getLiveSavings(user.id),
+        FinancialBrain.askAdvisor(
+          user.id,
+          'Perform a SWOT analysis of my current liquidity and tax position.'
+        ),
+      ]);
 
-      // Calculate Ratios
-      const profitMargin = income > 0 ? (netIncome / income) * 100 : 0;
-      let marginStatus: KPI['status'] = 'critical';
-      if (profitMargin > 20) marginStatus = 'healthy';
-      else if (profitMargin > 0) marginStatus = 'warning';
+      setHealthScore(health.score);
+      setTaxSavings({
+        total: savings.totalDeductions,
+        estimated: savings.estimatedTaxSavings,
+      });
+      setAiInsight(advisorInsight);
 
-      // Monthly burn rate (assuming expense is monthly)
-      const monthlyBurn = expense;
-      const runway = monthlyBurn > 0 ? balance / monthlyBurn : 99;
-      let runwayStatus: KPI['status'] = 'critical';
-      if (runway > 6) runwayStatus = 'healthy';
-      else if (runway > 3) runwayStatus = 'warning';
-
-      const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
-      let savingsStatus: KPI['status'] = 'critical';
-      if (savingsRate > 15) savingsStatus = 'healthy';
-      else if (savingsRate > 5) savingsStatus = 'warning';
-      
-      // Construct KPIs
+      // 2. Mapping Service Intelligence to KPIs
       const computedKPIs: KPI[] = [
         {
-          label: 'Net Profit Margin',
-          value: `${profitMargin.toFixed(1)}%`,
-          status: marginStatus,
-          benchmark: '> 20%',
-          description: 'Percentage of revenue kept as profit.'
-        },
-        {
           label: 'Cash Runway',
-          value: `${runway.toFixed(1)} Months`,
-          status: runwayStatus,
+          value: `${(safeSpend.daysUntilPayday / 30).toFixed(1)} Months`,
+          status:
+            safeSpend.daysUntilPayday > 180
+              ? 'healthy'
+              : safeSpend.daysUntilPayday > 90
+              ? 'warning'
+              : 'critical',
           benchmark: '> 6 Months',
-          description: 'Time until cash runs out at current spend rate.'
+          description:
+            'Projected liquidity based on weighted burn rate analysis.',
+          icon: ShieldCheck,
         },
         {
-          label: 'Monthly Burn',
-          value: `$${monthlyBurn.toLocaleString()}`,
-          status: monthlyBurn > 5000 ? 'warning' : 'healthy',
-          benchmark: '< $5k',
-          description: 'Total cash spent in the last 30 days.'
+          label: 'Daily Safe-Limit',
+          value: `$${safeSpend.safeToSpend.toFixed(2)}`,
+          status: safeSpend.risk_level === 'low' ? 'healthy' : 'warning',
+          benchmark: 'Sustainable Cap',
+          description:
+            'Automated spending ceiling to preserve fixed commitments.',
+          icon: Zap,
         },
         {
-          label: 'Savings Rate',
-          value: `${savingsRate.toFixed(1)}%`,
-          status: savingsStatus,
-          benchmark: '> 15%',
-          description: 'Percentage of income saved after expenses.'
-        }
+          label: 'Tax Recovery',
+          value: `$${savings.estimatedTaxSavings.toFixed(0)}`,
+          status: 'healthy',
+          benchmark: 'Audit-Defended',
+          description:
+            'Real-time estimated tax return via AI-verified deductions.',
+          icon: TrendingUp,
+        },
       ];
 
       setKpis(computedKPIs);
-      setHealthScore(score);
-
-      // Get AI-powered insight (Titan 2 - Active Intelligence)
-      // Use timeout to prevent hanging
-      try {
-        const insightPromise = FinancialBrain.askFinancialAdvisor(
-          user.id,
-          `Analyze my financial health. My score is ${score}/100. Income: $${income.toFixed(2)}, Expenses: $${expense.toFixed(2)}, Balance: $${balance.toFixed(2)}. Provide actionable advice.`
-        );
-        
-        const timeoutPromise = new Promise<string>((_, reject) => 
-          setTimeout(() => reject(new Error('AI timeout')), 10000)
-        );
-        
-        const insight = await Promise.race([insightPromise, timeoutPromise]);
-        setAiInsight(insight);
-      } catch (aiError) {
-        console.error('AI Insight Error:', aiError);
-        setAiInsight(''); // Fallback to static message
-      }
-
     } catch (e) {
-      console.error('Scorecard Error:', e);
+      console.error('[Scorecard] Critical Sync Error:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
-      isCalculatingRef.current = false;
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    calculateFinancialHealth();
-  }, [calculateFinancialHealth]);
-
-  useFocusEffect(useCallback(() => {
-    // Only refresh if not currently loading/calculating
-    if (!isCalculatingRef.current && !loading) {
-      calculateFinancialHealth();
-    }
-  }, [calculateFinancialHealth]));
+  useFocusEffect(
+    useCallback(() => {
+      syncExecutiveData();
+    }, [syncExecutiveData])
+  );
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'healthy': return '#10B981'; // Emerald
-      case 'warning': return '#F59E0B'; // Amber
-      case 'critical': return '#EF4444'; // Red
-      default: return '#64748B';
-    }
+    if (status === 'healthy') return '#22d3ee'; // Cyan (North Theme)
+    if (status === 'warning') return '#f59e0b'; // Amber
+    return '#f43f5e'; // Rose
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0A192F]">
-      <Stack.Screen 
-        options={{ 
-          title: "Financial Health Scorecard", 
-          headerStyle: { backgroundColor: '#0A192F' },
-          headerTintColor: '#fff'
-        }} 
-      />
-      
-      {/* Hero Section: The Score */}
-      <LinearGradient
-        colors={['#112240', '#0A192F']}
-        className="px-6 pt-8 pb-10"
-        style={{ elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
-      >
-        <View className="items-center">
-          <Text className="text-xs font-bold tracking-widest uppercase text-[#8892B0]">
-            Overall Health Score
-          </Text>
-          <Text className="mt-2 text-6xl font-extrabold text-white">
-            {healthScore}
-          </Text>
-          <View className={`px-4 py-2 mt-3 rounded-full ${
-            healthScore > 80 ? 'bg-green-500/20 border border-green-500/30' :
-            healthScore > 50 ? 'bg-yellow-500/20 border border-yellow-500/30' :
-            'bg-red-500/20 border border-red-500/30'
-          }`}>
-             <Text className={`text-sm font-bold ${
-               healthScore > 80 ? 'text-green-400' :
-               healthScore > 50 ? 'text-yellow-400' :
-               'text-red-400'
-             }`}>
-               {healthScore > 80 ? 'Excellent' : healthScore > 50 ? 'Needs Work' : 'Critical'}
-             </Text>
-          </View>
-        </View>
-      </LinearGradient>
+    <SafeAreaView className="flex-1 bg-[#020617]" edges={['top']}>
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView 
-        contentContainerStyle={{ padding: 24, paddingTop: 16 }} 
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={calculateFinancialHealth} tintColor="#64FFDA" />}
+      {/* Premium Navigation Header */}
+      <View className="flex-row items-center justify-between px-6 py-4">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="p-2 rounded-full bg-white/5"
+        >
+          <ArrowLeft size={20} color="#94a3b8" />
+        </TouchableOpacity>
+        <Text className="text-white font-black text-xs uppercase tracking-[3px]">
+          Financial Scorecard
+        </Text>
+        <View className="w-10" />
+      </View>
+
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={syncExecutiveData}
+            tintColor="#22d3ee"
+          />
+        }
+        contentContainerStyle={{ paddingBottom: 40 }}
       >
-        {loading ? (
-           <View className="items-center justify-center py-20">
-             <ActivityIndicator size="large" color="#64FFDA" />
-             <Text className="text-[#8892B0] mt-4">Calculating health metrics...</Text>
-           </View>
-        ) : (
-          <>
-            <Text className="mb-6 text-xl font-bold text-white">
-              Key Performance Indicators
+        {/* HERO: The Wealth Pulse */}
+        <LinearGradient
+          colors={['#083344', '#020617']}
+          className="px-6 pt-12 pb-16 rounded-b-[48px]"
+        >
+          <Animated.View
+            entering={FadeIn.duration(800)}
+            className="items-center"
+          >
+            <View className="items-center justify-center border-2 rounded-full w-44 h-44 border-white/5">
+              <View className="absolute border-4 rounded-full inset-2 border-cyan-500/20" />
+              <Text className="font-black text-white text-7xl">
+                {healthScore}
+              </Text>
+              <Text className="text-cyan-400 text-[10px] font-black uppercase tracking-[3px]">
+                Vitality Index
+              </Text>
+            </View>
+            <Text className="px-12 mt-8 text-sm font-medium leading-5 text-center text-slate-400">
+              Your capital velocity is{' '}
+              {healthScore > 75 ? 'optimized' : 'constrained'}.
+              {healthScore > 75
+                ? ' High potential for reinvestment.'
+                : ' Focus on runway extension and tax shielding.'}
             </Text>
+          </Animated.View>
+        </LinearGradient>
 
-            {/* KPI Cards */}
-            <View className="gap-4 mb-8">
-              {kpis.map((kpi, index) => (
-                <View 
-                  key={index} 
-                  className="bg-[#112240] p-5 rounded-2xl border border-white/5"
-                  style={{ borderLeftWidth: 4, borderLeftColor: getStatusColor(kpi.status) }}
+        <View className="px-6 -mt-10">
+          {/* AI CFO INSIGHT: Glassmorphism Card */}
+          <BlurView
+            intensity={30}
+            tint="dark"
+            className="p-6 rounded-[32px] border border-white/10 overflow-hidden mb-8"
+          >
+            <View className="flex-row items-center gap-2 mb-4">
+              <Info size={16} color="#22d3ee" />
+              <Text className="text-cyan-400 font-black text-[10px] uppercase tracking-widest">
+                Titan-2 Advisory Insight
+              </Text>
+            </View>
+            <Text className="text-sm italic leading-6 text-slate-200">
+              "{aiInsight}"
+            </Text>
+          </BlurView>
+
+          {/* KPI PERFORMANCE GRID */}
+          <Text className="mb-5 ml-1 text-lg font-black text-white">
+            Performance Indicators
+          </Text>
+          {loading ? (
+            <ActivityIndicator color="#22d3ee" className="py-20" />
+          ) : (
+            <View className="gap-4">
+              {kpis.map((kpi, idx) => (
+                <Animated.View
+                  key={idx}
+                  entering={FadeInDown.delay(idx * 150).springify()}
+                  className="bg-white/5 rounded-[28px] p-6 border border-white/10"
                 >
-                  <View className="flex-row items-start justify-between mb-3">
-                    <View className="flex-1">
-                      <Text className="text-xs font-bold uppercase text-[#8892B0] tracking-wider">{kpi.label}</Text>
-                      <Text className="mt-2 text-3xl font-extrabold text-white">{kpi.value}</Text>
+                  <View className="flex-row items-start justify-between">
+                    <View className="flex-row items-center gap-4">
+                      <View className="p-3 rounded-2xl bg-white/5">
+                        <kpi.icon
+                          size={22}
+                          color={getStatusColor(kpi.status)}
+                        />
+                      </View>
+                      <View>
+                        <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                          {kpi.label}
+                        </Text>
+                        <Text className="mt-1 text-3xl font-black text-white">
+                          {kpi.value}
+                        </Text>
+                      </View>
                     </View>
-                    <View className="bg-[#0A192F] px-3 py-1.5 rounded-lg border border-white/5">
-                       <Text className="text-xs text-[#8892B0] font-medium">Target: {kpi.benchmark}</Text>
+                    <View className="bg-slate-900/50 px-3 py-1.5 rounded-xl border border-white/5">
+                      <Text className="text-[10px] text-slate-400 font-black uppercase">
+                        {kpi.benchmark}
+                      </Text>
                     </View>
                   </View>
-                  <Text className="text-xs text-[#8892B0] leading-5">{kpi.description}</Text>
-                </View>
+                  <Text className="mt-5 text-xs font-medium leading-5 text-slate-500">
+                    {kpi.description}
+                  </Text>
+                </Animated.View>
               ))}
             </View>
+          )}
 
-            {/* Strategic Insights Section */}
-            <View className="mb-8">
-              <Text className="mb-4 text-xl font-bold text-white">
-                Strategic Insights
+          {/* TAX RECOVERY ACTION CALL */}
+          <TouchableOpacity
+            onPress={() => router.push('/(main)/cpa/tax-reports')}
+            activeOpacity={0.8}
+            className="mt-8 bg-cyan-500 p-6 rounded-[32px] flex-row items-center justify-between"
+          >
+            <View>
+              <Text className="text-xl font-black text-slate-950">
+                Tax Shield Active
               </Text>
-              <View className="bg-[#112240] p-5 rounded-2xl border border-white/5">
-                 <View className="flex-row items-center gap-3 mb-3">
-                   <View className="w-10 h-10 rounded-full bg-yellow-500/10 items-center justify-center border border-yellow-500/20">
-                     <AlertTriangle size={20} color="#F59E0B" />
-                   </View>
-                   <Text className="text-lg font-bold text-white">AI CFO Analysis</Text>
-                 </View>
-                 <Text className="leading-6 text-[#8892B0]">
-                   {aiInsight || (healthScore > 80 
-                     ? "Your financial health is strong. Consider optimizing tax deductions and exploring investment opportunities."
-                     : healthScore > 50
-                     ? "Your burn rate is manageable but could be optimized. Review subscription spending and consider increasing revenue streams."
-                     : "Immediate action required. Your cash runway is critical. Focus on reducing expenses and increasing income immediately.")}
-                 </Text>
-              </View>
+              <Text className="text-xs font-bold text-slate-900 opacity-70">
+                Secured ${taxSavings.estimated} in deductions
+              </Text>
             </View>
-          </>
-        )}
+            <View className="p-3 rounded-full bg-slate-950/20">
+              <TrendingUp size={24} color="#020617" />
+            </View>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

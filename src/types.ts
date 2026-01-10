@@ -253,6 +253,13 @@ export interface SafeSpendMetrics {
   next_payday?: string;
 }
 
+export interface HealthMetrics {
+  score: number;
+  status: 'Elite' | 'Healthy' | 'Stable' | 'Critical';
+  recommendation: string;
+  safeToSpend: number;
+}
+
 export interface CashFlowPoint {
   date: string;
   value: number;

@@ -1,63 +1,69 @@
 /**
- * ============================================================================
- * 🧭 ORGANIZATION NAVIGATION LAYOUT
- * ============================================================================
- * Configures the navigation stack for the Organization module.
- * Enforces the "Deep Navy" (#0A192F) aesthetic consistent with the brand.
- * ============================================================================
+ * src/app/(main)/organization/_layout.tsx
+ * ROLE: The Organization Navigation Root.
+ * PURPOSE: Standardizes the "Deep Slate" design and native performance transitions.
  */
 
 import { Stack } from 'expo-router';
 import { Platform } from 'react-native';
 import React from 'react';
+import { BlurView } from 'expo-blur';
 
 export default function OrganizationLayout() {
   return (
     <Stack
       screenOptions={{
-        // --- Appearance ---
+        // --- Premium Appearance ---
         headerStyle: {
-          backgroundColor: '#0A192F', // Deep Navy Brand Color
+          backgroundColor: '#020617', // Optimized Slate-950
         },
-        headerTintColor: '#64FFDA',   // Teal Accent for Back Buttons/Icons
+        headerTintColor: '#22d3ee', // North Cyan Accent
         headerTitleStyle: {
-          color: '#E2E8F0',           // Slate 200 for Readability
-          fontWeight: '600',
-          fontSize: 17,
+          color: '#f8fafc', // Slate 50
+          fontWeight: '900',
+          fontSize: 16,
         },
-        headerShadowVisible: false,   // Flat Modern Look
-        
-        // --- Content Container ---
+        headerShadowVisible: false,
+        headerTransparent: Platform.OS === 'ios',
+        headerBlurEffect: 'systemThickMaterialDark', // Glassmorphism backdrop
+
+        // --- Structural Content ---
         contentStyle: {
-          backgroundColor: '#0A192F',
-          borderTopWidth: 1,
-          borderTopColor: '#112240',  // Subtle separator
+          backgroundColor: '#020617',
         },
-        
-        // --- Animation ---
-        animation: Platform.OS === 'android' ? 'fade_from_bottom' : 'default',
+
+        // --- Animation Logic ---
+        animation: Platform.OS === 'android' ? 'slide_from_bottom' : 'default',
+        gestureEnabled: true,
       }}
     >
-      <Stack.Screen 
-        name="index" 
-        options={{ 
+      <Stack.Screen
+        name="index"
+        options={{
           title: 'Organization HQ',
-          headerLargeTitle: true, // iOS Native Feel
-          headerLargeTitleStyle: { color: '#FFFFFF' }
-        }} 
+          headerLargeTitle: true,
+          headerLargeTitleStyle: {
+            color: '#FFFFFF',
+            fontFamily: 'Inter-Black',
+          },
+          headerSearchBarOptions: {
+            placeholder: 'Search entities...',
+            textColor: '#fff',
+          },
+        }}
       />
-      <Stack.Screen 
-        name="members" 
-        options={{ 
-          title: 'Team Management',
-          presentation: 'card'
-        }} 
+      <Stack.Screen
+        name="members"
+        options={{
+          title: 'Directorship',
+          presentation: 'modal', // High-end focus for team management
+        }}
       />
-      <Stack.Screen 
-        name="audit-log" 
-        options={{ 
-          title: 'Audit Trail',
-        }} 
+      <Stack.Screen
+        name="audit-log"
+        options={{
+          title: 'Compliance Vault',
+        }}
       />
     </Stack>
   );

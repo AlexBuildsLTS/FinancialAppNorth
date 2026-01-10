@@ -5,9 +5,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "jsx": "react-native",
-    "lib": [
-      "es2021"
-    ],
+    "lib": ["es2021"],
     "module": "esnext",
     "noEmit": true,
     "resolveJsonModule": true,
@@ -18,9 +16,7 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"]
     }
   },
   "exclude": [
@@ -30,9 +26,5 @@
     "jest.config.js",
     "supabase/functions"
   ],
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "nativewind-env.d.ts"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", "nativewind-env.d.ts"]
 }

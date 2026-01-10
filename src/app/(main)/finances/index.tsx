@@ -1,321 +1,275 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { 
-  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar 
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  StatusBar,
 } from 'react-native';
 import {
-  TrendingUp, TrendingDown, DollarSign, Sparkles, ArrowRight, Wallet, Receipt, CreditCard, BarChart3, Activity
-} from 'lucide-react-native'; 
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Sparkles,
+  ArrowRight,
+  Wallet,
+  Receipt,
+  CreditCard,
+  Activity,
+  Zap,
+} from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../../shared/context/AuthContext';
-/**
- * ============================================================================
- * 🏦 NORTHFINANCE: FINANCIAL OPERATING SYSTEM - CFO DASHBOARD
- * ============================================================================
- * The central command center for financial intelligence.
- * Displays real-time metrics, AI insights, and predictive forecasting.
- * Designed for solopreneurs to Fortune 500 teams.
- * ============================================================================
- */
-
-import { getFinancialSummary, getTransactions } from '../../../services/dataService';
-import { generateFinancialInsight } from '../../../services/aiService';
-import { generateCashFlowForecast, getCashFlowRiskLevel } from '../../../services/analysisService';
+import { FinancialBrain } from '../../../services/financialBrain';
+import { dataService } from '../../../services/dataService';
 import { generateFinancialForecast } from '../../../lib/forecasting';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-gifted-charts';
-import { CashFlowPoint } from '../../../types';
+import { BlurView } from 'expo-blur';
+import { FlashList } from '@shopify/flash-list';
+import dayjs from 'dayjs';
 
-export default function FinanceOverviewScreen() {
-    const { user } = useAuth();
-    const router = useRouter();
-    
-    // State
-    const [metrics, setMetrics] = useState({ income: 0, expense: 0, balance: 0 });
-    const [insight, setInsight] = useState("Analyzing your spending habits...");
-    const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([]);
-    const [cashFlowRisk, setCashFlowRisk] = useState<'low' | 'medium' | 'high'>('low');
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    
-    // Titan 2: Predictive Forecasting State
-    const [forecastData, setForecastData] = useState<{ value: number; label: string }[]>([]);
+/**
+ * @component FinanceOverview
+ * @description The "NorthFinance" Command Center.
+ * Combines Titan-2 Predictive Intelligence with a High-Performance Glass UI.
+ */
+export default function FinanceOverview() {
+  const { user } = useAuth();
+  const router = useRouter();
 
-    // Load Data
-    const loadData = async () => {
-        if (!user) return;
-        try {
-            // 1. Get Numbers
-            const summary = await getFinancialSummary(user.id);
-            setMetrics(summary);
+  const [metrics, setMetrics] = useState({ income: 0, expense: 0, balance: 0 });
+  const [health, setHealth] = useState<any>(null);
+  const [insight, setInsight] = useState(
+    'Synchronizing with Financial Brain...'
+  );
+  const [forecastData, setForecastData] = useState<any[]>([]);
+  const [recentTxs, setRecentTxs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-            // 2. Get Cash Flow Forecast
-            const forecast = await generateCashFlowForecast(user.id);
-            setCashFlow(forecast);
-            setCashFlowRisk(getCashFlowRiskLevel(forecast));
+  const loadData = async () => {
+    if (!user) return;
+    try {
+      const [summary, healthData, txs] = await Promise.all([
+        dataService.getFinancialSummary(user.id),
+        FinancialBrain.calculateHealthMetrics(user.id),
+        dataService.getTransactions(user.id, 10),
+      ]);
 
-            // 3. Get AI Insight (Only if we have transactions)
-            const txs = await getTransactions(user.id);
-            if (txs.length > 0) {
-                const aiText = await generateFinancialInsight(user.id, txs);
-                setInsight(aiText);
-                
-                // 4. Generate Predictive Forecast (Titan 2 - FOS Feature)
-                // Convert transactions to forecasting format
-                const historicalData = txs
-                  .filter(t => t.date) // Only valid dates
-                  .map(t => ({
-                    date: new Date(t.date),
-                    value: Math.abs(Number(t.amount)) // Use absolute for trend analysis
-                  }))
-                  .sort((a, b) => a.date.getTime() - b.date.getTime()); // Sort chronologically
-                
-                if (historicalData.length >= 2) {
-                  const { forecast } = generateFinancialForecast(historicalData, 3); // 3 months ahead
-                  setForecastData(forecast.map(f => ({
-                    value: f.value,
-                    label: f.label
-                  })));
-                }
-            } else {
-                setInsight("Start adding transactions to get AI-powered financial advice!");
-            }
+      setMetrics(summary);
+      setHealth(healthData);
+      setRecentTxs(txs);
 
-        } catch (e) {
-            console.error("Finance Overview Error:", e);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
+      // Titan 2: AI Forecasting Logic
+      if (txs.length > 2) {
+        const historical = txs
+          .map((t) => ({
+            date: new Date(t.date),
+            value: Math.abs(Number(t.amount)),
+          }))
+          .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+        const { forecast } = generateFinancialForecast(historical, 3);
+        setForecastData(
+          forecast.map((f) => ({ value: f.value, label: f.label }))
+        );
+
+        const aiText = await FinancialBrain.askAdvisor(
+          user.id,
+          'Analyze my velocity and safety buffer.'
+        );
+        setInsight(aiText);
+      }
+    } catch (e) {
+      console.error('[FinanceDashboard] Sync Error:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [user])
+  );
+
+  const ActionButton = ({ title, subtitle, icon: Icon, color, route }: any) => (
+    <TouchableOpacity
+      onPress={() => router.push(route)}
+      activeOpacity={0.7}
+      className="mb-3 overflow-hidden border rounded-2xl border-white/10"
+    >
+      <BlurView
+        intensity={20}
+        tint="dark"
+        className="flex-row items-center justify-between p-4"
+      >
+        <View className="flex-row items-center gap-4">
+          <View
+            style={{ backgroundColor: `${color}20` }}
+            className="p-3 rounded-xl"
+          >
+            <Icon size={20} color={color} />
+          </View>
+          <View>
+            <Text className="text-base font-bold text-white">{title}</Text>
+            <Text className="text-xs text-slate-400">{subtitle}</Text>
+          </View>
+        </View>
+        <ArrowRight size={18} color="#475569" />
+      </BlurView>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View className="flex-1 bg-[#020617]">
+      <StatusBar barStyle="light-content" />
+
+      <ScrollView
+        className="flex-1 px-5"
+        contentContainerStyle={{ paddingBottom: 40, paddingTop: 20 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={loadData}
+            tintColor="#22d3ee"
+          />
         }
-    };
-
-    useFocusEffect(
-        useCallback(() => { loadData(); }, [user])
-    );
-
-    const onRefresh = () => {
-        setRefreshing(true);
-        loadData();
-    };
-
-    const StatCard = ({ title, value, icon: Icon, color, bg }: any) => (
-        <View className="flex-1 bg-[#112240] p-4 rounded-2xl border border-white/5 mx-1 shadow-sm">
-            <View className={`w-10 h-10 rounded-full items-center justify-center mb-3 ${bg}`}>
-                <Icon size={20} color={color} />
+      >
+        {/* HEADER & HEALTH SCORE */}
+        <View className="flex-row items-center justify-between mb-8">
+          <View>
+            <Text className="text-xs font-bold tracking-widest uppercase text-slate-500">
+              Financial OS
+            </Text>
+            <Text className="text-3xl font-black text-white">Dashboard</Text>
+          </View>
+          <View className="items-end">
+            <View className="px-3 py-1 border rounded-full bg-cyan-500/10 border-cyan-500/20">
+              <Text className="text-xs font-bold text-cyan-400">
+                SCORE: {health?.score || 0}
+              </Text>
             </View>
-            <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1">{title}</Text>
-            <Text className="text-xl font-bold text-white" numberOfLines={1}>{value}</Text>
+          </View>
         </View>
-    );
 
-    return (
-        <View className="flex-1 bg-[#0A192F]">
-            <StatusBar barStyle="light-content" />
-            <ScrollView 
-                className="flex-1 px-5"
-                contentContainerStyle={{ paddingBottom: 100, paddingTop: 20 }}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#64FFDA" />}
+        {/* AI INSIGHT CARD (Glassmorphic) */}
+        <View className="mb-8 overflow-hidden border rounded-3xl border-white/10">
+          <LinearGradient
+            colors={['rgba(34,211,238,0.15)', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <BlurView intensity={40} tint="dark" className="p-5">
+              <View className="flex-row items-center gap-2 mb-3">
+                <Sparkles size={16} color="#22d3ee" />
+                <Text className="text-cyan-400 font-black text-[10px] uppercase tracking-[2px]">
+                  Titan-2 Intelligence
+                </Text>
+              </View>
+              <Text className="text-sm font-medium leading-6 text-slate-200">
+                "{insight}"
+              </Text>
+            </BlurView>
+          </LinearGradient>
+        </View>
+
+        {/* METRICS GRID */}
+        <View className="flex-row gap-3 mb-8">
+          {[
+            {
+              label: 'Inflow',
+              val: metrics.income,
+              icon: TrendingUp,
+              col: '#4ade80',
+            },
+            {
+              label: 'Outflow',
+              val: metrics.expense,
+              icon: TrendingDown,
+              col: '#f87171',
+            },
+            { label: 'Net', val: metrics.balance, icon: Zap, col: '#22d3ee' },
+          ].map((item, i) => (
+            <View
+              key={i}
+              className="flex-1 p-4 border bg-white/5 rounded-2xl border-white/5"
             >
-                {/* Header */}
-                <View className="mb-8">
-                    <Text className="text-[#8892B0] text-sm font-medium">Financial Overview</Text>
-                    <Text className="text-3xl font-extrabold text-white">Your Wealth</Text>
-                </View>
-
-                {/* AI Insight Card */}
-                <LinearGradient
-                    colors={['#1D3255', '#112240']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    className="p-5 rounded-3xl border border-[#64FFDA]/20 mb-8"
-                >
-                    <View className="flex-row items-center gap-2 mb-3">
-                        <Sparkles size={18} color="#64FFDA" />
-                        <Text className="text-[#64FFDA] font-bold text-sm uppercase tracking-widest">AI Insight</Text>
-                    </View>
-                    <Text className="text-base font-medium leading-6 text-white">
-                        "{insight.replace(/"/g, '')}"
-                    </Text>
-                </LinearGradient>
-
-                {/* Metrics Row */}
-                <View className="flex-row justify-between mb-8">
-                    <StatCard 
-                        title="Income" 
-                        value={`$${metrics.income.toFixed(0)}`} 
-                        icon={TrendingUp} 
-                        color="#4ADE80" 
-                        bg="bg-green-500/10"
-                    />
-                    <StatCard 
-                        title="Expense" 
-                        value={`$${metrics.expense.toFixed(0)}`} 
-                        icon={TrendingDown} 
-                        color="#F87171" 
-                        bg="bg-red-500/10"
-                    />
-                    <StatCard 
-                        title="Net" 
-                        value={`$${metrics.balance.toFixed(0)}`} 
-                        icon={DollarSign} 
-                        color="#64FFDA" 
-                        bg="bg-[#64FFDA]/10"
-                    />
-                </View>
-
-                {/* Titan 2: AI Cash Flow Projection (FOS Predictive Intelligence) */}
-                {forecastData.length > 0 && (
-                    <View className="bg-[#112240] p-4 rounded-xl mt-6 border border-white/10 mb-8">
-                        <View className="flex-row items-center justify-between mb-4">
-                            <View>
-                                <Text className="text-white font-bold text-lg">AI Cash Flow Projection</Text>
-                                <Text className="text-[#8892B0] text-xs mt-1">3-Month Predictive Forecast</Text>
-                            </View>
-                            <View className="bg-[#64FFDA]/20 px-2 py-1 rounded">
-                                <Text className="text-[#64FFDA] text-xs font-bold">PREDICTIVE</Text>
-                            </View>
-                        </View>
-                        
-                        <LineChart
-                            data={forecastData}
-                            color="#64FFDA"
-                            thickness={3}
-                            dataPointsColor="#64FFDA"
-                            startFillColor="rgba(100, 255, 218, 0.3)"
-                            endFillColor="rgba(100, 255, 218, 0.01)"
-                            startOpacity={0.9}
-                            endOpacity={0.2}
-                            areaChart
-                            rulesColor="#333"
-                            yAxisTextStyle={{ color: '#8892B0', fontSize: 10 }}
-                            xAxisLabelTextStyle={{ color: '#8892B0', fontSize: 10 }}
-                            height={180}
-                            width={300}
-                            isAnimated
-                            animationDuration={1500}
-                        />
-                        <Text className="text-[#8892B0] text-xs mt-2 italic text-center">
-                            *Projection based on 6-month Linear Regression model (Titan 2 Engine)
-                        </Text>
-                    </View>
-                )}
-
-                {/* Cash Flow Forecast */}
-                {cashFlow.length > 0 && (
-                    <View className="mb-8">
-                        <View className="flex-row items-center mb-4">
-                            <BarChart3 size={20} color="#64FFDA" />
-                            <Text className="ml-2 text-lg font-bold text-white">30-Day Cash Flow</Text>
-                        </View>
-                        <View className="bg-[#112240] p-4 rounded-2xl border border-white/5">
-                            <View className="flex-row items-center justify-between mb-3">
-                                <Text className="text-[#8892B0] text-sm">Risk Level</Text>
-                                <View className={`flex-row items-center px-3 py-1 rounded-full ${
-                                    cashFlowRisk === 'high' ? 'bg-red-500/20' :
-                                    cashFlowRisk === 'medium' ? 'bg-yellow-500/20' : 'bg-green-500/20'
-                                }`}>
-                                    <TrendingDown size={12} color={
-                                        cashFlowRisk === 'high' ? '#F87171' :
-                                        cashFlowRisk === 'medium' ? '#F59E0B' : '#10B981'
-                                    } />
-                                    <Text className={`text-xs font-bold ml-1 ${
-                                        cashFlowRisk === 'high' ? 'text-red-400' :
-                                        cashFlowRisk === 'medium' ? 'text-yellow-400' : 'text-green-400'
-                                    }`}>
-                                        {cashFlowRisk.toUpperCase()}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <View className="flex-row items-center justify-between">
-                                <View>
-                                    <Text className="text-[#8892B0] text-sm">Current Balance</Text>
-                                    <Text className="text-lg font-bold text-white">
-                                        ${metrics.balance.toFixed(2)}
-                                    </Text>
-                                </View>
-                                <View className="items-end">
-                                    <Text className="text-[#8892B0] text-sm">Projected (30 days)</Text>
-                                    <Text className={`font-bold text-lg ${
-                                        (cashFlow[cashFlow.length - 1]?.value || 0) >= 0 ? 'text-green-400' : 'text-red-400'
-                                    }`}>
-                                        ${(cashFlow[cashFlow.length - 1]?.value || 0).toFixed(2)}
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-                )}
-
-                {/* Actions */}
-                <Text className="mb-4 text-lg font-bold text-white">Quick Actions</Text>
-                <View className="gap-3">
-                    
-                    {/* NEW: Financial Scorecard Button */}
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(main)/finances/scorecard')} 
-                        className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
-                    >
-                        <View className="flex-row items-center gap-4">
-                            <View className="items-center justify-center w-10 h-10 rounded-full bg-emerald-500/10">
-                                <Activity size={20} color="#10B981" />
-                            </View>
-                            <View>
-                                <Text className="text-base font-bold text-white">Health Scorecard</Text>
-                                <Text className="text-[#8892B0] text-xs">Burn Rate, Runway & Profit</Text>
-                            </View>
-                        </View>
-                        <ArrowRight size={20} color="#8892B0" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(main)/finances/transactions')} 
-                        className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
-                    >
-                        <View className="flex-row items-center gap-4">
-                            <View className="items-center justify-center w-10 h-10 rounded-full bg-blue-500/10">
-                                <Wallet size={20} color="#60A5FA" />
-                            </View>
-                            <View>
-                                <Text className="text-base font-bold text-white">Add Transaction</Text>
-                                <Text className="text-[#8892B0] text-xs">Log income or expense</Text>
-                            </View>
-                        </View>
-                        <ArrowRight size={20} color="#8892B0" />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(main)/scan')} 
-                        className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
-                    >
-                        <View className="flex-row items-center gap-4">
-                            <View className="items-center justify-center w-10 h-10 rounded-full bg-purple-500/10">
-                                <Receipt size={20} color="#A78BFA" />
-                            </View>
-                            <View>
-                                <Text className="text-base font-bold text-white">Scan Receipt</Text>
-                                <Text className="text-[#8892B0] text-xs">AI-powered extraction</Text>
-                            </View>
-                        </View>
-                        <ArrowRight size={20} color="#8892B0" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={() => router.push('/(main)/finances/subscriptions')}
-                        className="bg-[#112240] p-5 rounded-2xl border border-white/5 flex-row items-center justify-between active:bg-[#162C52]"
-                    >
-                        <View className="flex-row items-center gap-4">
-                            <View className="items-center justify-center w-10 h-10 rounded-full bg-orange-500/10">
-                                <CreditCard size={20} color="#F59E0B" />
-                            </View>
-                            <View>
-                                <Text className="text-base font-bold text-white">Track Subscriptions</Text>
-                                <Text className="text-[#8892B0] text-xs">Detect recurring bills</Text>
-                            </View>
-                        </View>
-                        <ArrowRight size={20} color="#8892B0" />
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
+              <item.icon size={16} color={item.col} />
+              <Text className="text-slate-500 text-[10px] font-bold uppercase mt-2">
+                {item.label}
+              </Text>
+              <Text className="mt-1 text-lg font-black text-white">
+                ${item.val.toFixed(0)}
+              </Text>
+            </View>
+          ))}
         </View>
-    );
+
+        {/* TITAN-2 PROJECTION CHART */}
+        {forecastData.length > 0 && (
+          <View className="p-5 mb-8 border bg-white/5 rounded-3xl border-white/5">
+            <Text className="mb-1 text-lg font-bold text-white">
+              Cash Flow Projection
+            </Text>
+            <Text className="mb-6 text-xs text-slate-500">
+              AI-driven 90-day trajectory
+            </Text>
+            <LineChart
+              data={forecastData}
+              color="#22d3ee"
+              thickness={4}
+              hideDataPoints
+              areaChart
+              startFillColor="rgba(34, 211, 238, 0.3)"
+              endFillColor="transparent"
+              height={150}
+              curved
+              spacing={100}
+              initialSpacing={0}
+              xAxisColor="transparent"
+              yAxisColor="transparent"
+              yAxisTextStyle={{ color: '#475569', fontSize: 10 }}
+            />
+          </View>
+        )}
+
+        {/* QUICK ACTIONS */}
+        <Text className="text-white/50 text-[10px] font-black uppercase tracking-[2px] mb-4 ml-1">
+          Terminal Operations
+        </Text>
+        <ActionButton
+          title="Scorecard"
+          subtitle="Burn rate & Runway"
+          icon={Activity}
+          color="#10b981"
+          route="/(main)/finances/scorecard"
+        />
+        <ActionButton
+          title="Ledger"
+          subtitle="Manage transactions"
+          icon={Wallet}
+          color="#3b82f6"
+          route="/(main)/finances/transactions"
+        />
+        <ActionButton
+          title="OCR Scan"
+          subtitle="AI Receipt extraction"
+          icon={Receipt}
+          color="#a855f7"
+          route="/(main)/scan"
+        />
+        <ActionButton
+          title="Subscriptions"
+          subtitle="Recurring billing"
+          icon={CreditCard}
+          color="#f59e0b"
+          route="/(main)/finances/subscriptions"
+        />
+      </ScrollView>
+    </View>
+  );
 }

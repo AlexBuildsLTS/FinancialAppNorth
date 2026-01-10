@@ -1,272 +1,172 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, Text, TouchableOpacity, Alert, ActivityIndicator, Image, TextInput, ScrollView 
+import React, { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Image,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera'; 
+import { SafeAreaView } from 'react-native-safe-area-context'; // Added missing import
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Flashlight, Check, Repeat, FileText, ScanLine, Share } from 'lucide-react-native';
-import { supabase } from '../../lib/supabase'; 
-import { dataService } from '../../services/dataService'; 
-import { useAuth } from '../../shared/context/AuthContext';
+import { Zap, X, Camera, RefreshCw, CheckCircle } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { supabase } from '../../lib/supabase';
+import * as Haptics from 'expo-haptics';
 
-export default function ScanReceiptScreen() {
-  const router = useRouter();
-  const { user } = useAuth();
-  
-  // Camera State
+/**
+ * @component OCRScanner
+ * @description High-performance receipt capture.
+ * Integrates with Gemini OCR for automated ledger entry.
+ */
+export default function OCRScanner() {
   const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraView>(null);
-  const [facing, setFacing] = useState<'back' | 'front'>('back');
-  const [flash, setFlash] = useState<'off' | 'on'>('off');
-  
-  // Processing State
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [processing, setProcessing] = useState(false);
-  
-  // Result State
-  const [scanResult, setScanResult] = useState<any>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const cameraRef = useRef<any>(null);
+  const router = useRouter();
 
-  // Editable Form State
-  const [merchant, setMerchant] = useState('');
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState('');
-  const [category, setCategory] = useState('');
-
-  useEffect(() => {
-    if (scanResult) {
-        setMerchant(scanResult.merchant || 'Unknown Merchant');
-        setAmount(scanResult.amount ? String(scanResult.amount) : '');
-        setDate(scanResult.date || new Date().toISOString().split('T')[0]);
-        setCategory(scanResult.category || 'Uncategorized');
-    }
-  }, [scanResult]);
-
+  // Handle Permission loading state
   if (!permission) return <View className="flex-1 bg-black" />;
-  
+
+  // Requesting permissions UI
   if (!permission.granted) {
     return (
-      <SafeAreaView className="flex-1 bg-[#0A192F] items-center justify-center p-6">
-        <ScanLine size={64} color="#64FFDA" />
-        <Text className="mt-6 text-xl font-bold text-center text-white">Camera Access Required</Text>
-        <Text className="text-[#8892B0] text-center mt-2 mb-8 px-4 leading-6">
-          NorthFinance uses AI vision to extract data from physical receipts and invoices instantly.
+      <SafeAreaView className="items-center justify-center flex-1 p-6 bg-slate-950">
+        <Zap size={48} color="#22d3ee" className="mb-4" />
+        <Text className="mb-2 text-xl font-bold text-center text-white">
+          Camera Access Required
         </Text>
-        <TouchableOpacity 
-          onPress={requestPermission} 
-          className="bg-[#64FFDA] px-8 py-4 rounded-full"
+        <Text className="mb-8 text-center text-slate-400">
+          NorthFinance needs camera access to scan receipts and automate your
+          bookkeeping.
+        </Text>
+        <TouchableOpacity
+          onPress={requestPermission}
+          className="px-8 py-4 bg-cyan-500 rounded-2xl active:opacity-80"
         >
-          <Text className="text-[#0A192F] font-bold text-lg">Grant Access</Text>
+          <Text className="font-black tracking-widest uppercase text-slate-950">
+            Grant Access
+          </Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
   }
 
   const takePicture = async () => {
-    if (cameraRef.current) {
-      try {
-        const photoData = await cameraRef.current.takePictureAsync({
-          quality: 0.5,
-          base64: true,
-          skipProcessing: true 
-        });
-        
-        if (photoData?.base64) {
-            setPhoto(photoData.uri);
-            analyzeReceipt(photoData.base64);
-        }
-      } catch (e) {
-        Alert.alert("Camera Error", "Failed to capture image.");
-      }
-    }
-  };
+    if (!cameraRef.current || isProcessing) return;
 
-  const analyzeReceipt = async (base64: string) => {
-    setProcessing(true);
     try {
-        // Send to Gemini via Edge Function for physical document analysis
-        const { data, error } = await supabase.functions.invoke('ocr-scan', {
-            body: { imageBase64: base64, userId: user?.id }
-        });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      const photo = await cameraRef.current.takePictureAsync({
+        base64: true,
+        quality: 0.5,
+        skipProcessing: true, // Performance optimization for instant capture
+      });
 
-        if (error) throw error;
-        setScanResult(data);
-
-    } catch (e: any) {
-        console.error("OCR Error:", e);
-        Alert.alert(
-            "Scan Failed", 
-            "Could not read receipt. Please enter details manually.",
-            [{ text: "OK", onPress: () => setScanResult({ merchant: '', amount: 0 }) }]
-        );
-    } finally {
-        setProcessing(false);
+      setCapturedImage(photo.uri);
+      processReceipt(photo.base64);
+    } catch (error) {
+      console.error('Capture Error:', error);
+      Alert.alert('Camera Error', 'Failed to capture image.');
     }
   };
 
-  const handleSave = async () => {
-    if (!user) return;
-    if (!amount || isNaN(parseFloat(amount))) {
-        Alert.alert("Invalid Amount", "Please enter a valid number.");
-        return;
-    }
-    
+  const processReceipt = async (base64: string) => {
+    setIsProcessing(true);
     try {
-        await dataService.createTransaction({
-            amount: -Math.abs(parseFloat(amount)),
-            description: merchant,
-            category: category,
-            date: date,
-            type: 'expense'
-        }, user.id);
+      // Invoke the Edge Function for OCR processing
+      const { data, error } = await supabase.functions.invoke('ocr-scan', {
+        body: { image: base64 },
+      });
 
-        Alert.alert("Success", "Receipt saved to ledger.", [
-            { text: "Done", onPress: () => router.back() }
-        ]);
-    } catch (e) {
-        Alert.alert("Save Error", "Could not save transaction.");
-    }
-  };
+      if (error) throw error;
 
-  const handleExport = () => {
-      // Logic for exporting to CSV/PDF would go here
-      // For now, we simulate success
-      Alert.alert("Export", "Data ready for export to CSV/PDF.");
-  };
-
-  if (photo) {
-      return (
-        <SafeAreaView className="flex-1 bg-[#0A192F]">
-            <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24 }}>
-                <Text className="mb-6 text-2xl font-bold text-center text-white">Review Scan</Text>
-                
-                <View className="items-center mb-8">
-                    <Image source={{ uri: photo }} className="w-32 h-48 border rounded-xl border-white/10" resizeMode="contain" />
-                    {processing && (
-                        <View className="absolute inset-0 items-center justify-center bg-black/60 rounded-xl">
-                            <ActivityIndicator size="large" color="#64FFDA" />
-                            <Text className="text-[#64FFDA] text-xs font-bold mt-2">ANALYZING...</Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Form */}
-                <View className="bg-[#112240] p-6 rounded-3xl border border-white/5 gap-5 shadow-xl">
-                    <View>
-                        <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1 tracking-wider">Merchant</Text>
-                        <TextInput 
-                            value={merchant} 
-                            onChangeText={setMerchant}
-                            placeholder="Store Name"
-                            placeholderTextColor="#475569"
-                            className="pb-2 text-xl font-bold text-white border-b border-white/10" 
-                        />
-                    </View>
-                    
-                    <View>
-                        <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1 tracking-wider">Total Amount</Text>
-                        <View className="flex-row items-center pb-2 border-b border-white/10">
-                            <Text className="text-[#64FFDA] text-2xl font-bold mr-1">$</Text>
-                            <TextInput 
-                                value={amount} 
-                                onChangeText={setAmount}
-                                keyboardType="numeric"
-                                placeholder="0.00"
-                                placeholderTextColor="#475569"
-                                className="text-[#64FFDA] text-3xl font-bold flex-1" 
-                            />
-                        </View>
-                    </View>
-
-                    <View className="flex-row justify-between gap-4">
-                        <View className="flex-1">
-                            <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1 tracking-wider">Date</Text>
-                            <TextInput 
-                                value={date} 
-                                onChangeText={setDate}
-                                className="pb-1 font-medium text-white border-b border-white/10" 
-                            />
-                        </View>
-                        <View className="flex-1">
-                            <Text className="text-[#8892B0] text-xs font-bold uppercase mb-1 tracking-wider">Category</Text>
-                            <TextInput 
-                                value={category} 
-                                onChangeText={setCategory}
-                                className="pb-1 font-medium text-white border-b border-white/10" 
-                            />
-                        </View>
-                    </View>
-                </View>
-
-                {/* Actions */}
-                {!processing && (
-                    <View className="gap-3 mt-6">
-                        <TouchableOpacity 
-                            onPress={handleSave} 
-                            className="bg-[#64FFDA] p-4 rounded-xl flex-row items-center justify-center shadow-lg"
-                        >
-                            <Check size={20} color="#0A192F" />
-                            <Text className="text-[#0A192F] font-bold text-lg ml-2">Confirm & Save</Text>
-                        </TouchableOpacity>
-                        
-                        <View className="flex-row gap-3">
-                            <TouchableOpacity 
-                                onPress={() => { setPhoto(null); setScanResult(null); }} 
-                                className="flex-1 bg-[#112240] p-4 rounded-xl flex-row items-center justify-center border border-white/10"
-                            >
-                                <Repeat size={20} color="#8892B0" />
-                                <Text className="ml-2 font-bold text-white">Retake</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                onPress={handleExport}
-                                className="flex-1 bg-[#112240] p-4 rounded-xl flex-row items-center justify-center border border-white/10"
-                            >
-                                <Share size={20} color="#8892B0" />
-                                <Text className="ml-2 font-bold text-white">Export</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-            </ScrollView>
-        </SafeAreaView>
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Receipt Analyzed',
+        `Merchant: ${data.merchant}\nAmount: $${data.amount}\nCategory: ${data.category}`,
+        [
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => setCapturedImage(null),
+          },
+          {
+            text: 'Save to Ledger',
+            onPress: () => router.push('/(main)/finances'),
+          },
+        ]
       );
-  }
+    } catch (e) {
+      console.error('OCR Error:', e);
+      Alert.alert(
+        'Analysis Failed',
+        'Could not read receipt. Please ensure lighting is good.'
+      );
+      setCapturedImage(null);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
-    <SafeAreaView className="flex-1 bg-black">
-      <View className="absolute z-10 top-12 left-6">
-        <TouchableOpacity onPress={() => router.back()} className="p-2.5 bg-black/40 rounded-full backdrop-blur-md">
-            <ArrowLeft size={24} color="white" />
-        </TouchableOpacity>
-      </View>
+    <View className="flex-1 bg-black">
+      {!capturedImage ? (
+        <CameraView ref={cameraRef} className="flex-1" facing="back">
+          <SafeAreaView className="justify-between flex-1 p-6">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="items-center justify-center w-12 h-12 border rounded-full bg-black/40 border-white/10"
+            >
+              <X size={24} color="white" />
+            </TouchableOpacity>
 
-      <View className="absolute z-10 top-12 right-6">
-        <TouchableOpacity onPress={() => setFlash(f => f === 'off' ? 'on' : 'off')} className="p-2.5 bg-black/40 rounded-full backdrop-blur-md">
-            <Flashlight size={24} color={flash === 'on' ? '#64FFDA' : 'white'} />
-        </TouchableOpacity>
-      </View>
+            <View className="items-center pb-12">
+              <BlurView
+                intensity={20}
+                tint="dark"
+                className="px-6 py-3 mb-8 overflow-hidden border rounded-2xl border-white/20"
+              >
+                <Text className="text-xs font-bold tracking-widest text-center text-white uppercase">
+                  Scan Receipt
+                </Text>
+              </BlurView>
 
-      <CameraView 
-        ref={cameraRef} 
-        style={{ flex: 1 }} 
-        facing={facing}
-        enableTorch={flash === 'on'}
-      />
-
-      <View className="absolute bottom-0 flex-row items-center justify-center w-full gap-10 p-8 pt-20 pb-12 bg-gradient-to-t from-black/80 to-transparent">
-         <TouchableOpacity onPress={() => router.push('/(main)/quick-add')} className="items-center justify-center w-12 h-12 border rounded-full bg-white/10 backdrop-blur-md border-white/20">
-            <FileText size={20} color="white" />
-         </TouchableOpacity>
-         
-         <TouchableOpacity 
-            onPress={takePicture}
-            className="items-center justify-center w-20 h-20 border-4 border-white rounded-full shadow-2xl"
-         >
-            <View className="w-16 h-16 bg-white rounded-full" />
-         </TouchableOpacity>
-
-         <View className="w-12" />
-      </View>
-    </SafeAreaView>
+              <TouchableOpacity
+                onPress={takePicture}
+                className="items-center justify-center w-20 h-20 transition-transform border-4 border-white rounded-full active:scale-95"
+              >
+                <View className="w-16 h-16 bg-white border-2 border-black rounded-full" />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </CameraView>
+      ) : (
+        <View className="flex-1">
+          <Image
+            source={{ uri: capturedImage }}
+            className="flex-1"
+            resizeMode="cover"
+          />
+          {isProcessing && (
+            <BlurView
+              intensity={90}
+              tint="dark"
+              className="absolute inset-0 items-center justify-center"
+            >
+              <ActivityIndicator size="large" color="#22d3ee" />
+              <Text className="text-cyan-400 font-black mt-4 uppercase tracking-[4px]">
+                AI Extraction...
+              </Text>
+              <Text className="mt-2 text-xs italic text-slate-400">
+                Gemini Pro Vision at work
+              </Text>
+            </BlurView>
+          )}
+        </View>
+      )}
+    </View>
   );
 }

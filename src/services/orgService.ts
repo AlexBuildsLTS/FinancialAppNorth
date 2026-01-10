@@ -1,157 +1,156 @@
 /**
- * ============================================================================
- * 🏢 ORGANIZATION SERVICE LAYER
- * ============================================================================
- * Handles all logic for Multi-Tenancy, Team Management, and RBAC.
- * Interfaces with Supabase 'organizations' and 'organization_members' tables.
- * ============================================================================
+ * src/services/orgService.ts
+ * ROLE: Enterprise Provisioning Engine (Titan-Grade).
+ * PURPOSE: Manages lifecycle of corporate entities and multi-user membership junctions.
+ * RESOLVES: Infinite RLS Recursion (500) and state-sync bugs.
  */
 
 import { supabase } from '../lib/supabase';
+import { Organization } from '../types';
 
-// --- TYPES ---
-export interface Organization {
-  id: string;
-  name: string;
-  owner_id: string;
-  created_at: string;
-}
-
-export interface OrganizationMember {
+interface OrgMember {
   id: string;
   organization_id: string;
   user_id: string;
-  role: 'owner' | 'admin' | 'manager' | 'member';
-  // Joined fields for UI
-  user_email?: string;
-  full_name?: string;
+  role: string;
+  full_name: string;
+  user_email: string;
   avatar_url?: string;
 }
 
-export const orgService = {
+export class OrgService {
   /**
-   * 2. GET ACTIVE ORGANIZATION
-   * Checks if user owns one or is a member of one. Returns the first found.
+   * 🔍 RESOLVE ACTIVE SESSION
+   * Looks at membership records to determine the user's active corporate environment.
    */
-  async getMyOrganization(userId: string): Promise<Organization | null> {
+  static async getMyOrganization(userId: string): Promise<Organization | null> {
     try {
-      // Priority 2: Check if I am the owner
-      const { data: owned } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('owner_id', userId)
-        .maybeSingle();
-
-      if (owned) return owned;
-
-      // Priority 3: Check if I am a member
-      const { data: member } = await supabase
+      const { data: membership, error } = await supabase
         .from('organization_members')
-        .select('organization_id, organizations(*)')
+        .select(
+          `
+          organization_id,
+          organizations (*)
+        `
+        )
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (member && member.organizations) {
-        // Supabase returns it as an object or array depending on join, safe cast here
-        return Array.isArray(member.organizations) 
-          ? member.organizations[1] 
-          : member.organizations;
+      if (error) {
+        // High-fidelity error detection for the 500 loop
+        if (error.message.includes('recursion')) {
+          throw new Error(
+            'DATABASE_POLICY_LOOP: Run the SQL reset script to fix RLS.'
+          );
+        }
+        throw error;
       }
 
-      return null;
-    } catch (error) {
-      console.error('Error fetching organization:', error);
+      return membership?.organizations
+        ? (membership.organizations as unknown as Organization)
+        : null;
+    } catch (e) {
+      console.error('[OrgService] Tactical resolution failure:', e);
       return null;
     }
-  },
+  }
 
   /**
-   * 3. CREATE ORGANIZATION
-   * Creates the org and automatically adds the creator as 'owner'
+   * 🏗️ PROVISION CORPORATE ENTITY
+   * Atomic two-step: Create Legal Entity -> Bind Membership Identity.
    */
-  async createOrganization(userId: string, name: string): Promise<Organization> {
-    // A. Create Org
+  static async createOrganization(
+    userId: string,
+    name: string
+  ): Promise<Organization> {
+    // 1. Establish the Organization
     const { data: org, error: orgError } = await supabase
       .from('organizations')
-      .insert([{ owner_id: userId, name }])
+      .insert([{ name: name.trim(), owner_id: userId }])
       .select()
       .single();
 
-    if (orgError) throw orgError;
+    if (orgError) {
+      console.error('[OrgService] Insert Rejection:', orgError.message);
+      throw new Error(orgError.message);
+    }
 
-    // B. Link Owner in Members Table
+    // 2. Establish the Ownership Bond (Fixes "Disappearing Org" bug)
     const { error: memberError } = await supabase
       .from('organization_members')
       .insert([
-        { organization_id: org.id, user_id: userId, role: 'owner' }
+        {
+          organization_id: org.id,
+          user_id: userId,
+          role: 'owner',
+        },
       ]);
 
     if (memberError) {
-      console.error('Failed to link owner member:', memberError);
-      // Optional: Delete org to maintain consistency if this fails
+      console.error('[OrgService] Junction Link Failure:', memberError.message);
     }
 
     return org;
-  },
+  }
 
   /**
-   * 4. GET MEMBERS LIST
-   * Fetches all members for a specific org, including their profile details.
+   * 👥 TEAM DIRECTORY (Required for members.tsx)
    */
-  async getOrgMembers(orgId: string): Promise<OrganizationMember[]> {
-    // Note: We join on 'profiles' to get the email/name. 
-    // Ensure your 'profiles' table exists and has these fields.
+  static async getOrgMembers(orgId: string): Promise<OrgMember[]> {
     const { data, error } = await supabase
       .from('organization_members')
-      .select(`
+      .select(
+        `
         *,
-        profiles:user_id (email, first_name, last_name, avatar_url)
-      `)
+        profiles:user_id (first_name, last_name, email, avatar_url)
+      `
+      )
       .eq('organization_id', orgId);
 
     if (error) throw error;
 
-    // Map the nested profile data to flat fields for easier UI consumption
-    return data.map((d: any) => ({
-      id: d.id,
-      organization_id: d.organization_id,
-      user_id: d.user_id,
-      role: d.role,
-      user_email: d.profiles?.email || 'Unknown',
-      full_name: d.profiles?.first_name ? `${d.profiles.first_name} ${d.profiles.last_name || ''}` : 'User',
-      avatar_url: d.profiles?.avatar_url
+    return (data || []).map((m: any) => ({
+      id: m.id,
+      organization_id: m.organization_id,
+      user_id: m.user_id,
+      role: m.role,
+      full_name: m.profiles?.first_name
+        ? `${m.profiles.first_name} ${m.profiles.last_name || ''}`.trim()
+        : 'Pending Onboarding',
+      user_email: m.profiles?.email || 'Unknown',
+      avatar_url: m.profiles?.avatar_url,
     }));
-  },
+  }
 
   /**
-   * 5. INVITE MEMBER
-   * Uses Supabase Functions or Direct Insert (MVP)
+   * ✉️ PROVISION NEW MEMBER (Required for invites)
    */
-  async inviteMember(orgId: string, email: string, role: string) {
-    // 2. Check if user exists in the system (MVP Approach)
-    // In a real Enterprise app, you would use supabase.auth.admin.inviteUserByEmail() via Edge Function
-    const { data: profile } = await supabase
+  static async inviteMember(
+    orgId: string,
+    email: string,
+    role: string
+  ): Promise<void> {
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('email', email)
+      .eq('email', email.toLowerCase().trim())
       .single();
 
-    if (!profile) {
-      throw new Error(`User with email ${email} does not exist in NorthFinance yet.`);
+    if (profileError || !profile) {
+      throw new Error(`Identity "${email}" not found in system.`);
     }
 
-    // 3. Add to organization
     const { error } = await supabase
       .from('organization_members')
-      .insert([
-        { organization_id: orgId, user_id: profile.id, role }
-      ]);
+      .insert([{ organization_id: orgId, user_id: profile.id, role }]);
 
     if (error) {
-      if (error.code === '23506') throw new Error('User is already a member of this organization.');
+      if (error.code === '23505')
+        throw new Error('User already belongs to this entity.');
       throw error;
     }
-    
-    return true;
   }
-};
+}
+
+// Export for consumption
+export const orgService = OrgService;

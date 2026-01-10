@@ -83,7 +83,7 @@ export default function AIChatScreen() {
     try {
       const [summary, txs, budgets] = await Promise.all([
         dataService.getFinancialSummary(user.id),
-        dataService.getTransactions(user.id),
+        dataService.getTransactions(user.id, 5),
         dataService.getBudgets(user.id)
       ]);
       
