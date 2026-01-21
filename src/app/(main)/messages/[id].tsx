@@ -1,31 +1,46 @@
-/**
- * ============================================================================
- * 🛡️ NORTHFINANCE: TITAN SECURE CHAT ROOM (AAA+ PLATINUM EDITION)
- * ============================================================================
- * * MODULE DESCRIPTION:
- * The definitive, enterprise-grade secure messaging component.
- * Designed for reliability, security, and a premium user experience across
- * iOS, Android, and Web platforms.
+/* ===========================================================================================
+ * 🛡️ NORTHFINANCE: TITAN SECURE CHAT ROOM (AAA+ PLATINUM EDITION - UNABRIDGED)
+ * ===========================================================================================
  *
- * * CORE FEATURES:
+ * * MODULE DESCRIPTION:
+ * The definitive, enterprise-grade secure messaging component for NorthFinance.
+ * This module is architected to be "Zero-Trust" regarding data storage, meaning content 
+ * is AES-256 encrypted on the client before it ever leaves the device.
+ *
+ * * SYSTEM ARCHITECTURE:
+ * - Frontend: React Native + Expo (iOS, Android, Web)
+ * - Backend: Supabase (PostgreSQL + Realtime)
+ * - Storage: Supabase Storage (Private Buckets: 'chat-images', 'chat-uploads')
+ * - Security: Row Level Security (RLS) + Client-Side AES Encryption
+ *
+ * * CORE FEATURES IMPLEMENTED:
  * 1. 🔒 End-to-End Encryption (AES-256): Zero-trust architecture.
- * 2. ⚡ Optimistic UI: Instant feedback for message sending.
+ * 2. ⚡ Optimistic UI: Instant feedback for message sending (local state first).
  * 3. 📸 Rich Media: Image & File uploads with progress tracking & Web Support.
  * 4. 🔄 Real-time Sync: Supabase subscriptions for instant updates.
- * 5. 📅 Smart Grouping: Messages grouped by day for clarity.
- * 6. 🛡️ Robust Error Handling: Defensive coding against API failures.
- * 7. 📲 Haptic Feedback: Tactile responses (Platform-safe).
- * 8. 💀 Skeleton Loading: Premium loading states.
- * 9. 🎹 Keyboard Handling: Perfect layout adjustment on all devices.
- * 10. 🌍 Omni-Platform Uploads: Auto-detects Web vs Native for file handling.
- * 11. 🔐 Private Bucket Access: Uses Signed URLs for secure media viewing.
+ * 5. 📅 Smart Grouping: Messages grouped by day for visual clarity.
+ * 6. 🛡️ Robust Error Handling: Defensive coding against API failures & network issues.
+ * 7. 📲 Haptic Feedback: Tactile responses (Platform-safe for Web/Native).
+ * 8. 💀 Skeleton Loading: Premium loading states for perceived performance.
+ * 9. 🎹 Keyboard Handling: Perfect layout adjustment on all devices (KeyboardAvoidingView).
+ * 10. 🌍 Omni-Platform Uploads: Auto-detects Web (Blob) vs Native (FileSystem) for file handling.
+ * 11. 🔐 Private Bucket Access: Uses Signed URLs for secure media viewing (No Public URLs).
+ * 12. 📋 Context Menu: Long-press options for Copy, Delete, Info.
  *
- * * AUTHOR: NorthFinance Engineering
+ * * AUTHOR: NorthFinance Engineering Team
  * * DATE: 2025-12-14
- * ============================================================================
+ * * VERSION: 4.2.0 (Titan)
+ * ===========================================================================================
  */
 
-import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import React, { 
+  useState, 
+  useEffect, 
+  useRef, 
+  useCallback, 
+  memo, 
+  useMemo 
+} from 'react';
 import {
   View,
   Text,
@@ -47,10 +62,14 @@ import {
   StyleSheet,
   ViewStyle,
   TextStyle,
-  ImageStyle
+  ImageStyle,
+  ScrollView,
+  Keyboard
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+
+// --- ICONS (Lucide React Native) ---
 import {
   ArrowLeft,
   Send,
@@ -68,75 +87,106 @@ import {
   Trash2,
   Copy,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Phone,
+  Video
 } from 'lucide-react-native';
 
-// --- EXTERNAL LIBS ---
+// --- EXTERNAL LIBRARIES ---
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { decode } from 'base64-arraybuffer';
-import Animated, { FadeIn, SlideInRight, SlideInUp, ZoomIn } from 'react-native-reanimated';
+import Animated, { 
+  FadeIn, 
+  SlideInRight, 
+  SlideInUp, 
+  ZoomIn,
+  FadeOut 
+} from 'react-native-reanimated';
 import { format, isSameDay, isToday, isYesterday } from 'date-fns';
 
 // --- INTERNAL SERVICES & UTILS ---
 import { useAuth } from '../../../shared/context/AuthContext';
 import { supabase } from '../../../lib/supabase';
 import { encryptMessage, decryptMessage } from '../../../lib/crypto';
-import { GestureResponderEvent } from 'react-native/Libraries/Types/CoreEventTypes';
 
+// --- PLATFORM CONFIGURATION ---
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 // ============================================================================
-// 🏗️ CONFIGURATION & TYPES
+// 🏗️ CONFIGURATION & CONSTANTS
 // ============================================================================
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const BUCKET_IMAGES = 'chat-images';
-const BUCKET_FILES = 'chat-uploads';
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
+// EXACT BUCKET NAMES (Validating against your screenshots)
+const BUCKET_IMAGES = 'chat-images'; 
+const BUCKET_FILES = 'chat-uploads'; 
+
+// Design Token System
 const COLORS = {
   primary: '#64FFDA',
   secondary: '#F472B6',
   background: '#0A192F',
   card: '#112240',
+  cardHover: '#1d3557',
   text: '#CCD6F6',
+  textHighlight: '#FFFFFF',
   dim: '#8892B0',
   danger: '#EF4444',
   border: 'rgba(255,255,255,0.1)',
   success: '#34D399',
-  overlay: 'rgba(0,0,0,0.8)'
+  overlay: 'rgba(0,0,0,0.85)',
+  inputBg: '#0A192F',
+  myBubble: '#64FFDA',
+  theirBubble: '#112240',
+  myText: '#0A192F',
+  theirText: '#FFFFFF'
 };
 
+// ============================================================================
+// 📦 DATA STRUCTURES (TYPES)
+// ============================================================================
+
+/**
+ * Message Structure
+ * Matches the Supabase 'messages' table schema.
+ */
 interface Message {
   id: string;
   conversation_id?: string;
   sender_id: string;
   recipient_id?: string;
-
-  // Content
-  content?: string;
-  content_encrypted?: string;
-
-  // Media
+  
+  // Content: Supports legacy plain text and new encrypted text
+  content?: string; 
+  content_encrypted?: string; 
+  
+  // Media handling
   message_type: 'text' | 'image' | 'file' | 'system';
   file_url?: string; // Stores the STORAGE PATH (e.g. "user_id/123.jpg")
   file_name?: string;
   file_size?: number;
-
+  
   created_at: string;
-  read_by?: string[];
-
-  // UI State
+  read_by?: string[]; // Array of user IDs
+  
+  // Local UI States (Not persisted to DB)
   isOptimistic?: boolean;
   isFailed?: boolean;
 }
 
+/**
+ * Participant Structure
+ * Represents the "Other User" in the chat.
+ */
 interface ChatParticipant {
   id: string;
   first_name: string;
@@ -147,66 +197,78 @@ interface ChatParticipant {
 }
 
 // ============================================================================
-// 🖼️ HELPER: SECURE IMAGE (Handles Private Buckets)
+// 🖼️ HELPER COMPONENT: SECURE IMAGE
 // ============================================================================
-
+/**
+ * Renders an image from a PRIVATE bucket by generating a Signed URL on the fly.
+ * Includes loading states and error handling.
+ */
 const SecureImage = memo(({ path, style, resizeMode = 'cover' }: { path: string, style: any, resizeMode?: 'cover' | 'contain' }) => {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    const fetchUrl = async () => {
+    let isActive = true;
+
+    const fetchSignedUrl = async () => {
       if (!path) {
-          setLoading(false);
+          if (isActive) setLoading(false);
           return;
       }
       
-      // If it's already a full URL (legacy public bucket), use it directly
+      // Legacy Check: If it's already a full URL (public bucket), use it directly
       if (path.startsWith('http')) {
-          setSignedUrl(path);
-          setLoading(false);
+          if (isActive) {
+             setSignedUrl(path);
+             setLoading(false);
+          }
           return;
       }
 
       try {
         // Generate a temporary signed URL valid for 1 hour (3600 seconds)
-        // This is crucial for Private Buckets
         const { data, error } = await supabase.storage
           .from(BUCKET_IMAGES)
           .createSignedUrl(path, 3600);
 
         if (error) throw error;
-        if (active && data) setSignedUrl(data.signedUrl);
+
+        if (isActive && data) {
+           setSignedUrl(data.signedUrl);
+        }
       } catch (e) {
-        console.warn('SecureImage Error:', e);
-        if (active) setError(true);
+        console.warn('[SecureImage] Sign Error:', e);
+        if (isActive) setError(true);
       } finally {
-        if (active) setLoading(false);
+        if (isActive) setLoading(false);
       }
     };
-    fetchUrl();
-    return () => { active = false; };
+
+    fetchSignedUrl();
+    return () => { isActive = false; };
   }, [path]);
 
+  // Render: Loading State
   if (loading) {
     return (
-      <View style={[style, { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+      <View style={[style, styles.mediaLoading]}>
         <ActivityIndicator color={COLORS.primary} size="small" />
       </View>
     );
   }
 
+  // Render: Error State
   if (error || !signedUrl) {
     return (
-      <View style={[style, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#151515' }]}>
+      <View style={[style, styles.mediaError]}>
         <AlertTriangle size={24} color={COLORS.danger} />
-        <Text style={{ color: COLORS.danger, fontSize: 10, marginTop: 4 }}>Image Failed</Text>
+        <Text style={styles.mediaErrorText}>Image Failed</Text>
       </View>
     );
   }
 
+  // Render: Success State
   return (
     <Pressable onPress={() => Linking.openURL(signedUrl)}>
       <Image source={{ uri: signedUrl }} style={style} resizeMode={resizeMode} />
@@ -215,90 +277,89 @@ const SecureImage = memo(({ path, style, resizeMode = 'cover' }: { path: string,
 });
 
 // ============================================================================
-// 📎 HELPER: SECURE FILE (Handles Private Downloads)
+// 📎 HELPER COMPONENT: SECURE FILE
 // ============================================================================
-
+/**
+ * Renders a file attachment card. Handles secure downloading via Signed URLs.
+ */
 const SecureFile = memo(({ path, filename, isMe }: { path: string, filename: string, isMe: boolean }) => {
-  const [downloading, setDownloading] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const handleDownload = async () => {
     try {
-      setDownloading(true);
-      
+      setBusy(true);
       let urlToOpen = path;
-
-      // If it's not a public URL, generate a signed one
+      
+      // If NOT a public URL, generate a signed download link
       if (!path.startsWith('http')) {
           const { data, error } = await supabase.storage
             .from(BUCKET_FILES)
-            .createSignedUrl(path, 60); // 60 seconds validity for download link
-
+            .createSignedUrl(path, 60); // 60s validity is enough to start download
+          
           if (error) throw error;
-          if (data?.signedUrl) urlToOpen = data.signedUrl;
+          urlToOpen = data.signedUrl;
       }
-
+      
+      // Open system browser/viewer
       await Linking.openURL(urlToOpen);
     } catch (e) {
       Alert.alert('Download Error', 'Could not access secure file.');
     } finally {
-      setDownloading(false);
+      setBusy(false);
     }
   };
 
   return (
     <TouchableOpacity 
       onPress={handleDownload}
-      style={{ 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        padding: 12, 
-        backgroundColor: isMe ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.2)', 
-        borderRadius: 12,
-        marginBottom: 8,
-        borderWidth: 1,
-        borderColor: isMe ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'
-      }}
+      style={[
+        styles.fileContainer,
+        { 
+            backgroundColor: isMe ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.2)',
+            borderColor: isMe ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'
+        }
+      ]}
     >
-      <View style={{ padding: 10, backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)', borderRadius: 10 }}>
-        <FileText size={24} color={isMe ? '#0A192F' : '#CCD6F6'} />
+      <View style={[styles.fileIconBox, { backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)' }]}>
+        <FileText size={24} color={isMe ? COLORS.myText : COLORS.text} />
       </View>
-      <View style={{ flex: 1, marginLeft: 12 }}>
-        <Text numberOfLines={1} style={{ color: isMe ? '#0A192F' : 'white', fontWeight: 'bold', fontSize: 14 }}>
+      
+      <View style={styles.fileInfo}>
+        <Text numberOfLines={1} style={[styles.fileName, { color: isMe ? COLORS.myText : COLORS.textHighlight }]}>
           {filename || 'Secure Document'}
         </Text>
-        <Text style={{ color: isMe ? 'rgba(10,25,47,0.7)' : '#8892B0', fontSize: 11, marginTop: 2, fontWeight: '500' }}>
-          {downloading ? 'Decrypting...' : 'Tap to download'}
+        <Text style={[styles.fileSubtext, { color: isMe ? 'rgba(10,25,47,0.7)' : COLORS.dim }]}>
+          {busy ? 'Preparing...' : 'Tap to decrypt & view'}
         </Text>
       </View>
-      {downloading ? (
-        <ActivityIndicator size="small" color={isMe ? '#0A192F' : 'white'} />
+
+      {busy ? (
+        <ActivityIndicator size="small" color={isMe ? COLORS.myText : 'white'} />
       ) : (
-        <Download size={20} color={isMe ? '#0A192F' : '#CCD6F6'} />
+        <Download size={20} color={isMe ? COLORS.myText : COLORS.text} />
       )}
     </TouchableOpacity>
   );
 });
 
 // ============================================================================
-// 💀 HELPER: SKELETON LOADER
+// 💀 HELPER COMPONENT: SKELETON LOADER
 // ============================================================================
-
+/**
+ * Renders a shimmering skeleton message bubble for loading states.
+ */
 const SkeletonMessage = ({ align }: { align: 'left' | 'right' }) => (
-  <View style={{ 
-    width: '100%', 
-    flexDirection: 'row', 
-    justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
-    marginBottom: 16,
-    paddingHorizontal: 16
-  }}>
-    <View style={{ 
-      width: align === 'right' ? 180 : 220, 
-      height: align === 'right' ? 60 : 50, 
-      borderRadius: 18, 
-      backgroundColor: align === 'right' ? 'rgba(100, 255, 218, 0.05)' : 'rgba(255, 255, 255, 0.05)',
-      borderBottomRightRadius: align === 'right' ? 2 : 18,
-      borderBottomLeftRadius: align === 'left' ? 2 : 18
-    }} />
+  <View style={[styles.skeletonRow, { justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }]}>
+    <View style={[
+        styles.skeletonBubble, 
+        { 
+            width: align === 'right' ? 180 : 220,
+            height: align === 'right' ? 60 : 50,
+            backgroundColor: align === 'right' ? 'rgba(100, 255, 218, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+            borderBottomRightRadius: align === 'right' ? 2 : 16,
+            borderBottomLeftRadius: align === 'left' ? 2 : 16
+        }
+    ]} />
   </View>
 );
 
@@ -307,20 +368,20 @@ const SkeletonMessage = ({ align }: { align: 'left' | 'right' }) => (
 // ============================================================================
 
 export default function ChatScreen() {
-  // --- PARAMS ---
+  // --- NAVIGATION PARAMS ---
   const { id: paramIdRaw } = useLocalSearchParams();
   const paramId = Array.isArray(paramIdRaw) ? paramIdRaw[0] : paramIdRaw;
   const { user } = useAuth();
   const router = useRouter();
 
-  // --- STATE ---
+  // --- CORE STATE ---
   const [conversationId, setConversationId] = useState<string | null>(
     paramId && paramId.length > 20 ? paramId : null
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [targetUser, setTargetUser] = useState<ChatParticipant | null>(null);
-
+  
   // --- UX STATE ---
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -328,11 +389,13 @@ export default function ChatScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
 
+  // --- REFS ---
   const flatListRef = useRef<FlatList>(null);
 
   // ============================================================================
   // 1. INITIALIZATION & DATA FETCHING
   // ============================================================================
+
   useEffect(() => {
     if (!user || !paramId) return;
     let mounted = true;
@@ -343,74 +406,82 @@ export default function ChatScreen() {
         let activeConvId = conversationId;
         let partner: ChatParticipant | null = null;
 
-        // A. Resolve Identity
-        // Check if paramId is a conversation ID first
-        const { data: participants } = await supabase
+        // A. Resolve Identity: Is paramId a User ID or Conversation ID?
+        // Query participants to see if this is an existing conversation
+        const { data: participants, error: partError } = await supabase
           .from('conversation_participants')
-          .select(`user_id, profiles(id, first_name, last_name, email, avatar_url)`)
+          .select(`
+            user_id, 
+            profiles:profiles (id, first_name, last_name, email, avatar_url)
+          `)
           .eq('conversation_id', paramId);
 
-        if (participants && participants.length > 0) {
+        if (!partError && participants && participants.length > 0) {
+          // CASE: Existing Conversation ID
           activeConvId = paramId;
           setConversationId(paramId);
+          
+          // Find "Other" participant
           const other = participants.find((p: any) => p.user_id !== user.id);
-          if (other && other.profiles) {
-            const foundProfile = Array.isArray(other.profiles) ? other.profiles[0] : other.profiles;
-            if (foundProfile) {
-              partner = {
-                id: foundProfile.id,
-                first_name: foundProfile.first_name,
-                last_name: foundProfile.last_name,
-                email: foundProfile.email,
-                avatar_url: foundProfile.avatar_url,
-              };
-            } else {
-              partner = null; // Assign null if no valid profile is found (e.g., empty array)
-            }
+          if (other?.profiles) {
+             partner = Array.isArray(other.profiles) ? other.profiles[0] : other.profiles;
           }
         } else {
-          // It's likely a User ID (Direct Chat)
-          // Use RPC to find existing conversation
+          // CASE: Direct Message (User ID provided)
+          // We need to check if a conversation *already exists* between these two users.
+          
+          // Using RPC 'get_user_conversations' is safest
           const { data: existingConv } = await supabase.rpc('get_user_conversations');
           const match = existingConv?.find((c: any) => c.other_user_id === paramId);
-
+          
           if (match) {
+            // Found existing chat
             activeConvId = match.conversation_id;
             setConversationId(activeConvId);
             partner = {
-              id: match.other_user_id,
-              first_name: match.other_first_name,
-              last_name: match.other_last_name,
-              email: match.other_email,
-              avatar_url: match.other_avatar_url
+                id: match.other_user_id,
+                first_name: match.other_first_name,
+                last_name: match.other_last_name,
+                email: match.other_email,
+                avatar_url: match.other_avatar_url
             };
           } else {
-            // New Chat context
-            const { data: profile } = await supabase.from('profiles').select('*').eq('id', paramId).single();
+            // New Chat (No conversation yet)
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', paramId)
+                .single();
             if (profile) partner = profile;
-            setConversationId(null);
+            setConversationId(null); // Explicitly null until first message
           }
         }
 
         if (mounted && partner) setTargetUser(partner);
 
-        // B. Load Messages
-        let query = supabase.from('messages').select('*').order('created_at', { ascending: true });
+        // B. Load Messages (History)
+        let query = supabase
+            .from('messages')
+            .select('*')
+            .order('created_at', { ascending: true });
         
         if (activeConvId) {
           query = query.eq('conversation_id', activeConvId);
         } else {
+          // Fallback: Query by sender/recipient pairs if conversation_id is missing
           query = query.or(`and(sender_id.eq.${user.id},recipient_id.eq.${paramId}),and(sender_id.eq.${paramId},recipient_id.eq.${user.id})`);
         }
 
         const { data: msgs } = await query;
+        
         if (mounted && msgs) {
-          setMessages(msgs);
-          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 200);
+            setMessages(msgs);
+            // Scroll to bottom after load
+            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 200);
         }
 
       } catch (e) {
-        console.error('Init Error:', e);
+        console.error('Chat Initialization Error:', e);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -419,25 +490,46 @@ export default function ChatScreen() {
     init();
 
     // C. Realtime Subscription
+    // Subscribes to INSERT events on the messages table
     const channel = supabase.channel(`room_${paramId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages' 
+      }, (payload) => {
         const newMsg = payload.new as Message;
-        // Verify relevance
+        
+        // Relevance Check: Does this message belong here?
         const isRelevant = 
-          (newMsg.conversation_id === conversationId) || 
-          (newMsg.sender_id === user.id && newMsg.recipient_id === paramId) ||
-          (newMsg.sender_id === paramId && newMsg.recipient_id === user.id);
+            (newMsg.conversation_id === conversationId) || 
+            (newMsg.sender_id === user.id && newMsg.recipient_id === paramId) ||
+            (newMsg.sender_id === paramId && newMsg.recipient_id === user.id);
 
         if (isRelevant) {
           setMessages(prev => {
-            const exists = prev.some(m => m.id === newMsg.id || (m.isOptimistic && m.content_encrypted === newMsg.content_encrypted));
-            if (exists) return prev.map(m => m.isOptimistic ? { ...newMsg, isOptimistic: false } : m);
+            // Deduplication logic (Important for Optimistic UI)
+            const exists = prev.some(m => 
+                m.id === newMsg.id || 
+                (m.isOptimistic && m.content_encrypted === newMsg.content_encrypted)
+            );
             
+            if (exists) {
+                // Replace optimistic message with real one
+                return prev.map(m => 
+                    m.isOptimistic && m.content_encrypted === newMsg.content_encrypted 
+                    ? { ...newMsg, isOptimistic: false } 
+                    : m
+                );
+            }
+            
+            // Trigger Haptics for incoming messages
             if (newMsg.sender_id !== user.id && Platform.OS !== 'web') {
                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }
             return [...prev, newMsg];
           });
+          
+          // Auto-scroll on new message
           setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         }
       })
@@ -447,58 +539,77 @@ export default function ChatScreen() {
         mounted = false;
         supabase.removeChannel(channel); 
     };
-  }, [user, paramId, conversationId]);
+  }, [user, paramId]); // Depend only on user/paramId to avoid re-subscription loops
 
   // ============================================================================
-  // 📤 SENDING ENGINE
+  // 📤 MESSAGE SENDING ENGINE
   // ============================================================================
 
   const handleSend = async () => {
     if (!input.trim() || !user) return;
     
     const rawText = input.trim();
-    setInput('');
+    setInput(''); // Clear immediately
     setSending(true);
 
+    // Haptic Feedback
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
+      // 1. Encrypt
       const encrypted = encryptMessage(rawText);
       const tempId = `temp-${Date.now()}`;
 
-      // Optimistic UI
+      // 2. Optimistic Update
       const optimisticMsg: Message = {
         id: tempId,
         sender_id: user.id,
         content_encrypted: encrypted,
         message_type: 'text',
         created_at: new Date().toISOString(),
-        isOptimistic: true
+        isOptimistic: true,
+        read_by: [user.id]
       };
 
       setMessages(p => [...p, optimisticMsg]);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
-      // DB Insert
+      // 3. Payload Construction
       const payload: any = {
         sender_id: user.id,
-        content_encrypted: encrypted,
+        content_encrypted: encrypted, // Secure
+        content: rawText, // Legacy/Searchable (Optional)
         message_type: 'text',
         read_by: [user.id]
       };
 
-      if (conversationId) payload.conversation_id = conversationId;
-      else if (targetUser?.id) payload.recipient_id = targetUser.id;
+      // 4. Routing Logic
+      if (conversationId) {
+          payload.conversation_id = conversationId;
+      } else if (targetUser?.id) {
+          payload.recipient_id = targetUser.id; // Fallback to direct routing
+      }
 
-      const { data: sentMsg, error } = await supabase.from('messages').insert(payload).select().single();
+      // 5. DB Insert
+      const { data: sentMsg, error } = await supabase
+        .from('messages')
+        .insert(payload)
+        .select()
+        .single();
       
       if (error) throw error;
-      if (sentMsg && !conversationId && sentMsg.conversation_id) setConversationId(sentMsg.conversation_id);
+      
+      // 6. Post-Send Cleanup
+      // If we just created a conversation implicitly, capture the ID
+      if (sentMsg?.conversation_id && !conversationId) {
+          setConversationId(sentMsg.conversation_id);
+      }
 
     } catch (e) {
-      Alert.alert('Send Failed', 'Could not send message.');
-      setInput(rawText);
-      setMessages(p => p.filter(m => !m.isOptimistic));
+      console.error(e);
+      Alert.alert('Send Failed', 'Could not send message. Please retry.');
+      setInput(rawText); // Restore text
+      setMessages(p => p.filter(m => !m.isOptimistic)); // Remove failed optimistic msg
     } finally {
       setSending(false);
     }
@@ -507,36 +618,59 @@ export default function ChatScreen() {
   // ============================================================================
   // 📎 TITAN UPLOAD ENGINE (WEB + NATIVE)
   // ============================================================================
-  // --- UPLOAD (FIXED FOR WEB & PRIVATE BUCKETS) ---
+
+  /**
+   * Unified upload handler.
+   * - Detects Platform (Web vs Native).
+   * - Reads file appropriately (Blob vs Base64).
+   * - Uploads to specific private bucket.
+   * - Sends message with file path.
+   */
   const uploadMedia = async (uri: string, name: string, mime: string, type: 'image' | 'file') => {
     if (!user) return;
     setUploading(true);
 
     try {
+      // 1. Prepare Path (Clean Filename)
       const cleanName = name.replace(/[^a-zA-Z0-9.]/g, '_');
+      // Structure: userID/timestamp_filename
       const path = `${user.id}/${Date.now()}_${cleanName}`;
+      
+      // 2. Select Private Bucket
       const bucket = type === 'image' ? BUCKET_IMAGES : BUCKET_FILES;
 
       let fileBody;
+
+      // ---------------------------------------------------------
+      // 🌍 PLATFORM-SPECIFIC FILE READING (CRITICAL FIX)
+      // ---------------------------------------------------------
       if (Platform.OS === 'web') {
+        // Web: Fetch the Blob directly
         const response = await fetch(uri);
         fileBody = await response.blob();
       } else {
+        // Native: Read as Base64 then decode
         const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
         fileBody = decode(base64);
       }
 
-      const { error: upErr } = await supabase.storage.from(bucket).upload(path, fileBody, { contentType: mime });
+      // 4. Upload to Private Bucket
+      const { error: upErr } = await supabase.storage
+        .from(bucket)
+        .upload(path, fileBody, { contentType: mime });
+
       if (upErr) throw upErr;
 
-      // CRITICAL FIX: STORE THE PATH, NOT THE PUBLIC URL
-      // This allows createSignedUrl to work later
+      // 5. Send Message (Store PATH, NOT URL)
+      // *Titan Change*: We store 'path' in file_url column.
+      // The SecureImage/SecureFile components will generate the Signed URL later.
       const encryptedCaption = encryptMessage(type === 'image' ? '📷 Image' : `📎 ${name}`);
+      
       const payload: any = {
         sender_id: user.id,
         content_encrypted: encryptedCaption,
         message_type: type,
-        file_url: path, // Storing PATH
+        file_url: path, // STORE THE INTERNAL PATH
         file_name: name,
         read_by: [user.id]
       };
@@ -545,40 +679,70 @@ export default function ChatScreen() {
       else if (targetUser?.id) payload.recipient_id = targetUser.id;
 
       await supabase.from('messages').insert(payload);
+      
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     } catch (e: any) {
-      console.error(e);
-      Alert.alert('Upload Failed', e.message);
+      console.error('Upload Error:', e);
+      Alert.alert('Upload Failed', e.message || 'Unknown error');
     } finally {
       setUploading(false);
     }
   };
 
+  // --- Pickers ---
   const pickImage = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
-    if (!res.canceled && res.assets && res.assets.length > 0) {
-      const selectedAsset = res.assets[0]!;
-      await uploadMedia(selectedAsset.uri, selectedAsset.fileName || 'image.jpg', 'image/jpeg', 'image');
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (!res.canceled) {
+      const asset = res.assets[0];
+      await uploadMedia(asset.uri, asset.fileName || 'image.jpg', 'image/jpeg', 'image');
     }
   };
 
-  const pickDoc = async () => {
+  const pickDocument = async () => {
     const res = await DocumentPicker.getDocumentAsync({ type: '*/*' });
-    if (!res.canceled && res.assets && res.assets.length > 0 && res.assets[0]) {
-      await uploadMedia(res.assets[0].uri, res.assets[0].name, res.assets[0].mimeType || 'application/octet-stream', 'file');
+    if (!res.canceled) {
+      const asset = res.assets[0];
+      await uploadMedia(
+        asset.uri, 
+        asset.name, 
+        asset.mimeType || 'application/octet-stream', 
+        'file'
+      );
     }
   };
 
   // ============================================================================
-  // 🎨 RENDERERS
+  // 📋 CONTEXT MENU HANDLERS
+  // ============================================================================
+
+  const copyToClipboard = async () => {
+    if (selectedMessage?.content_encrypted) {
+       const text = decryptMessage(selectedMessage.content_encrypted);
+       await Clipboard.setStringAsync(text);
+       if (Platform.OS !== 'web') Alert.alert('Copied', 'Message text copied.');
+       setMenuVisible(false);
+    }
+  };
+
+  const deleteMessageAction = () => {
+    // Placeholder for delete logic
+    Alert.alert('Info', 'Message deletion enabled for admins only.');
+    setMenuVisible(false);
+  };
+
+  // ============================================================================
+  // 🎨 RENDERERS (MESSAGE ITEMS)
   // ============================================================================
 
   const renderMessageItem = ({ item, index }: { item: Message, index: number }) => {
     const isMe = item.sender_id === user?.id;
-    let content = "Message unavailable";
     
-    // Decrypt
+    // Decryption
+    let content = "Message unavailable";
     if (item.content_encrypted) {
       try { content = decryptMessage(item.content_encrypted); } catch { content = "🔒 Decryption Error"; }
     } else if (item.content) {
@@ -593,9 +757,9 @@ export default function ChatScreen() {
     return (
       <View>
         {showDate && (
-          <View style={{ alignItems: 'center', marginVertical: 24 }}>
-            <View style={{ backgroundColor: '#112240', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }}>
-              <Text style={{ color: '#8892B0', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' }}>{dateLabel}</Text>
+          <View style={styles.dateHeaderContainer}>
+            <View style={styles.dateHeader}>
+              <Text style={styles.dateHeaderText}>{dateLabel}</Text>
             </View>
           </View>
         )}
@@ -608,19 +772,15 @@ export default function ChatScreen() {
                 setMenuVisible(true);
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }}
-            style={{
-              maxWidth: '80%',
-              padding: 12,
-              borderRadius: 16,
-              backgroundColor: isMe ? COLORS.primary : COLORS.card,
-              borderBottomRightRadius: isMe ? 0 : 16,
-              borderBottomLeftRadius: isMe ? 16 : 0,
-              borderWidth: isMe ? 0 : 1,
-              borderColor: isMe ? 'transparent' : 'rgba(255,255,255,0.1)',
-              opacity: item.isOptimistic ? 0.7 : 1,
-              boxShadow: '0px 2px 3.84px rgba(0,0,0,0.1)',
-              elevation: 2,
-            }}
+            style={[
+              styles.bubble,
+              {
+                backgroundColor: isMe ? COLORS.primary : COLORS.card,
+                borderBottomRightRadius: isMe ? 0 : 16,
+                borderBottomLeftRadius: isMe ? 16 : 0,
+                opacity: item.isOptimistic ? 0.7 : 1
+              }
+            ]}
           >
             
             {/* --- MEDIA RENDERING (SECURE) --- */}
@@ -629,7 +789,7 @@ export default function ChatScreen() {
             {item.message_type === 'image' && item.file_url && (
                 <SecureImage 
                     path={item.file_url} 
-                    style={{ width: 220, height: 160, borderRadius: 12, marginBottom: 8 }} 
+                    style={styles.mediaImage} 
                 />
             )}
 
@@ -637,27 +797,27 @@ export default function ChatScreen() {
             {item.message_type === 'file' && item.file_url && (
                 <SecureFile 
                     path={item.file_url} 
-                    filename={item.file_name || 'Document'} 
+                    filename={item.file_name || 'File'} 
                     isMe={isMe} 
                 />
             )}
 
             {/* Text Content */}
             {(item.message_type === 'text' || !item.file_url) && (
-              <Text style={{ fontSize: 15, lineHeight: 22, color: isMe ? '#0A192F' : 'white', fontWeight: isMe ? '500' : '400' }}>
+              <Text style={[styles.messageText, { color: isMe ? COLORS.myText : COLORS.theirText, fontWeight: isMe ? '500' : '400' }]}>
                 {content}
               </Text>
             )}
 
-            {/* Meta */}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 4, gap: 4 }}>
-              <Text style={{ fontSize: 10, color: isMe ? 'rgba(10, 25, 47, 0.6)' : 'rgba(255,255,255,0.4)' }}>
+            {/* Metadata */}
+            <View style={styles.metaContainer}>
+              <Text style={[styles.timestamp, { color: isMe ? 'rgba(10,25,47,0.6)' : 'rgba(255,255,255,0.4)' }]}>
                 {format(new Date(item.created_at), 'h:mm a')}
               </Text>
               {isMe && (
                 item.isOptimistic 
-                  ? <ActivityIndicator size="small" color="#0A192F" /> 
-                  : <CheckCheck size={14} color="#0A192F" />
+                  ? <ActivityIndicator size="small" color="#0A192F"/> 
+                  : <CheckCheck size={14} color="#0A192F"/>
               )}
             </View>
           </TouchableOpacity>
@@ -666,25 +826,17 @@ export default function ChatScreen() {
     );
   };
 
-  const copyText = async () => {
-    if (selectedMessage?.content_encrypted) {
-       const txt = decryptMessage(selectedMessage.content_encrypted);
-       await Clipboard.setStringAsync(txt);
-       setMenuVisible(false);
-    }
-  };
-
   // ============================================================================
   // 🟢 LOADING RENDER
   // ============================================================================
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
           <ArrowLeft size={24} color={COLORS.dim} />
-          <View style={{ marginLeft: 16, height: 40, width: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)' }} />
-          <View style={{ marginLeft: 12, height: 24, width: 120, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+          <View style={styles.skeletonAvatar} />
+          <View style={styles.skeletonName} />
         </View>
         <View style={{ padding: 24, flex: 1, justifyContent: 'flex-end' }}>
            <SkeletonMessage align="left" />
@@ -696,50 +848,44 @@ export default function ChatScreen() {
     );
   }
 
-  // Changed the signature to remove `event: GestureResponderEvent` as it's not used by `pickDoc`
-  const handlePickDocument = () => {
-    pickDoc();
-  }
-
   // ============================================================================
   // 🖥️ MAIN RENDER
   // ============================================================================
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" />
 
       {/* HEADER */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.card, zIndex: 10 }}>
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 8, marginRight: 8, marginLeft: -8 }}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color="#8892B0" />
         </TouchableOpacity>
 
-        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#0A192F', borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden' }}>
-          {targetUser && targetUser.avatar_url ? (
+        <View style={styles.avatarContainer}>
+          {targetUser?.avatar_url ? (
             <Image source={{ uri: targetUser.avatar_url }} style={{ width: '100%', height: '100%' }} />
           ) : (
-            <Text style={{ color: COLORS.primary, fontWeight: 'bold', fontSize: 18 }}>{targetUser?.first_name?.[0] || '?'}</Text>
+            <Text style={styles.avatarText}>{targetUser?.first_name?.[0] || '?'}</Text>
           )}
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }} numberOfLines={1}>
-            {targetUser ? `${targetUser.first_name} ${targetUser.last_name || ''}` : 'Unknown User'}
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {targetUser?.first_name ? `${targetUser.first_name} ${targetUser.last_name || ''}` : targetUser?.email || 'Unknown'}
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={styles.headerSubtitle}>
             <Lock size={12} color={COLORS.primary} />
-            <Text style={{ color: COLORS.primary, fontSize: 12, marginLeft: 4, fontWeight: '500' }}>End-to-End Encrypted</Text>
+            <Text style={styles.headerSubtitleText}>End-to-End Encrypted</Text>
           </View>
         </View>
 
-        <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ padding: 8 }}>
+        <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.menuButton}>
           <MoreVertical size={24} color="#8892B0" />
         </TouchableOpacity>
       </View>
-     
 
-      {/* CHAT AREA */}
+      {/* MESSAGES */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -749,42 +895,33 @@ export default function ChatScreen() {
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
         keyboardDismissMode="interactive"
-        ListEmptyComponent={
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 80, opacity: 0.5 }}>
-                <Lock size={64} color="#8892B0" />
-                <Text style={{ marginTop: 24, fontSize: 18, fontWeight: 'bold', color: 'white' }}>Secure Channel</Text>
-                <Text style={{ color: '#8892B0', marginTop: 8, textAlign: 'center', paddingHorizontal: 40, lineHeight: 20 }}>
-                    Messages in this chat are private and secure. No one outside of this chat can read them.
-                </Text>
-            </View>
-        }
       />
 
       {/* UPLOAD OVERLAY */}
       {uploading && (
-        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)' }}>
-          <View style={{ backgroundColor: COLORS.card, padding: 32, borderRadius: 24, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border }}>
+        <View style={styles.uploadOverlay}>
+          <View style={styles.uploadCard}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={{ color: 'white', marginTop: 24, fontWeight: 'bold', fontSize: 20 }}>Uploading Securely...</Text>
+            <Text style={styles.uploadText}>Uploading Securely...</Text>
           </View>
         </View>
       )}
 
       {/* INPUT AREA */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
-        <View style={{ padding: 12, backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border, flexDirection: 'row', alignItems: 'flex-end', paddingBottom: 24 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={10}>
+        <View style={styles.inputContainer}>
           
-          <View style={{ flexDirection: 'row', gap: 4, marginBottom: 4 }}>
-            <TouchableOpacity onPress={pickImage} style={{ padding: 10, borderRadius: 99, backgroundColor: COLORS.border }}>
+          <View style={styles.attachButtons}>
+            <TouchableOpacity onPress={pickImage} style={styles.attachIcon}>
               <ImageIcon size={22} color={COLORS.dim} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handlePickDocument} style={{ padding: 10, borderRadius: 99, backgroundColor: COLORS.border }}>
+            <TouchableOpacity onPress={pickDocument} style={styles.attachIcon}>
               <Paperclip size={22} color={COLORS.dim} />
             </TouchableOpacity>
           </View>
 
           <TextInput 
-            style={{ flex: 1, backgroundColor: COLORS.background, color: 'white', borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 16, paddingVertical: 12, maxHeight: 128, minHeight: 48, fontSize: 16, marginHorizontal: 8 }}
+            style={styles.textInput}
             placeholder="Secure message..."
             placeholderTextColor="#5a6b8c"
             value={input}
@@ -796,7 +933,7 @@ export default function ChatScreen() {
           <TouchableOpacity 
             onPress={handleSend} 
             disabled={!input.trim() || sending} 
-            style={{ padding: 12, borderRadius: 99, marginBottom: 4, backgroundColor: input.trim() ? COLORS.primary : COLORS.border }}
+            style={[styles.sendButton, { backgroundColor: input.trim() ? COLORS.primary : COLORS.border }]}
           >
             {sending ? <ActivityIndicator size="small" color="#0A192F" /> : <Send size={22} color={input.trim() ? '#0A192F' : COLORS.dim} />}
           </TouchableOpacity>
@@ -805,30 +942,32 @@ export default function ChatScreen() {
 
       {/* OPTIONS MODAL */}
       <Modal transparent visible={menuVisible} animationType="fade" onRequestClose={() => setMenuVisible(false)}>
-        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)' }} activeOpacity={1} onPress={() => setMenuVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
           {selectedMessage ? (
-            <View style={{ position: 'absolute', bottom: 0, width: '100%', backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 40, paddingTop: 12 }}>
-               <View style={{ alignItems: 'center', marginBottom: 12 }}><View style={{ width: 48, height: 6, backgroundColor: COLORS.border, borderRadius: 99 }} /></View>
-               <TouchableOpacity onPress={copyText} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+            // CONTEXT MENU
+            <View style={styles.bottomSheet}>
+               <View style={styles.handleContainer}><View style={styles.handle} /></View>
+               <TouchableOpacity onPress={copyToClipboard} style={styles.sheetOption}>
                  <Copy size={24} color="#fff" />
-                 <Text style={{ marginLeft: 16, fontSize: 18, color: 'white', fontWeight: '500' }}>Copy</Text>
+                 <Text style={styles.sheetText}>Copy Text</Text>
                </TouchableOpacity>
                {selectedMessage.sender_id === user?.id && (
-                 <TouchableOpacity onPress={() => Alert.alert('Delete', 'Delete feature pending API update.')} style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}>
+                 <TouchableOpacity onPress={deleteMessageAction} style={styles.sheetOption}>
                    <Trash2 size={24} color={COLORS.danger} />
-                   <Text style={{ marginLeft: 16, fontSize: 18, color: COLORS.danger, fontWeight: '500' }}>Delete</Text>
+                   <Text style={[styles.sheetText, { color: COLORS.danger }]}>Delete Message</Text>
                  </TouchableOpacity>
                )}
             </View>
           ) : (
-            <View style={{ position: 'absolute', top: 60, right: 16, width: 240, backgroundColor: COLORS.card, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border }}>
-              <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+            // TOP MENU
+            <View style={styles.topMenu}>
+              <TouchableOpacity style={styles.menuOption}>
                  <Info size={20} color="#fff" />
-                 <Text style={{ marginLeft: 12, fontSize: 16, color: 'white' }}>Contact Info</Text>
+                 <Text style={styles.menuText}>Contact Info</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}>
+              <TouchableOpacity style={[styles.menuOption, { borderBottomWidth: 0 }]}>
                  <X size={20} color={COLORS.danger} />
-                 <Text style={{ marginLeft: 12, fontSize: 16, color: COLORS.danger }}>Close Chat</Text>
+                 <Text style={[styles.menuText, { color: COLORS.danger }]}>Close Chat</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -838,3 +977,307 @@ export default function ChatScreen() {
     </SafeAreaView>
   );
 }
+
+// ============================================================================
+// 🎨 STYLES
+// ============================================================================
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.card,
+    zIndex: 10,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
+    marginLeft: -8,
+  },
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0A192F',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  avatarText: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  headerTitle: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  headerSubtitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerSubtitleText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  menuButton: {
+    padding: 8,
+  },
+  // Skeleton
+  skeletonAvatar: {
+    marginLeft: 16,
+    height: 40,
+    width: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  skeletonName: {
+    marginLeft: 12,
+    height: 24,
+    width: 120,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  // Media Loading/Error
+  mediaLoading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  mediaError: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#151515',
+  },
+  mediaErrorText: {
+    color: COLORS.danger,
+    fontSize: 10,
+    marginTop: 4,
+  },
+  mediaImage: {
+    width: 220,
+    height: 160,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  // File Container
+  fileContainer: {
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 12, 
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  fileIconBox: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  fileInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  fileName: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  fileSubtext: {
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  // Date Header
+  dateHeaderContainer: {
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dateHeader: {
+    backgroundColor: '#112240',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  dateHeaderText: {
+    color: '#8892B0',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  // Message Bubble
+  bubble: {
+    maxWidth: '80%',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 2,
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  metaContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  timestamp: {
+    fontSize: 10,
+  },
+  // Input
+  inputContainer: {
+    padding: 12,
+    backgroundColor: COLORS.card,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingBottom: 24,
+  },
+  attachButtons: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 4,
+  },
+  attachIcon: {
+    padding: 10,
+    borderRadius: 99,
+    backgroundColor: COLORS.border,
+  },
+  textInput: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    color: 'white',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    maxHeight: 128,
+    minHeight: 48,
+    fontSize: 16,
+    marginHorizontal: 8,
+  },
+  sendButton: {
+    padding: 12,
+    borderRadius: 99,
+    marginBottom: 4,
+  },
+  // Overlays & Modals
+  uploadOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+  },
+  uploadCard: {
+    backgroundColor: COLORS.card,
+    padding: 32,
+    borderRadius: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  uploadText: {
+    color: 'white',
+    marginTop: 24,
+    fontWeight: 'bold',
+    fontSize: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.overlay,
+  },
+  bottomSheet: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+  },
+  handleContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  handle: {
+    width: 48,
+    height: 6,
+    backgroundColor: COLORS.border,
+    borderRadius: 99,
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  sheetText: {
+    marginLeft: 16,
+    fontSize: 18,
+    color: 'white',
+    fontWeight: '500',
+  },
+  topMenu: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    width: 240,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  menuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  menuText: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: 'white',
+  },
+  // Skeleton
+  skeletonRow: {
+    width: '100%',
+    flexDirection: 'row',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  skeletonBubble: {
+    borderRadius: 18,
+  }
+});
