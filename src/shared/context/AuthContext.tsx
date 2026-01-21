@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { Session } from '@supabase/supabase-js';
 import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -21,10 +28,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
-  
+
+  // Use refs to track state without triggering re-renders or suffering from stale closures
+  const lastUserId = useRef<string | null>(null);
+  const lastAccessToken = useRef<string | undefined>(undefined);
+
   const router = useRouter();
   const segments = useSegments();
-  const navigationState = useRootNavigationState(); // Check if nav is ready
+  const navigationState = useRootNavigationState();
 
   // --- 1. Robust Profile Fetcher ---
   const fetchProfile = async (currentSession: Session) => {
@@ -37,7 +48,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error && error.code !== 'PGRST116') throw error;
 
-      // Robust Fallback if profile missing (Self-Healing)
       const profile = data || {
         first_name: 'Member',
         role: 'member' as UserRole,
@@ -60,7 +70,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
     } catch (e) {
       console.warn('[Auth] Profile Load Warning:', e);
-      // Ensure we still set a user so the app doesn't hang
+      // Fallback to avoid hanging
       setUser({
         id: currentSession.user.id,
         email: currentSession.user.email!,
@@ -85,9 +95,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (!mounted) return;
 
-        setSession(initialSession);
         if (initialSession) {
-          await fetchProfile(initialSession);
+          setSession(initialSession);
+          lastAccessToken.current = initialSession.access_token;
+
+          if (initialSession.user.id !== lastUserId.current) {
+            lastUserId.current = initialSession.user.id;
+            await fetchProfile(initialSession);
+          }
         }
       } catch (error) {
         console.error('[Auth] Init Error:', error);
@@ -106,19 +121,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (!mounted) return;
 
+      // CRITICAL FIX: Only update if the access token actually changed.
+      // This prevents the infinite loop when Supabase fires multiple events for the same session.
+      if (newSession?.access_token === lastAccessToken.current) {
+        return;
+      }
+
+      lastAccessToken.current = newSession?.access_token;
       setSession(newSession);
 
-      if (newSession) {
-        if (!user || user.id !== newSession.user.id) {
+      if (newSession?.user) {
+        // Only fetch profile if the user ID has changed
+        if (newSession.user.id !== lastUserId.current) {
+          lastUserId.current = newSession.user.id;
           await fetchProfile(newSession);
         }
       } else {
+        lastUserId.current = null;
         setUser(null);
       }
 
       setIsLoading(false);
     });
 
+    // Failsafe timeout
     const timeout = setTimeout(() => {
       if (mounted && isLoading) {
         console.warn('[Auth] Failsafe triggered - forcing load completion');
@@ -132,92 +158,88 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
       clearTimeout(timeout);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- 3. Protection & Redirects (Optimized to prevent form interference) ---
+  // --- 3. Protection & Redirects ---
   useEffect(() => {
-    // Only redirect if:
-    // 1. Loading is done
-    // 2. Navigation is ready (RootState exists)
-    // 3. Component is mounted
     if (isLoading || !navigationState?.key || !isMounted) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const currentPath = segments.join('/');
-    
-    // Prevent redirects when user is actively on auth pages (typing in forms)
-    const isOnAuthPage = currentPath === '(auth)/login' || currentPath === '(auth)/register';
-    
-    // Use a longer delay and only redirect if not actively on auth page
-    const redirectTimer = setTimeout(() => {
-      // Double-check that we're still in the same state (user hasn't changed)
+    const isOnAuthPage =
+      currentPath === '(auth)/login' || currentPath === '(auth)/register';
+
+    // Using a ref to prevent race conditions during redirects
+    const checkRedirect = setTimeout(() => {
       if (!user && !inAuthGroup && !isOnAuthPage) {
-        // User not logged in, trying to access protected area
         router.replace('/(auth)/login');
       } else if (user && inAuthGroup && !isOnAuthPage) {
-        // User logged in, trying to access login screen - redirect to main
         router.replace('/(main)');
       }
-    }, 300); // Longer delay to prevent interference with typing
+    }, 100);
 
-    return () => clearTimeout(redirectTimer);
-  }, [user, isLoading, segments, navigationState, isMounted, router]);
+    return () => clearTimeout(checkRedirect);
+  }, [user, isLoading, segments, navigationState, isMounted]);
 
   // --- Actions ---
   const login = async (email: string, p: string) => {
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password: p });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: p,
+    });
     if (error) {
-        setIsLoading(false);
-        throw error;
+      setIsLoading(false);
+      throw error;
     }
   };
 
   const register = async (email: string, p: string, f: string, l: string) => {
     setIsLoading(true);
     const { error } = await supabase.auth.signUp({
-        email, password: p, options: { data: { first_name: f, last_name: l } }
+      email,
+      password: p,
+      options: { data: { first_name: f, last_name: l } },
     });
     if (error) {
-        setIsLoading(false);
-        throw error;
+      setIsLoading(false);
+      throw error;
     }
   };
 
   const logout = async () => {
     await supabase.auth.signOut();
+    lastUserId.current = null;
+    lastAccessToken.current = undefined;
     setUser(null);
     setSession(null);
-    // Explicitly navigate to ensure UI updates
     router.replace('/(auth)/login');
   };
 
   const refreshProfile = async () => {
     if (session) {
-        await fetchProfile(session);
+      await fetchProfile(session);
     }
   };
 
-  // Memoize callbacks to prevent re-renders
-  const loginMemo = useMemo(() => login, []);
-  const registerMemo = useMemo(() => register, []);
-  const logoutMemo = useMemo(() => logout, []);
-  const refreshProfileMemo = useMemo(() => refreshProfile, [session]);
-
-  const value = useMemo(() => ({
-    user, session, isLoading, 
-    login: loginMemo, 
-    register: registerMemo, 
-    logout: logoutMemo, 
-    refreshProfile: refreshProfileMemo
-  }), [user, session, isLoading, loginMemo, registerMemo, logoutMemo, refreshProfileMemo]);
+  const value = useMemo(
+    () => ({
+      user,
+      session,
+      isLoading,
+      login,
+      register,
+      logout,
+      refreshProfile,
+    }),
+    [user, session, isLoading],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) throw new Error("useAuth must be used within AuthProvider");
-    return context;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
 };
